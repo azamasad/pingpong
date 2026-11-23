@@ -103,5 +103,3 @@ Design details to be decided when scheduled.
 ## Open decisions
 
 - Which models to start with (owner, at setup).
-- Confirm the proposed language (see D-024).
-- Confirm the proposed V2 store (see D-025).

@@ -72,7 +72,8 @@ then the PRD, then the rest.
 ## Conventions
 
 - **V1, V2, V3, V4** tag when a feature arrives. Do not build later versions early.
-- **Proposed** means a suggestion pending the owner's confirmation.
+- **Proposed** means a suggestion pending the owner's confirmation. Nothing is
+  currently pending apart from the choice of models.
 - Figures for speed and size are estimates until measured.
 - This repository is public: no real addresses, keys or login links.
 

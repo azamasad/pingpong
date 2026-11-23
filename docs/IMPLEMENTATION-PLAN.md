@@ -19,10 +19,10 @@ done. It does not contain code.
   coding agent cannot reach. Do not assume it is done. Produce checklists
   (see [OPERATIONS.md](OPERATIONS.md)) and build against a fake Ollama.
 
-## 2. Recommended technology (proposed)
+## 2. Technology (confirmed by the owner)
 
-Proposed, pending owner confirmation (see D-024). Proceed with this unless the
-owner says otherwise.
+Confirmed in D-024, D-025 and D-037. Take a light approach: the least code and
+the fewest dependencies that meet the PRD, preferring the standard library.
 
 | Choice | Recommendation | Reason |
 |---|---|---|
@@ -81,6 +81,10 @@ milestone, small commits, and a pull request.
 | M10 | Acceptance | Owner runs the manual acceptance table in TESTING section 4 on real machines | All V1 criteria in the PRD pass |
 
 Order is a suggestion. M2 to M5 can proceed in parallel after M1.
+
+Light approach: milestones may be combined (for example M2 with M3, or M6 with
+M7) and need not each be a separate pull request, as long as every "done when"
+is still met. Do not skip tests or the memory check (M9).
 
 ## 5. V2 outline (do not build yet)
 

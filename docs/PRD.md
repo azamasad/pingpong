@@ -239,6 +239,5 @@ A simple view of "is this working":
 ## 14. Open questions
 
 - Which exact 3B, 8B and 14B models to start with (owner decides at setup).
-- Confirm the proposed implementation language (see D-024).
 - Whether `POST /api/chat` stays a separate path in V2 or becomes a wrapper over
   jobs (see API.md section 4).
