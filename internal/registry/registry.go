@@ -201,6 +201,11 @@ func (r *Registry) RouteSnapshot() route.Snapshot {
 	var machines []route.MachineState
 	for _, m := range r.cfg.Machines {
 		ms := r.state[m.Name]
+		inFlight, waiting := 0, 0
+		if r.gate != nil {
+			inFlight = r.gate.InFlight(m.Name)
+			waiting = r.gate.Waiting(m.Name)
+		}
 		machines = append(machines, route.MachineState{
 			Name:         m.Name,
 			Roles:        append([]string{}, m.Roles...),
@@ -208,6 +213,8 @@ func (r *Registry) RouteSnapshot() route.Snapshot {
 			Models:       append([]string{}, ms.names...),
 			Down:         ms.down,
 			NeverReached: ms.neverReached,
+			InFlight:     inFlight,
+			Waiting:      waiting,
 		})
 	}
 	return route.Snapshot{

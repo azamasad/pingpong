@@ -22,7 +22,7 @@ func newHarness(t *testing.T, heavyURL, fastURL string) (*httptest.Server, *regi
 	reg := registry.New(cfg, g)
 	reg.RefreshMachine(context.Background(), "mane")
 	reg.RefreshMachine(context.Background(), "firmino")
-	srv := api.NewServer(cfg, reg, g)
+	srv := api.NewServer(cfg, reg, g, nil)
 	return httptest.NewServer(srv.Handler()), reg
 }
 

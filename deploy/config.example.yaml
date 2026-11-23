@@ -29,6 +29,15 @@ routing:
   auto_role: heavy
   fast_role: fast
 
+# V5 named presets. Defaults if omitted: fast (fast flag), balanced (auto), deep (auto).
+# Set deep.model when a larger model is installed.
+# profiles:
+#   fast:
+#     fast: true
+#   balanced: {}
+#   deep:
+#     model: "qwen2.5:14b"
+
 timeouts:
   connect_timeout: 5s
   first_token_timeout: 30m
@@ -42,3 +51,11 @@ health:
   failures_to_mark_down: 2
   registry_refresh_interval: 5m
   refresh_on_model_miss: true
+
+# V2: durable jobs (SQLite). Uncomment to enable /api/jobs and background retries.
+# storage:
+#   data_dir: "~/Library/Application Support/pingpong"
+# retry:
+#   retry_interval: 2m
+#   retry_window: 3h
+# retention_days and sweep intervals use defaults when omitted (see docs/CONFIGURATION.md).

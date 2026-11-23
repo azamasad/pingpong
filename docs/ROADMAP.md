@@ -69,26 +69,34 @@ Done when: the V2 acceptance criteria in [PRD.md](PRD.md) pass.
 
 ## Phase 3: V3, queue
 
-Expected soon after V2. Build on V2's saved-request store. Keep it simple.
+Implemented on `cursor/v3-queue-aa2f` (D-066).
 
-- Interactive and batch lanes, first-come first-served within each.
-- Low per-machine concurrency.
-- Terminal submission of batches and fetching results.
+- Interactive and batch lanes, interactive admitted first, FIFO within a lane.
+- Per-machine concurrency stays `max_concurrent`.
+- `POST /api/batches`, `GET /api/batches/{id}`, and `pingpong batch`.
 - No brokers or job frameworks.
-
-Design details to be decided when scheduled.
 
 ## Phase 4: V4, expansion
 
-- Register new machines by role (for example Mac Studio, DGX Spark).
-- A rule for choosing between several machines of one role.
-- Reconsider where the brain should live.
+Implemented on `cursor/v4-roles-aa2f` (D-067).
+
+- New machines are config entries with a role. Rules still name roles.
+- Several machines with one role: least loaded machine that is up, then file order.
+- The brain stays on Mane. Moving it is a config change, not a code change.
+
+## Phase 5: V5, profiles
+
+Implemented on `cursor/v5-profiles-aa2f` (D-068).
+
+- Named presets in config. Defaults: `fast`, `balanced`, `deep`.
+- A request may set `profile`. Explicit `fast`, `model`, or `machine` overrides the preset.
+- `GET /api/profiles` lists them. The page has a profile selector.
 
 ## Deferred and backlog
 
 | Item | Notes |
 |---|---|
-| Profiles (fast / balanced / deep) | Named presets. Possibly during or after V3 |
+| Profiles (fast / balanced / deep) | Shipped as V5 (D-068) |
 | Notifications when tasks finish | Not needed yet |
 | Automatic task classification | Only if rules prove insufficient |
 | High availability | Out of scope while both machines are assumed up |

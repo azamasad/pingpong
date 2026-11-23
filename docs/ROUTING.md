@@ -32,8 +32,14 @@ for the test cases.
 
 Profiles (named presets such as "fast / balanced / deep") are deferred.
 
-If two machines share a role (not expected until V4), V1 uses the first one in
-the configuration file and logs a warning. Choosing between them is V4 work.
+If several machines share a role, V4 picks one at decision time and then
+stays with it (no mid-task reroute):
+
+1. Skip machines marked down.
+2. Among the rest, choose the fewest requests in flight, then the shortest
+   wait queue, then the earliest machine in the config file.
+3. If every machine with that role is down, use the first in the file so the
+   result is `MACHINE_DOWN`.
 
 ## 3. Decision order (exact)
 

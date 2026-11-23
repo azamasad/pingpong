@@ -22,26 +22,20 @@ unclear or conflicting, stop and ask the owner, then fix the docs.
 
 ## Current state
 
-**V1 ready for production** on branch `cursor/v1-implementation-aa2f` ([PR #2](https://github.com/azamasad/pingpong/pull/2)).
-CI green. Owner steps: [docs/PRODUCTION.md](docs/PRODUCTION.md), [SETUP-GUIDE.md](docs/SETUP-GUIDE.md) M8b–M10.
+**V5 (profiles)** on branch `cursor/v5-profiles-aa2f`, stacked on V4. **V1** on `main`.
+
+V4 role choice is D-067. V5 presets are D-068.
 
 | Milestone | Status |
 |---|---|
-| M0 Scaffold | Done |
-| M1 Config | Done |
-| M2 Ollama client + fake | Done (`internal/ollama`, `internal/fakeollama`) |
-| M3 Registry + health | Done (`internal/registry`) |
-| M4 Routing | Done (`internal/route`) |
-| M5 Gate | Done (`internal/gate`) |
-| M6 HTTP API | Done (`internal/api`) |
-| M7 Web UI | Done (embedded in `internal/api/web/`) |
-| M8a Packaging | Done (`deploy/`, `deploy/BUILD.md`, launchd example) |
-| M9a Memory check | Linux proxy test (`memory_linux_test.go`); **M9b on Mane still owner** |
-| M8b, M10 | **Owner** on real machines (SETUP-GUIDE, TESTING §4) |
+| M0–M8a, M9a | Done (`main`) |
+| V2-1 … V2-6 | Done (store, runner, API, retries, recovery, full job UI) |
+| V2 automated tests | `docs/TESTING.md` §2.5 coverage in CI |
+| M8b, M9b, M10 | **Owner** on real machines after merge |
 
-Run: `make test && make build`. Config: `deploy/config.example.yaml` (placeholders only).
+Do not start V3 until PR #3 is merged and owner signs off [TESTING.md](docs/TESTING.md) §4 (optional if CI + smoke is enough for you).
 
-Do not start V2 (SQLite jobs, retries, history UI).
+Run: `make test && make build`. Enable jobs with `storage.data_dir` in config (`deploy/config.example.yaml`).
 
 ## Rules
 

@@ -73,3 +73,32 @@ routing:
 		t.Fatalf("got %v", err)
 	}
 }
+
+func TestDefaultProfiles(t *testing.T) {
+	path := filepath.Join("..", "..", "deploy", "config.example.yaml")
+	cfg, _, err := Load(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !cfg.Profiles["fast"].Fast {
+		t.Fatal("fast profile should set fast")
+	}
+	if _, ok := cfg.Profiles["balanced"]; !ok {
+		t.Fatal("missing balanced")
+	}
+	if _, ok := cfg.Profiles["deep"]; !ok {
+		t.Fatal("missing deep")
+	}
+	fast, model, machine, err := cfg.ApplyProfile("fast", false, "", "")
+	if err != nil || !fast || model != "" || machine != "" {
+		t.Fatalf("%v %v %s %s", err, fast, model, machine)
+	}
+	_, _, _, err = cfg.ApplyProfile("nope", false, "", "")
+	if err == nil {
+		t.Fatal("expected unknown profile")
+	}
+	fast, model, _, err = cfg.ApplyProfile("fast", false, "qwen2.5:14b", "")
+	if err != nil || !fast || model != "qwen2.5:14b" {
+		t.Fatalf("pin should win: %v %v %s", err, fast, model)
+	}
+}

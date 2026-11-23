@@ -77,6 +77,44 @@ func TestModelAmbiguous(t *testing.T) {
 	}
 }
 
+func TestRolePicksLeastLoadedUpMachine(t *testing.T) {
+	s := baseSnap()
+	s.Machines = append(s.Machines, MachineState{
+		Name: "studio", Roles: []string{"heavy"}, DefaultModel: "qwen2.5:32b",
+		Models: []string{"qwen2.5:32b"}, InFlight: 0,
+	})
+	s.Machines[1].InFlight = 1
+	r := Decide(Request{}, s)
+	if !r.OK || r.Machine != "studio" || r.Model != "qwen2.5:32b" {
+		t.Fatalf("%+v", r)
+	}
+}
+
+func TestRoleSkipsDownPeer(t *testing.T) {
+	s := baseSnap()
+	s.Machines = append(s.Machines, MachineState{
+		Name: "studio", Roles: []string{"heavy"}, DefaultModel: "qwen2.5:32b",
+		Models: []string{"qwen2.5:32b"}, Down: true,
+	})
+	r := Decide(Request{}, s)
+	if !r.OK || r.Machine != "firmino" {
+		t.Fatalf("%+v", r)
+	}
+}
+
+func TestRoleAllDownUsesFirst(t *testing.T) {
+	s := baseSnap()
+	s.Machines[1].Down = true
+	s.Machines = append(s.Machines, MachineState{
+		Name: "studio", Roles: []string{"heavy"}, DefaultModel: "qwen2.5:32b",
+		Models: []string{"qwen2.5:32b"}, Down: true,
+	})
+	r := Decide(Request{}, s)
+	if r.Code != CodeMachineDown {
+		t.Fatalf("%+v", r)
+	}
+}
+
 func TestUnknownMachine(t *testing.T) {
 	r := Decide(Request{Machine: "ghost"}, baseSnap())
 	if r.Code != CodeMachineUnknown {

@@ -7,31 +7,34 @@ import (
 	"io"
 	"io/fs"
 	"net/http"
+	"sort"
 	"strings"
 	"sync"
 
 	"github.com/azamasad/pingpong/internal/apperrors"
 	"github.com/azamasad/pingpong/internal/config"
 	"github.com/azamasad/pingpong/internal/gate"
+	"github.com/azamasad/pingpong/internal/jobs"
 	"github.com/azamasad/pingpong/internal/registry"
 )
 
 //go:embed web/*
 var webFS embed.FS
 
-const Version = "1.0.0"
+const Version = "5.0.0"
 
 type Server struct {
 	Cfg      *config.Config
 	Reg      *registry.Registry
 	Gate     *gate.Gate
+	Jobs     *jobs.Service
 	Mux      *http.ServeMux
 	shutdown context.CancelFunc
 	once     sync.Once
 }
 
-func NewServer(cfg *config.Config, reg *registry.Registry, g *gate.Gate) *Server {
-	s := &Server{Cfg: cfg, Reg: reg, Gate: g, Mux: http.NewServeMux()}
+func NewServer(cfg *config.Config, reg *registry.Registry, g *gate.Gate, jobSvc *jobs.Service) *Server {
+	s := &Server{Cfg: cfg, Reg: reg, Gate: g, Jobs: jobSvc, Mux: http.NewServeMux()}
 	s.routes()
 	return s
 }
@@ -42,7 +45,16 @@ func (s *Server) routes() {
 	s.Mux.HandleFunc("GET /api/health", s.handleHealth)
 	s.Mux.HandleFunc("GET /api/machines", s.handleMachines)
 	s.Mux.HandleFunc("GET /api/models", s.handleModels)
+	s.Mux.HandleFunc("GET /api/profiles", s.handleProfiles)
 	s.Mux.HandleFunc("POST /api/chat", s.handleChat)
+	s.Mux.HandleFunc("POST /api/jobs", s.handleJobCreate)
+	s.Mux.HandleFunc("GET /api/jobs", s.handleJobList)
+	s.Mux.HandleFunc("GET /api/jobs/{id}", s.handleJobGet)
+	s.Mux.HandleFunc("GET /api/jobs/{id}/events", s.handleJobEvents)
+	s.Mux.HandleFunc("POST /api/jobs/{id}/cancel", s.handleJobCancel)
+	s.Mux.HandleFunc("DELETE /api/jobs/{id}", s.handleJobDelete)
+	s.Mux.HandleFunc("POST /api/batches", s.handleBatchCreate)
+	s.Mux.HandleFunc("GET /api/batches/{id}", s.handleBatchGet)
 }
 
 func (s *Server) Handler() http.Handler {
@@ -85,7 +97,8 @@ func (r *statusRecorder) Write(b []byte) (int, error) {
 
 func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(map[string]any{"ok": true, "version": Version})
+	out := map[string]any{"ok": true, "version": Version, "jobs": s.Jobs != nil}
+	_ = json.NewEncoder(w).Encode(out)
 }
 
 func (s *Server) handleMachines(w http.ResponseWriter, r *http.Request) {
@@ -96,6 +109,27 @@ func (s *Server) handleMachines(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleModels(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(s.Reg.ListModels())
+}
+
+func (s *Server) handleProfiles(w http.ResponseWriter, r *http.Request) {
+	type row struct {
+		Name    string `json:"name"`
+		Fast    bool   `json:"fast"`
+		Model   string `json:"model,omitempty"`
+		Machine string `json:"machine,omitempty"`
+	}
+	names := make([]string, 0, len(s.Cfg.Profiles))
+	for name := range s.Cfg.Profiles {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	out := make([]row, 0, len(names))
+	for _, name := range names {
+		p := s.Cfg.Profiles[name]
+		out = append(out, row{Name: name, Fast: p.Fast, Model: p.Model, Machine: p.Machine})
+	}
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(out)
 }
 
 func writeErr(w http.ResponseWriter, e apperrors.APIError) {

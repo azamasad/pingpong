@@ -40,7 +40,7 @@ func TestRSSProxyBudget(t *testing.T) {
 	cfg := testConfig(t, ts.URL, ts.URL)
 	g := gate.New(map[string]int{"mane": 1, "firmino": 1})
 	reg := registry.New(cfg, g)
-	_ = api.NewServer(cfg, reg, g)
+	_ = api.NewServer(cfg, reg, g, nil)
 	after, _ := rssKB()
 	delta := after - before
 	// Generous ceiling for test binary overhead; owner re-checks on Mane.
