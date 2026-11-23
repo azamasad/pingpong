@@ -53,6 +53,10 @@ func (s *Server) resolveRoute(ctx context.Context, req route.Request) route.Resu
 }
 
 func (s *Server) handleChat(w http.ResponseWriter, r *http.Request) {
+	if s.shuttingDown.Load() {
+		writeErr(w, apperrors.New("ROUTER_RESTARTING", "router is shutting down"))
+		return
+	}
 	max := s.Cfg.Router.MaxBodyBytes
 	body, err := readBodyLimited(r, max)
 	if err != nil {
@@ -79,6 +83,8 @@ func (s *Server) handleChat(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	cb.Fast, cb.Model, cb.Machine = fast, model, machine
+	alias := ""
+	cb.Model, cb.Machine, alias = s.Cfg.ResolveAlias(cb.Model, cb.Machine)
 	routeReq := route.Request{Fast: cb.Fast, Model: cb.Model, Machine: cb.Machine}
 	res := s.resolveRoute(r.Context(), routeReq)
 	if !res.OK {
@@ -93,7 +99,7 @@ func (s *Server) handleChat(w http.ResponseWriter, r *http.Request) {
 		s.chatNonStream(w, r, cb, msgs, res)
 		return
 	}
-	s.chatStream(w, r, cb, msgs, res)
+	s.chatStream(w, r, cb, msgs, res, alias)
 }
 
 type chunkRes struct {
@@ -102,12 +108,16 @@ type chunkRes struct {
 	err error
 }
 
-func (s *Server) chatStream(w http.ResponseWriter, r *http.Request, cb ChatBody, msgs []ollama.ChatMessage, res route.Result) {
+func (s *Server) chatStream(w http.ResponseWriter, r *http.Request, cb ChatBody, msgs []ollama.ChatMessage, res route.Result, alias string) {
 	w.Header().Set("Content-Type", "application/x-ndjson")
 	w.WriteHeader(http.StatusOK)
-	_ = writeLine(w, map[string]any{
+	routeLine := map[string]any{
 		"type": "route", "machine": res.Machine, "model": res.Model, "mode": res.Mode,
-	})
+	}
+	if alias != "" {
+		routeLine["alias"] = alias
+	}
+	_ = writeLine(w, routeLine)
 
 	ctx, cancel := context.WithCancel(r.Context())
 	defer cancel()
@@ -212,6 +222,12 @@ streamLoop:
 	for {
 		select {
 		case <-ctx.Done():
+			if s.shuttingDown.Load() {
+				_ = writeSafe(map[string]any{
+					"type": "error", "code": "ROUTER_RESTARTING",
+					"message": "router is shutting down", "retryable": true,
+				})
+			}
 			return
 		case cr, open := <-chunks:
 			if !open && !gotFirst {
@@ -248,6 +264,13 @@ streamLoop:
 			}
 			lastChunk = time.Now()
 		case <-tick.C:
+			if s.shuttingDown.Load() {
+				_ = writeSafe(map[string]any{
+					"type": "error", "code": "ROUTER_RESTARTING",
+					"message": "router is shutting down", "retryable": true,
+				})
+				return
+			}
 			if time.Since(start) > maxRun {
 				cancel()
 				stream.Close()

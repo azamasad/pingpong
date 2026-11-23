@@ -62,7 +62,8 @@ type Event struct {
 }
 
 type Store struct {
-	db *sql.DB
+	db  *sql.DB
+	dir string
 }
 
 func Open(dir string) (*Store, error) {
@@ -74,7 +75,7 @@ func Open(dir string) (*Store, error) {
 	if err != nil {
 		return nil, err
 	}
-	s := &Store{db: db}
+	s := &Store{db: db, dir: dir}
 	if err := s.migrate(); err != nil {
 		return nil, err
 	}
@@ -82,6 +83,12 @@ func Open(dir string) (*Store, error) {
 }
 
 func (s *Store) Close() error { return s.db.Close() }
+
+// Checkpoint flushes the WAL before exit.
+func (s *Store) Checkpoint() error {
+	_, err := s.db.Exec("PRAGMA wal_checkpoint(TRUNCATE)")
+	return err
+}
 
 func (s *Store) migrate() error {
 	_, err := s.db.Exec(`

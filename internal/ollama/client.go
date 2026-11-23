@@ -75,6 +75,35 @@ func NewClient(base string, connectTimeout time.Duration) *Client {
 	}
 }
 
+// Version returns Ollama's reported version from GET /api/version.
+func (c *Client) Version(ctx context.Context) (string, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.Base+"/api/version", nil)
+	if err != nil {
+		return "", err
+	}
+	ctx, cancel := context.WithTimeout(ctx, c.Timeout)
+	defer cancel()
+	req = req.WithContext(ctx)
+	resp, err := c.HTTP.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("version: http %d", resp.StatusCode)
+	}
+	var v struct {
+		Version string `json:"version"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&v); err != nil {
+		return "", err
+	}
+	if v.Version == "" {
+		return "unknown", nil
+	}
+	return v.Version, nil
+}
+
 func (c *Client) Tags(ctx context.Context) ([]ModelTag, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.Base+"/api/tags", nil)
 	if err != nil {

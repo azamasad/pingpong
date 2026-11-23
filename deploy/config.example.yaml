@@ -52,6 +52,18 @@ health:
   registry_refresh_interval: 5m
   refresh_on_model_miss: true
 
+# V6: optional shutdown grace (default 10s when omitted)
+# router:
+#   shutdown_grace: 10s
+
+# V7: short names for models (optional)
+# aliases:
+#   code:
+#     model: qwen2.5-coder:14b
+#   quick:
+#     model: llama3.2:3b
+#     machine: mane
+
 # V2: durable jobs (SQLite). Uncomment to enable /api/jobs and background retries.
 # storage:
 #   data_dir: "~/Library/Application Support/pingpong"

@@ -9,9 +9,13 @@
 <body>
   <header>
     <h1>Pingpong</h1>
+    <nav class="tabs">
+      <button type="button" id="tab-chat" class="active">Chat</button>
+      <button type="button" id="tab-status">Status</button>
+    </nav>
     <p id="machines" class="machines">Loading machines…</p>
   </header>
-  <main>
+  <main id="panel-chat">
     <div class="controls">
       <label>Profile <select id="profile"><option value="">—</option></select></label>
       <label><input type="checkbox" id="fast"> Fast (Mane)</label>
@@ -59,6 +63,9 @@
     </div>
   </aside>
   </main>
+  <section id="panel-status" class="hidden">
+    <pre id="status-out">Loading status…</pre>
+  </section>
   <script src="app.js"></script>
 </body>
 </html>
