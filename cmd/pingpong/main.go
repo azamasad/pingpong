@@ -11,9 +11,12 @@ import (
 	"syscall"
 
 	"github.com/azamasad/pingpong/internal/api"
+	"github.com/azamasad/pingpong/internal/clock"
 	"github.com/azamasad/pingpong/internal/config"
 	"github.com/azamasad/pingpong/internal/gate"
+	"github.com/azamasad/pingpong/internal/jobs"
 	"github.com/azamasad/pingpong/internal/registry"
+	"github.com/azamasad/pingpong/internal/store"
 )
 
 func main() {
@@ -46,7 +49,18 @@ func main() {
 	defer cancel()
 	reg.Start(ctx)
 
-	srv := api.NewServer(cfg, reg, g)
+	var jobSvc *jobs.Service
+	if cfg.JobsEnabled() {
+		st, err := store.Open(cfg.Storage.DataDir)
+		if err != nil {
+			log.Fatalf("store: %v", err)
+		}
+		defer st.Close()
+		jobSvc = jobs.New(cfg, st, reg, g, clock.Real{})
+		jobSvc.Start(ctx)
+	}
+
+	srv := api.NewServer(cfg, reg, g, jobSvc)
 	httpSrv := &http.Server{
 		Addr:    cfg.Router.Listen,
 		Handler: srv.Handler(),

@@ -75,7 +75,7 @@ func TestChatAutoStream(t *testing.T) {
 	reg := registry.New(cfg, g)
 	reg.RefreshMachine(context.Background(), "mane")
 	reg.RefreshMachine(context.Background(), "firmino")
-	srv := api.NewServer(cfg, reg, g)
+	srv := api.NewServer(cfg, reg, g, nil)
 	ts := httptest.NewServer(srv.Handler())
 	defer ts.Close()
 
@@ -112,7 +112,7 @@ func TestHostRejected(t *testing.T) {
 	defer fTs.Close()
 	cfg := testConfig(t, hTs.URL, fTs.URL)
 	g := gate.New(map[string]int{"mane": 1, "firmino": 1})
-	srv := api.NewServer(cfg, registry.New(cfg, g), g)
+	srv := api.NewServer(cfg, registry.New(cfg, g), g, nil)
 	ts := httptest.NewServer(srv.Handler())
 	defer ts.Close()
 	req, _ := http.NewRequest(http.MethodGet, ts.URL+"/api/health", nil)

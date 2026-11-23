@@ -34,8 +34,35 @@ async function refreshMeta() {
   }
 }
 
+let jobsOn = false;
+
+async function refreshJobs() {
+  if (!jobsOn) return;
+  try {
+    const list = await fetch('/api/jobs?limit=20').then((r) => r.json());
+    const ul = $('jobs-list');
+    ul.innerHTML = '';
+    list.forEach((j) => {
+      const li = document.createElement('li');
+      li.textContent = `${j.status} · ${j.prompt_preview || j.id}`;
+      ul.appendChild(li);
+    });
+  } catch (_) {}
+}
+
+async function refreshHealth() {
+  try {
+    const h = await fetch('/api/health').then((r) => r.json());
+    jobsOn = !!h.jobs;
+    $('jobs-panel').classList.toggle('hidden', !jobsOn);
+    if (jobsOn) refreshJobs();
+  } catch (_) {}
+}
+
 setInterval(refreshMeta, 5000);
+setInterval(refreshJobs, 8000);
 refreshMeta();
+refreshHealth();
 
 function setElapsed() {
   if (!t0) return;

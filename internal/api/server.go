@@ -13,25 +13,27 @@ import (
 	"github.com/azamasad/pingpong/internal/apperrors"
 	"github.com/azamasad/pingpong/internal/config"
 	"github.com/azamasad/pingpong/internal/gate"
+	"github.com/azamasad/pingpong/internal/jobs"
 	"github.com/azamasad/pingpong/internal/registry"
 )
 
 //go:embed web/*
 var webFS embed.FS
 
-const Version = "1.0.0"
+const Version = "2.0.0"
 
 type Server struct {
 	Cfg      *config.Config
 	Reg      *registry.Registry
 	Gate     *gate.Gate
+	Jobs     *jobs.Service
 	Mux      *http.ServeMux
 	shutdown context.CancelFunc
 	once     sync.Once
 }
 
-func NewServer(cfg *config.Config, reg *registry.Registry, g *gate.Gate) *Server {
-	s := &Server{Cfg: cfg, Reg: reg, Gate: g, Mux: http.NewServeMux()}
+func NewServer(cfg *config.Config, reg *registry.Registry, g *gate.Gate, jobSvc *jobs.Service) *Server {
+	s := &Server{Cfg: cfg, Reg: reg, Gate: g, Jobs: jobSvc, Mux: http.NewServeMux()}
 	s.routes()
 	return s
 }
@@ -43,6 +45,12 @@ func (s *Server) routes() {
 	s.Mux.HandleFunc("GET /api/machines", s.handleMachines)
 	s.Mux.HandleFunc("GET /api/models", s.handleModels)
 	s.Mux.HandleFunc("POST /api/chat", s.handleChat)
+	s.Mux.HandleFunc("POST /api/jobs", s.handleJobCreate)
+	s.Mux.HandleFunc("GET /api/jobs", s.handleJobList)
+	s.Mux.HandleFunc("GET /api/jobs/{id}", s.handleJobGet)
+	s.Mux.HandleFunc("GET /api/jobs/{id}/events", s.handleJobEvents)
+	s.Mux.HandleFunc("POST /api/jobs/{id}/cancel", s.handleJobCancel)
+	s.Mux.HandleFunc("DELETE /api/jobs/{id}", s.handleJobDelete)
 }
 
 func (s *Server) Handler() http.Handler {
@@ -85,7 +93,8 @@ func (r *statusRecorder) Write(b []byte) (int, error) {
 
 func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(map[string]any{"ok": true, "version": Version})
+	out := map[string]any{"ok": true, "version": Version, "jobs": s.Jobs != nil}
+	_ = json.NewEncoder(w).Encode(out)
 }
 
 func (s *Server) handleMachines(w http.ResponseWriter, r *http.Request) {

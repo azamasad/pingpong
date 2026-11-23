@@ -42,3 +42,11 @@ health:
   failures_to_mark_down: 2
   registry_refresh_interval: 5m
   refresh_on_model_miss: true
+
+# V2: durable jobs (SQLite). Uncomment to enable /api/jobs and background retries.
+# storage:
+#   data_dir: "~/Library/Application Support/pingpong"
+# retry:
+#   retry_interval: 2m
+#   retry_window: 3h
+# retention_days and sweep intervals use defaults when omitted (see docs/CONFIGURATION.md).
