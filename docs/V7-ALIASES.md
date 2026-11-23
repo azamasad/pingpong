@@ -46,6 +46,9 @@ Default: no aliases. Behaviour with none configured is exactly V5.
 - No alias may point at another alias. No chains (P1, P9).
 - `model` must not be empty. `machine`, if set, must exist.
 - A profile's `model` may be an alias name. It is expanded the same way.
+- A profile's `machine` must exist. The loader does not check this today
+  (`machine: typo` in a profile fails only when a request uses it), so V7
+  adds the check while it is already validating aliases.
 - An alias whose name equals a model installed on any machine (an untagged
   model such as `mistral`) is **not** a load error, because model lists are
   not known at load time. It becomes a warning from `pingpong doctor` (V6) and
@@ -53,8 +56,10 @@ Default: no aliases. Behaviour with none configured is exactly V5.
 
 ## 3. Resolution
 
-Aliases are expanded in one place, right after profiles are applied and before
-routing:
+Aliases are expanded by one function, called right after profiles are applied
+and before routing. Live chat and jobs both call it. Jobs call it at submit
+and again at each attempt, which is where profiles are applied today, so the
+two cannot drift apart:
 
 1. Apply the profile, as in V5. An explicit `fast`, `model` or `machine` on the
    request still wins over the profile.
@@ -108,8 +113,10 @@ subject to the same Host and Origin checks as every endpoint.
 
 ## 5. Web page and CLI
 
-- The model picker lists aliases first, labelled with the real model, for
-  example `code (qwen2.5-coder:14b)`, then the real model tags.
+- The existing model dropdown (filled from `GET /api/models`) also gets
+  `GET /api/aliases`. It lists aliases first, labelled with the real model, for
+  example `code (qwen2.5-coder:14b)`, then the real model tags. The profile
+  selector from V5 is unchanged.
 - An alias that is not installed anywhere is shown greyed out with the reason.
 - The route line already shows the resolved model. It adds `via code` when an
   alias was used.
@@ -127,10 +134,10 @@ subject to the same Host and Origin checks as every endpoint.
 
 | ID | Who | Work | Done when |
 |---|---|---|---|
-| M16 | Agent | Config: `aliases`, validation, defaults, example in `deploy/config.example.yaml` | Tests for each load rule in section 2 |
+| M16 | Agent | Config: `aliases`, validation (including the profile `machine` check), example in `deploy/config.example.yaml`, and the config doc | Tests for each load rule in section 2 |
 | M17 | Agent | Resolution after profiles, before routing; `alias` in route event and job detail | Tests for every row in sections 3 and 4, including the machine conflict rule |
 | M18 | Agent | `GET /api/aliases`, page picker, `via` label | API and UI tests. A page without aliases looks like V5 |
-| M19 | Agent | Doctor warnings (alias equals an installed model name, alias to missing machine) | Needs V6 M11a. Test with the fake Ollama |
+| M19 | Agent | Doctor warnings: an alias equals an installed model name, or an alias's model is installed nowhere | Needs V6 M11a. Test with the fake Ollama. Machine checks are already load errors |
 | M20 | Owner | Define two real aliases on Mane and Firmino and use them from the page and a batch | Resolved model shown correctly. Missing alias target gives a clear error |
 
 ## 8. Automated tests
@@ -138,7 +145,7 @@ subject to the same Host and Origin checks as every endpoint.
 Added to [TESTING.md](TESTING.md) when built.
 
 - Config: invalid name (with `:`), alias to alias, empty model, unknown machine
-  are each rejected. No aliases means no behaviour change from V5.
+  (in an alias or a profile) are each rejected. No aliases means no behaviour change from V5.
 - Resolution table: one test per row in section 3, run through `POST /api/chat`
   and through a job.
 - Explicit request `machine` beats the alias's `machine`. Explicit request

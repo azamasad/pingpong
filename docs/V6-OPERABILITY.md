@@ -29,20 +29,19 @@ V6 adds no new routing behaviour and no new request types.
 ## 3. `pingpong doctor`
 
 ```text
-pingpong doctor --config PATH [--chat] [--json]
+pingpong doctor [--config PATH] [--chat] [--json]
 ```
 
 Runs locally on the router machine. It reads the same config file as the
-router and does not need the router to be running.
+router (`--config`, or `PINGPONG_CONFIG` when the flag is omitted) and does not
+need the router to be running.
 
 ### Checks
 
 | Group | Check | Result |
 |---|---|---|
-| Config | File loads and validates | fail if invalid |
-| Config | Router listens on localhost only | fail otherwise (constitution P7, D-040) |
-| Config | Each role named in `routing` has at least one machine | fail |
-| Config | Every profile (and, from V7, alias) points at a real machine | fail |
+| Config | File loads and validates. This already covers: unique machines, valid addresses, roles named in `routing` exist, router listens on localhost only (P7, D-040). Any load error is reported here as one `fail` with the loader's message | fail if invalid |
+| Config | Every profile's `machine` is a configured machine. The loader does not check this today | fail |
 | Storage | `data_dir` set, exists or can be created, writable | fail if not; warn if jobs are off |
 | Storage | Free disk space under `data_dir` | warn below 5 GB, fail below 500 MB |
 | Machine | Reachable (`/api/tags` answers within the health timeout) | fail if not |
@@ -79,32 +78,63 @@ against a real Ollama stream.
 
 ## 4. Graceful shutdown
 
+### Today (V5)
+
+On `SIGTERM` or `SIGINT` the router cancels its background loops, then calls
+the HTTP server's shutdown with **no time limit**, so one open stream can hold
+the process until the launch agent gives up and kills it. Running jobs are not
+stopped on purpose. They are recovered at the next start (running becomes
+retrying, see [JOBS-AND-RETRIES.md](JOBS-AND-RETRIES.md)). Job output is saved
+every `output_flush_interval` (1 second), so up to one second of the latest
+output can be lost, though nothing already saved is. This is safe but untidy.
+
+### V6 behaviour
+
 On `SIGTERM` or `SIGINT` the router:
 
-1. Stops accepting new requests. `POST` endpoints return `503` with a new
+1. Closes its listener, so new connections are refused. A request that still
+   arrives on an existing keep-alive connection gets `503` with a new
    retryable error code `ROUTER_RESTARTING` (add to the error table in
-   [API.md](API.md)). `GET` endpoints keep working until the end.
-2. For **jobs** (V2 and later): lets each running job flush its saved output,
-   then marks it `retrying` with reason `router_restarting`. This is the same
-   state restart recovery already uses, so no new lifecycle is needed. The
-   retry window is not reset and not consumed by a restart.
+   [API.md](API.md)). `GET` requests on those connections are still answered.
+2. For **jobs**: stops each running job, saves its output so far, and marks it
+   `retrying` with `error_code` `ROUTER_RESTARTING`. This is the state restart
+   recovery already uses, so no new lifecycle is needed. As for any restart,
+   the interrupted attempt counts as one failed attempt under the documented
+   rule in [JOBS-AND-RETRIES.md](JOBS-AND-RETRIES.md): the retry window runs
+   from the original first failure, or starts now if there was none. The
+   recovery code does not yet start that window, so M12 includes aligning
+   the code with the document.
 3. For **live `POST /api/chat` streams**: sends an in-band `error` event with
    `ROUTER_RESTARTING` and closes. These are connection-tied by design (D-064).
 4. Closes the SQLite store cleanly (checkpoint the write-ahead log).
-5. Exits, after at most `shutdown_grace` (default `10s`). Anything still
-   running at that point is cancelled and handled as in step 2 or 3.
+5. Exits after at most `shutdown_grace` (default `10s`). Anything still
+   running at that point is handled as in step 2 or 3.
 
 New config key: `router.shutdown_grace`.
 
-Launchd already sends `SIGTERM` on unload, so the plist needs no change.
+### Launchd
+
+Launchd sends `SIGTERM` on unload and waits `ExitTimeOut` (20 seconds by
+default) before it kills the process. The 10-second default grace fits inside
+that. If the owner raises `shutdown_grace`, the plist needs an `ExitTimeOut` at
+least 5 seconds larger. Add that note to the plist example when built.
+
+### The restart gap
+
+For the few seconds the router is down, clients that go through Tailscale Serve
+see a connection error or a gateway error, not `ROUTER_RESTARTING`. That code
+only reaches clients that were already connected. Jobs are unaffected (they
+resume on their own). Clients that submit work should simply retry. The V6
+doc does not add client-side retries to the page or `pingpong batch`.
 
 ## 5. `pingpong backup`
 
 ```text
-pingpong backup --config PATH --to DIR
+pingpong backup [--config PATH] --to DIR
 ```
 
-- Reads `storage.data_dir` from the config.
+- Reads `storage.data_dir` from the config the way the router does (the config
+  path comes from `--config` or `PINGPONG_CONFIG`, and a leading `~/` is expanded).
 - Writes `DIR/pingpong-YYYYMMDD-HHMMSS.db`, a single consistent file made with
   SQLite's `VACUUM INTO`. This is safe while the router is running and does not
   pause it.
@@ -161,7 +191,7 @@ No other new keys. `doctor`, `backup` and the status view need none.
 |---|---|---|---|
 | M11a | Agent | `pingpong doctor` without `--chat`, against the fake Ollama | Every check has a passing and a failing test. Exit codes verified |
 | M11b | Agent | `--chat` check, including a stream with a wrong shape | Fake with a malformed stream is reported as a failure |
-| M12 | Agent | Graceful shutdown with `ROUTER_RESTARTING` | Test: a running job is `retrying` after shutdown and finishes after restart |
+| M12 | Agent | Graceful shutdown with `ROUTER_RESTARTING`, shutdown time limit, and recovery code aligned with the retry-window rule | Test: a running job is `retrying` after shutdown, has the window started, and finishes after restart. The process exits within `shutdown_grace` even with an open chat stream |
 | M13 | Agent | `pingpong backup` | Test: backup taken during writes opens and has consistent rows. Mode is `0600` |
 | M14 | Agent | `/api/status` and the Status tab | Test: shape, no content fields, `null` when jobs are off. RSS still under 50 MB |
 | M15 | Owner | Run `doctor --chat` on Mane and Firmino. Restart the router during a job. Take a backup | All three behave as described. Results copied into [HARDWARE-AND-MODELS.md](HARDWARE-AND-MODELS.md) |
@@ -173,9 +203,11 @@ Added to [TESTING.md](TESTING.md) when built.
 - Doctor: one test per check, each in an ok and a fail variant. No test may
   need a real machine.
 - Doctor `--json` output parses and matches the human result.
-- Shutdown: a job running at `SIGTERM` is `retrying`, keeps its partial output,
-  and does not lose retry time already used. A live chat gets `ROUTER_RESTARTING`.
-  New `POST` requests during shutdown get `503`.
+- Shutdown: a job running at `SIGTERM` is `retrying` with `ROUTER_RESTARTING`,
+  keeps its partial output, and its retry window follows the documented rule.
+  A live chat gets `ROUTER_RESTARTING`. A `POST` on a kept-alive connection
+  during shutdown gets `503`. The process exits within `shutdown_grace` while a
+  stream is still open.
 - Backup: concurrent writer during backup, restored copy passes
   `PRAGMA integrity_check`, file mode is `0600`, existing file is not overwritten.
 - Status: no prompt or output text appears anywhere in the response (a test
@@ -187,5 +219,8 @@ Added to [TESTING.md](TESTING.md) when built.
 
 - Doctor thresholds for free disk (5 GB warn, 500 MB fail) are guesses. Adjust
   after the owner sees real database growth.
+- Whether a planned restart should count as a failed attempt at all. The
+  existing rule says yes for any restart, and this spec follows it. A restart
+  starting a 3-hour window is harmless, but the owner may prefer otherwise.
 - Whether the status tab should show Ollama's loaded-model memory use. Only if
   Ollama's `/api/ps` already returns it in a stable form on the real machines.
