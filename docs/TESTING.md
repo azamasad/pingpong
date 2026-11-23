@@ -1,0 +1,180 @@
+# Testing
+
+Status: draft v1. How we know each version works. Acceptance criteria live in
+[PRD.md](PRD.md). This document says how to check them.
+
+## 1. Approach
+
+- The routing logic is a pure decision and should be tested heavily with
+  tables of inputs and expected outputs.
+- Everything that talks to Ollama is tested against a **fake Ollama server**
+  that can be scripted to be slow, fail, or disappear. Real models are not
+  needed for automated tests.
+- Real machines are used only for the final manual acceptance run.
+- Time-dependent behaviour (retries, retention) must be testable without
+  waiting real time, so the code should take an injectable clock.
+
+## 2. Automated tests
+
+### 2.1 Routing decision (unit)
+
+A table of cases derived from [ROUTING.md](ROUTING.md) section 8, including:
+
+| Case | Expected |
+|---|---|
+| No flags | Heavy role machine, its default model, mode `auto` |
+| `fast` | Fast role machine, its default model, mode `fast` |
+| Pin model installed on one machine | That machine, mode `pinned_model` |
+| Pin machine | That machine, default model, mode `pinned_machine` |
+| Pin model and machine, installed there | That pair, mode `pinned_model_and_machine` |
+| Pin model and machine, not installed there | `MODEL_NOT_INSTALLED` |
+| Pin model installed on two machines, no machine named | `MODEL_AMBIGUOUS` |
+| Pin unknown machine | `MACHINE_UNKNOWN` |
+| Pin model installed nowhere, every machine's list known | `MODEL_NOT_INSTALLED`, after one registry refresh |
+| Pin model not found, but a machine was never reached | `MODELS_UNKNOWN` (retryable) |
+| Pin model last seen on a machine that is now down | That machine, then `MACHINE_DOWN` |
+| Default model not installed, machine up | `MODEL_NOT_INSTALLED` naming the model and machine |
+| Default model not in a stale list, machine down | `MACHINE_DOWN` (never `MODEL_NOT_INSTALLED`) |
+| Model name without a tag | Matches `:latest` |
+| `fast` plus a pin | The pin wins |
+| Target machine marked down | `MACHINE_DOWN` |
+| No machine with the needed role | `NO_TARGET` |
+| Model omitted its tag | Treated as the default tag, as Ollama does |
+
+### 2.2 Concurrency gate (unit)
+
+- With `max_concurrent = 1`, a second request waits, then runs when the first
+  ends.
+- Waiting is first-come, first-served.
+- A waiting request whose client disconnects is removed without running.
+- A running request whose client disconnects cancels the upstream call.
+- Machines do not block each other.
+
+### 2.3 API (integration with fake Ollama)
+
+- Streaming order: `route`, `status`, `token` events, `done`.
+- Errors before streaming return the right HTTP status and code.
+- Errors after streaming starts arrive as an in-band `error` event.
+- `stream:false` returns one object.
+- `Host` and `Origin` checks reject unexpected values.
+- Oversized bodies are rejected.
+- Fake Ollama scenarios: slow first token, long gaps between tokens (timeouts),
+  connection dropped mid-stream, an `error` line mid-stream, machine unreachable,
+  HTTP 503 when overloaded, model list changes, and a reasoning model whose
+  stream includes `thinking` text (it must arrive as `thinking` events, never
+  inside `token` text).
+- Statistics: nanosecond durations from Ollama are converted correctly into
+  milliseconds and tokens per second.
+
+- Heartbeat: while a stream is quiet (waiting, loading, reading a prompt), `ping`
+  events arrive at the configured interval, and a failed write drops the request
+  and frees the machine.
+- Context warning: a final statistic showing the prompt within about 5 percent of
+  `num_ctx` sets `context_warning`. A normal prompt does not.
+- The router always sends the configured `num_ctx` and ignores a client-supplied one.
+- `stream:false` returns the single object described in API.md, and errors use
+  HTTP status codes.
+- Error mapping: each row of the mapping table in API.md section 3.2 is exercised
+  with the fake Ollama, and each code in section 3.1 returns its listed HTTP
+  status (including 403 for Host and Origin, 413, 404, and 502 or 504 for
+  `stream:false` upstream failures).
+- Response commitment: failures in validation, routing or the down check return
+  an HTTP error with nothing streamed. After the `route` event, every failure is
+  an in-band `error`. `route` arrives before any waiting.
+- Status events: no `waiting` when the machine is free; `waiting` with a 1-based
+  `position`, re-sent when it changes; exactly one `running` before the first chunk.
+- Request validation: empty `messages`, a bad role, a last message that is not
+  from the user, both `prompt` and `messages`, and unknown `options` keys (ignored).
+- Host and Origin: the full tailnet name, `localhost` and `127.0.0.1` pass, ignoring
+  case and port; `Origin: null` and other hosts are rejected; a missing `Origin` passes.
+- Timeouts: no first chunk (a `thinking` chunk counts), an idle gap, and the
+  total run-time cap each produce `TIMEOUT` and cancel upstream. Also with `stream:false`.
+- Context warning: also set when `prompt + output` reaches `num_ctx` or the done
+  reason is `length`. Missing or zero `prompt_tokens` does not crash or set it by itself.
+- A machine's default model that is not installed returns `MODEL_NOT_INSTALLED`
+  naming the default model, before any call to Ollama.
+
+### 2.4 Health and registry
+
+- A machine is marked down after the configured number of failed checks, and
+  back up when it recovers.
+- A request-time connection failure marks it down immediately.
+- Installed models update on refresh, and on a miss for a pinned model.
+- A machine with a request in flight is not marked down by failed health checks,
+  and marking it down never aborts the in-flight request.
+- In V1, requests waiting for a machine that goes down fail with an in-band
+  `MACHINE_DOWN`.
+- The last known model list is kept while a machine is down. A machine never
+  reached since start gives `MODELS_UNKNOWN` for a pinned model that cannot be found.
+- Real Ollama contract check (where the build environment allows): run the same
+  stream and model-list tests against a real Ollama with a tiny model, so the
+  fake cannot drift from reality.
+
+### 2.5 V2 tests
+
+- A request keeps running after the client disconnects.
+- Output is saved, and `events?from=` replays correctly.
+- Retry timing, using a fake clock: every 2 minutes, stop after 3 hours from
+  the first failure, window not reset by later failures.
+- Mid-task failure restarts from the beginning and the earlier partial output
+  is kept as history.
+- Router restart recovery: `waiting` and `retrying` resume, `running` becomes
+  `retrying`.
+- Cancel works from each active state.
+- Retention removes results older than 90 days and leaves newer ones.
+
+## 3. Resource tests (Mane)
+
+| Check | How | Pass |
+|---|---|---|
+| Idle memory | Measure the router process after start | Well under the 50 MB working budget |
+| Memory under load | Run several streaming requests | Stays under the budget |
+| Page weight | Measure the served page | Small, with no external assets |
+| V2 store growth | Save many requests and check disk use | Roughly proportional to text stored |
+
+## 4. Manual acceptance run (real machines)
+
+Done by the owner after setup. Check off against the PRD acceptance criteria.
+
+| # | Step | Expected |
+|---|---|---|
+| 1 | From the MacBook Air, over Tailscale, send a request with no flags | Answered by Firmino's 14B model. The response says so |
+| 2 | Send with `fast` | Answered by Mane's 8B model |
+| 3 | Pin the 3B model | Answered by the 3B on Mane |
+| 4 | Pin a model that is not installed | `MODEL_NOT_INSTALLED`. No substitution |
+| 5 | Send two requests to Firmino back to back | The second shows "waiting" and then completes |
+| 6 | Switch Firmino off and send an auto request | Clear error |
+| 7 | Close the browser during a long request | V1: work is stopped. Firmino stops generating |
+| 8 | While a request runs, check connections: `lsof -i -nP` on Mane (filter on Firmino's LAN address) and `ss -tnp` on Firmino | Only LAN addresses, no Tailscale addresses |
+| 9 | Check the router's memory on Mane | Within budget |
+| 10 | From the MacBook Air, try port 11434 on Firmino's LAN address and on its tailnet address | Both refused or time out |
+| 11 | Send a prompt of about 6,000 tokens | `done` reports `prompt_tokens` above 4096 and no context warning (the window is set explicitly). Then send one near 8,192 and confirm the warning appears |
+| 12 | Reboot each machine, and cut power to Mane briefly | Both come back and answer without help |
+| 13 | Open the router address from a device not on your tailnet | It does not load |
+| 14 | Send a request to Firmino with a long prompt and watch the page from the MacBook Air | Tokens appear gradually, not all at once (Tailscale Serve is not buffering). Elapsed time keeps ticking while it waits, and the connection survives several quiet minutes |
+| 15 | Close the browser tab during a long prompt on Firmino, then check Firmino's CPU | CPU use falls once the request is cancelled. If it does not fall quickly, Tailscale Serve is hiding the disconnect: note it, rely on the run-time cap, and report it |
+| 17 | Press the page's Stop button during a long request | Firmino's CPU falls at once (this path does not depend on disconnect detection) |
+| 18 | After a reboot, with the router started by its launch agent, send a request to Firmino | It works (macOS Local Network permission is not blocking it) |
+| 16 | After a reboot of Mane, check that Tailscale Serve is still publishing the router | The page loads without any manual step |
+
+V2 additions: start a long task, close the laptop, return later and read the
+result; switch Firmino off, confirm retries every 2 minutes and a failure
+after 3 hours (or success on return); confirm results older than 90 days are
+removed.
+
+### Fake Ollama scenario format
+
+The fake Ollama is a small test server. Each test gives it a scenario: a list of
+steps played back in order for one call. Steps are: wait for a duration, send a
+chunk (with fields as real Ollama would: content or `thinking`, then a final
+chunk with the statistics), send an `error` line, close the connection, or return
+an HTTP status. The scenario can also set the model list returned by the tags
+call. Keep it a plain data file, one per test. Exact error lines Ollama sends
+mid-stream are not yet known; record the real shape in API.md section 6 after the
+real-Ollama check (M2).
+
+## 5. What not to test here
+
+- Model quality. Choosing models is separate.
+- RAG. Out of scope.
+- Public exposure. It must not exist, so the check is that it does not.
