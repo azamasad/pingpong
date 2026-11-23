@@ -19,8 +19,9 @@ Related: [ROUTING.md](ROUTING.md), [JOBS-AND-RETRIES.md](JOBS-AND-RETRIES.md),
   full message history every time.
 - Not an OpenAI-compatible API. That is deferred (see PRD section 10).
 
-Base URL: `http://<mane-tailscale-name>:<port>`. The port is configurable
-(see CONFIGURATION).
+Base URL: `https://<mane-tailnet-name>`, served by Tailscale Serve, which
+forwards to the router on localhost (see [SETUP-GUIDE.md](SETUP-GUIDE.md)
+section 4). The router's own port is configurable (see CONFIGURATION).
 
 ## 2. V1 endpoints
 
@@ -43,6 +44,7 @@ Request body (JSON):
 | `fast` | boolean | no | Send to the `fast` role machine (Mane) with its default model |
 | `model` | string | no | Pin a model. Exact Ollama name, for example `name:tag` |
 | `machine` | string | no | Pin a machine by registry name |
+| `think` | boolean | no | Pass through to Ollama for models that support reasoning. Leave unset for the default non-thinking models. If the model does not support it, Ollama returns an error, which is reported as `UPSTREAM_ERROR` |
 | `stream` | boolean | no, default `true` | `false` returns one JSON object at the end |
 | `options` | object | no | Optional generation settings passed through to Ollama (for example temperature). Ignored if unknown |
 
@@ -60,6 +62,7 @@ per line, in this order:
 |---|---|---|
 | `route` | Once, first | `type`, `machine`, `model`, `mode` |
 | `status` | On state changes | `type`, `state` (`waiting` or `running`), and for `waiting` an optional `position` |
+| `thinking` | Many, only for reasoning models | `type`, `text`. The model's reasoning text, kept separate from the answer. The page may hide or collapse it. Never mixed into `token` text |
 | `token` | Many | `type`, `text` |
 | `done` | Once, last on success | `type`, `machine`, `model`, `mode`, `stats` |
 | `error` | Once, last on failure after streaming began | `type`, `code`, `message`, `retryable` |
@@ -67,26 +70,39 @@ per line, in this order:
 `mode` values: `auto`, `fast`, `pinned_model`, `pinned_machine`,
 `pinned_model_and_machine`.
 
-`stats` fields (best effort): `queue_wait_ms`, `total_ms`, `prompt_tokens`,
-`output_tokens`.
+`stats` fields (best effort), taken from Ollama's final object. Ollama reports
+durations in **nanoseconds**, so convert:
+
+| Field | Source |
+|---|---|
+| `queue_wait_ms` | Measured by the router (time spent waiting for the machine) |
+| `total_ms` | `total_duration` from Ollama, converted |
+| `load_ms` | `load_duration` from Ollama, converted |
+| `prompt_tokens` | `prompt_eval_count` |
+| `prompt_tokens_per_s` | `prompt_eval_count` divided by `prompt_eval_duration` |
+| `output_tokens` | `eval_count` |
+| `output_tokens_per_s` | `eval_count` divided by `eval_duration` |
+
+These make the speed measurements in
+[HARDWARE-AND-MODELS.md](HARDWARE-AND-MODELS.md) section 8 easy to collect.
 
 Example (terminal):
 
 ```
-curl -N http://mane:PORT/api/chat -d '{"prompt":"Summarise this in one line: ..."}'
-curl -N http://mane:PORT/api/chat -d '{"prompt":"Hello","fast":true}'
-curl -N http://mane:PORT/api/chat -d '{"prompt":"Hello","model":"<3b-model-name>"}'
+curl -N https://MANE_TAILNET_NAME/api/chat -d '{"prompt":"Summarise this in one line: ..."}'
+curl -N https://MANE_TAILNET_NAME/api/chat -d '{"prompt":"Hello","fast":true}'
+curl -N https://MANE_TAILNET_NAME/api/chat -d '{"prompt":"Hello","model":"llama3.2:3b"}'
 ```
 
 Example stream:
 
 ```
-{"type":"route","machine":"firmino","model":"<14b-model-name>","mode":"auto"}
+{"type":"route","machine":"firmino","model":"qwen2.5:14b","mode":"auto"}
 {"type":"status","state":"waiting","position":1}
 {"type":"status","state":"running"}
 {"type":"token","text":"Hel"}
 {"type":"token","text":"lo"}
-{"type":"done","machine":"firmino","model":"<14b-model-name>","mode":"auto","stats":{"queue_wait_ms":8200,"total_ms":41000,"output_tokens":120}}
+{"type":"done","machine":"firmino","model":"qwen2.5:14b","mode":"auto","stats":{"queue_wait_ms":8200,"total_ms":41000,"output_tokens":120}}
 ```
 
 With `stream:false`, the response is one JSON object: `route` fields, the full
@@ -188,25 +204,42 @@ and record it in [DECISIONS.md](DECISIONS.md).
 
 ## 6. Compatibility with Ollama
 
-The router talks to each machine's Ollama using Ollama's own HTTP API. The
-parts it relies on:
+Verified against Ollama's published API reference (November 2026). Re-check
+against the installed version when building, because the API evolves. The
+reference is at `docs.ollama.com/api`.
 
-| Ollama capability | Used for |
+| Purpose | Ollama endpoint | Notes |
+|---|---|---|
+| Stream a chat | `POST /api/chat` | Body: `model`, `messages`, optional `options`, `stream`, `keep_alive`, `think`. Returns newline-delimited JSON objects. Set `"stream": false` for a single object |
+| List installed models | `GET /api/tags` | Returns `models` with `name`, `size`, and `details` (parameter size, quantization). Also the cheap reachability check |
+| List loaded models | `GET /api/ps` | Returns `models` currently in memory, with `expires_at` and `size_vram` |
+| Version | `GET /api/version` | Optional. Useful for logging the Ollama version |
+| Cancel generation | Close the HTTP connection | Ollama stops generating |
+| Preload a model | `POST /api/chat` with only `model` | Empty request loads it. Optional, not needed for V1 |
+
+How Ollama's chat stream looks (what the router must parse):
+
+- Each line is a JSON object with `model`, `created_at`, `message`
+  (`role`, `content`, and for reasoning models `thinking`), and `done: false`.
+- The last object has `done: true`, an empty `content`, and the statistics
+  listed in section 2.1, and may include a done reason.
+- The router turns `message.content` into `token` events and
+  `message.thinking` into `thinking` events.
+- If a line contains an `error` field, treat it as `UPSTREAM_ERROR`.
+
+Other points from the reference:
+
+| Topic | Fact |
 |---|---|
-| Chat generation with streaming | Running requests |
-| Listing installed models | The registry and reachability checks |
-| Listing running (loaded) models | Showing which models are loaded |
+| Model names | `name:tag`. With no tag, Ollama uses `latest` |
+| Keep-alive | The `keep_alive` request field overrides the server's `OLLAMA_KEEP_ALIVE`. Default is 5 minutes |
+| Overload | If its queue is full, Ollama answers with HTTP 503. Map this to `UPSTREAM_ERROR` (retryable) |
+| Context window | Default 4096 tokens. Set explicitly (see [HARDWARE-AND-MODELS.md](HARDWARE-AND-MODELS.md) section 4) |
+| Options | Per-request `options` accept Modelfile parameters such as `temperature`, `num_ctx` and `num_thread` |
 
-Endpoints as understood at the time of writing. Verify each against the
-installed Ollama version and its documentation before relying on them, and
-correct this table if they differ:
+Still to confirm by trying it against the real installed version (the
+reference does not make these explicit):
 
-| Purpose | Ollama endpoint (to verify) |
-|---|---|
-| Stream a chat | `POST /api/chat` with `stream: true`. The reply is newline-delimited JSON, with a final object marked done that includes token counts and timings |
-| List installed models | `GET /api/tags`. Also used as the cheap reachability check |
-| List loaded models | `GET /api/ps` |
-| Cancel generation | Close the HTTP connection. Ollama stops generating |
-
-Model names in Ollama are `name:tag`. Settings such as the context window go in
-the request's options.
+- The exact shape and HTTP status of an error for a missing model.
+- Whether an error mid-stream arrives as an `error` line or as a closed
+  connection. Handle both.

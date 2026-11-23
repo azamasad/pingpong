@@ -137,16 +137,18 @@ Interfaces are specified in [API.md](API.md), settings in
 | N8 | Slower responses on Firmino are acceptable. |
 | N9 | Prompts and outputs are never written to logs. |
 | N10 | Timeouts are generous enough for CPU inference on long prompts (see CONFIGURATION). |
+| N12 | The context window is set explicitly on both machines (8192 tokens to start), never left at Ollama's silent 4096 default. |
+| N13 | Reasoning (thinking) output, if a model produces it, is kept separate from the answer. |
 | N11 | The router starts on boot and restarts after failure. |
 
 ## 8. Starting models
 
 | Machine | Models |
 |---|---|
-| Mane | An 8B model (default for the fast flag) and a 3B model (reached by pinning). |
-| Firmino | A 14B model (default for auto). Larger models added later if needed. |
+| Mane | `llama3.1:8b` (default for the fast flag) and `llama3.2:3b` (reached by pinning). |
+| Firmino | `qwen2.5:14b` (default for auto). Larger models added later if needed. |
 
-Exact model choices are made at setup. See [HARDWARE-AND-MODELS.md](HARDWARE-AND-MODELS.md).
+These are non-thinking models, chosen for simplicity and published benchmarks. They are configuration and can be changed. See [HARDWARE-AND-MODELS.md](HARDWARE-AND-MODELS.md) and D-038.
 
 ## 9. Acceptance criteria
 
@@ -238,6 +240,5 @@ A simple view of "is this working":
 
 ## 14. Open questions
 
-- Which exact 3B, 8B and 14B models to start with (owner decides at setup).
 - Whether `POST /api/chat` stays a separate path in V2 or becomes a wrapper over
   jobs (see API.md section 4).

@@ -23,8 +23,8 @@ Related: [ARCHITECTURE.md](ARCHITECTURE.md), [ROUTING.md](ROUTING.md),
 
 | Setting | Default | Meaning |
 |---|---|---|
-| `listen` | all interfaces, configurable port | Where the router accepts clients. Reachability is restricted by the firewall and Tailscale |
-| `allowed_hosts` | Mane's Tailscale name and `localhost` | Accepted `Host` headers (see API security notes) |
+| `listen` | `127.0.0.1` and a configurable port | Where the router accepts connections. Localhost only. Tailscale Serve publishes it to the tailnet (see [SETUP-GUIDE.md](SETUP-GUIDE.md) section 4), so it is never open to the LAN |
+| `allowed_hosts` | Mane's tailnet name and `localhost` | Accepted `Host` headers (see API security notes) |
 | `max_body_bytes` | modest limit, for example a few MB | Largest accepted request body |
 | `log_level` | `info` | Logging detail |
 
@@ -33,11 +33,11 @@ Related: [ARCHITECTURE.md](ARCHITECTURE.md), [ROUTING.md](ROUTING.md),
 | Setting | Meaning |
 |---|---|
 | `name` | Registry name, for example `mane`, `firmino`. Used in pins |
-| `address` | Base URL of that machine's Ollama on the LAN |
+| `address` | Base URL of that machine's Ollama. For Mane itself this is localhost. For other machines it is their LAN address |
 | `roles` | List of roles, for example `fast`, `heavy` |
 | `default_model` | Model used when none is pinned |
 | `max_concurrent` | Requests in flight at once on this machine. Default `1` |
-| `num_ctx` | Optional context window size passed to Ollama. Unset means Ollama's default |
+| `num_ctx` | Optional context window size passed to Ollama with each request. Unset means the worker's own setting (`OLLAMA_CONTEXT_LENGTH`, 8192 in the setup guide). Ollama's built-in default is only 4096, which silently cuts long prompts |
 
 ### Routing
 
@@ -59,7 +59,13 @@ Related: [ARCHITECTURE.md](ARCHITECTURE.md), [ROUTING.md](ROUTING.md),
 
 These are starting values. CPU inference on Firmino can take minutes before the
 first token on long prompts, so they are deliberately generous. Tune after
-measuring.
+measuring (see [SETUP-GUIDE.md](SETUP-GUIDE.md) section 5).
+
+Rule of thumb for `first_token_timeout`: it must exceed the time to read the
+largest allowed prompt on the slowest machine, that is the context limit divided
+by the measured prompt speed, plus model load time, plus margin. At an 8,192
+token limit and an assumed 8 tokens per second that is about 17 minutes, which
+is why the default is 20.
 
 | Setting | Default | Meaning |
 |---|---|---|
@@ -86,37 +92,47 @@ measuring.
 
 ## 3. Environment on the workers (Ollama)
 
-These are settings on each machine's Ollama, not the router. See
-[OPERATIONS.md](OPERATIONS.md) for how to apply them.
+These are settings on each machine's Ollama, not the router. They come from
+Ollama's own documentation (verified November 2026). See
+[SETUP-GUIDE.md](SETUP-GUIDE.md) for how to apply them on each machine.
 
-| Setting | Suggested value | Why |
-|---|---|---|
-| Listen address (Firmino) | LAN interface | So Mane can reach it. Firewall to Mane only |
-| Listen address (Mane) | Local only | Only the router uses it |
-| Parallel requests | 1 | Matches `max_concurrent = 1` and keeps CPU inference responsive |
-| Loaded models limit | 1 on Firmino. 2 on Mane (the 3B and 8B) | Memory control |
-| Keep-alive | Long enough to avoid reload between requests, short enough to free memory | Tune after measuring |
+| Setting | Firmino | Mane | Why |
+|---|---|---|---|
+| `OLLAMA_HOST` | `0.0.0.0:11434`, with a firewall allowing only Mane | `127.0.0.1:11434` | Firmino must be reachable by Mane. Mane's Ollama is only for the router |
+| `OLLAMA_NUM_PARALLEL` | `1` | `1` | Matches `max_concurrent = 1`. Set explicitly because on Apple GPUs Ollama may choose its own value |
+| `OLLAMA_MAX_LOADED_MODELS` | `1` | `2` | Mane holds the 8B and the 3B. Firmino holds the 14B |
+| `OLLAMA_KEEP_ALIVE` | `30m` | `30m` | Avoids reloading between requests. Default is 5 minutes. Tune |
+| `OLLAMA_CONTEXT_LENGTH` | `8192` | `8192` | Explicit. Default is 4096 |
+| `OLLAMA_NO_CLOUD` | `1` | `1` | Keeps everything local |
+| `OLLAMA_MAX_QUEUE` | leave default | leave default | The router's own gate does the queuing, so this should rarely matter |
+
+Notes:
+
+- On macOS, set these in the service definition that launches Ollama. Using
+  `launchctl setenv` does not survive a reboot.
+- On Linux, set them with a systemd override so they survive upgrades.
 
 ## 4. Illustrative example
 
-Placeholders only. Do not commit real addresses.
+Placeholders for addresses only. Do not commit real addresses. Model names
+are the starting models from [HARDWARE-AND-MODELS.md](HARDWARE-AND-MODELS.md).
 
 ```yaml
 router:
-  listen: ":PORT"
-  allowed_hosts: ["mane", "localhost"]
+  listen: "127.0.0.1:PORT"
+  allowed_hosts: ["MANE_TAILNET_NAME", "localhost"]
 
 machines:
   - name: mane
-    address: "http://MANE_LAN_ADDRESS:11434"
+    address: "http://127.0.0.1:11434"
     roles: [fast]
-    default_model: "<8b-model-name>"
+    default_model: "llama3.1:8b"
     max_concurrent: 1
 
   - name: firmino
     address: "http://FIRMINO_LAN_ADDRESS:11434"
     roles: [heavy]
-    default_model: "<14b-model-name>"
+    default_model: "qwen2.5:14b"
     max_concurrent: 1
 
 routing:

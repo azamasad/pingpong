@@ -160,7 +160,8 @@ Details in [NETWORK-AND-SECURITY.md](NETWORK-AND-SECURITY.md).
 | Item | Notes |
 |---|---|
 | Where | One program on Mane |
-| How it runs | As a managed service that starts on boot and restarts on failure (`launchd` on macOS) |
+| How it runs | As a user launch agent (`launchd` on macOS) that starts at automatic login and restarts on failure |
+| Exposure | Listens on localhost only. Tailscale Serve publishes it to the tailnet |
 | Configuration | A config file on Mane (real values are not committed) |
 | Data (V2) | A data directory on Mane's disk |
 | Updates | Replace the program and restart. Active requests in V1 are lost on restart. In V2 they resume |

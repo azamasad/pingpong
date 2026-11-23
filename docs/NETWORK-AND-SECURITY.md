@@ -14,6 +14,8 @@ Status: draft v1.
 ## 2. Principles
 
 - Reachable only through Tailscale. No public exposure of any port.
+- Tailscale Serve is the bridge: the router stays on localhost, and Serve
+  publishes it to the tailnet with HTTPS.
 - Mane to workers uses LAN addresses directly, not Tailscale, so it does not
   depend on Tailscale or the internet.
 - Workers accept inference traffic only from Mane.
@@ -33,7 +35,7 @@ Status: draft v1.
 |---|---|
 | Firmino | Allow the inference port only from Mane's LAN address. Deny all other sources. |
 | Firmino | Inference service listens on the LAN interface, not on every interface. |
-| Mane | The router listens for client access. Access comes via Tailscale. |
+| Mane | The router listens on localhost only. Tailscale Serve publishes it to the tailnet, so the LAN cannot reach it directly. |
 | Mane | Mane's own Ollama is local only, used by the router. |
 
 Ollama has no built-in authentication, so the firewall and Tailscale are the
@@ -54,7 +56,7 @@ to the router. It does not replace Tailscale.
 
 | Port | Where | Exposure |
 |---|---|---|
-| Router port | Mane | Reachable from the tailnet only |
+| Router port | Mane | Localhost only. Published to the tailnet by Tailscale Serve |
 | Inference port | Firmino | Reachable from Mane only |
 | Inference port | Mane | Local only |
 | SSH | Firmino | Via Tailscale SSH, key-based, no root login |
@@ -80,9 +82,16 @@ public repository.
 
 ## 7. Data and privacy
 
-- Prompts and outputs stay on the owner's machines.
+- Prompts and outputs stay on the owner's machines. Ollama's cloud features are
+  switched off (`OLLAMA_NO_CLOUD`), so local models never need ollama.com
+  after they are downloaded.
 - In V2, saved requests (including prompts) live on Mane's disk for 90 days.
-  Disk encryption on Mane (FileVault) is recommended.
+- **FileVault is off on Mane**, so that it can restart unattended after a power
+  failure (FileVault asks for a password at startup). The result is that anyone
+  with physical access to the Mac could read its disk, including saved prompts.
+  Keep it somewhere safe. This is a deliberate trade-off (D-039). If you prefer
+  encryption, turn FileVault on and accept that a power failure needs you to
+  type a password before Mane comes back.
 - The web page loads no external assets, so no third parties see page loads.
 
 ## 8. Threats considered
@@ -105,4 +114,5 @@ disk encryption.
 ## 10. Open questions
 
 - Which router handles the DHCP reservations.
-- Exact ACL setup in Tailscale.
+- Exact Tailscale ACL rules (see SETUP-GUIDE section 4 for what they must achieve).
+- Exact `tailscale serve` syntax for the installed version.

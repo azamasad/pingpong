@@ -14,8 +14,8 @@ or hands it to **Firmino** (slower, larger models, long-running work).
 
 | Name | Hardware | Role |
 |---|---|---|
-| **Mane** | Mac mini M4, 16 GB unified memory, 256 GB SSD | The brain (router and tiny web page). Fast worker, models up to 8B |
-| **Firmino** | Lenovo ThinkBook 15 G3 (Ryzen 3 5300U, 40 GB RAM, 512 GB NVMe), Ubuntu 24.04 | Heavy worker. Starts with a 14B model. Long-running work |
+| **Mane** | Mac mini M4, 16 GB unified memory, 256 GB SSD | The brain (router and tiny web page). Fast worker, models up to 8B (`llama3.1:8b`, `llama3.2:3b`) |
+| **Firmino** | Lenovo ThinkBook 15 G3 (Ryzen 3 5300U, 40 GB RAM, 512 GB NVMe), Ubuntu 24.04 | Heavy worker. Starts with a 14B model (`qwen2.5:14b`). Long-running work |
 | **MacBook Air** | Client | Where you send requests from |
 
 More machines can be added later. They are always controlled through Mane.
@@ -61,19 +61,20 @@ then the PRD, then the rest.
 | 8 | [docs/UI-SPEC.md](docs/UI-SPEC.md) | The tiny built-in web page |
 | 9 | [docs/HARDWARE-AND-MODELS.md](docs/HARDWARE-AND-MODELS.md) | The machines, memory budgets, starting models |
 | 10 | [docs/NETWORK-AND-SECURITY.md](docs/NETWORK-AND-SECURITY.md) | Access paths, firewall, privacy |
-| 11 | [docs/OPERATIONS.md](docs/OPERATIONS.md) | Keeping the machines healthy |
-| 12 | [docs/IMPLEMENTATION-PLAN.md](docs/IMPLEMENTATION-PLAN.md) | Build order, milestones, guardrails |
-| 13 | [docs/TESTING.md](docs/TESTING.md) | How to verify each version |
-| 14 | [docs/ROADMAP.md](docs/ROADMAP.md) | Phases, and what is deferred |
-| 15 | [docs/DECISIONS.md](docs/DECISIONS.md) | Log of decisions and the reasons behind them |
-| 16 | [docs/GLOSSARY.md](docs/GLOSSARY.md) | Terms used in these documents |
+| 11 | [docs/SETUP-GUIDE.md](docs/SETUP-GUIDE.md) | Step-by-step machine setup (Phase 0) |
+| 12 | [docs/OPERATIONS.md](docs/OPERATIONS.md) | Keeping the machines healthy |
+| 13 | [docs/IMPLEMENTATION-PLAN.md](docs/IMPLEMENTATION-PLAN.md) | Build order, milestones, guardrails |
+| 14 | [docs/TESTING.md](docs/TESTING.md) | How to verify each version |
+| 15 | [docs/ROADMAP.md](docs/ROADMAP.md) | Phases, and what is deferred |
+| 16 | [docs/DECISIONS.md](docs/DECISIONS.md) | Log of decisions and the reasons behind them |
+| 17 | [docs/GLOSSARY.md](docs/GLOSSARY.md) | Terms used in these documents |
 | | [AGENTS.md](AGENTS.md) | Rules for AI coding assistants working in this repo |
 
 ## Conventions
 
 - **V1, V2, V3, V4** tag when a feature arrives. Do not build later versions early.
 - **Proposed** means a suggestion pending the owner's confirmation. Nothing is
-  currently pending apart from the choice of models.
+  currently pending.
 - Figures for speed and size are estimates until measured.
 - This repository is public: no real addresses, keys or login links.
 

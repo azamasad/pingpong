@@ -98,7 +98,7 @@ submission order.
 | Attempts | Count, and for each: start, end, outcome, error |
 | First failure time | Starts the retry window |
 | Next attempt time | While retrying |
-| Output | Saved as produced, tagged by attempt |
+| Output | Saved as produced, tagged by attempt. Reasoning (`thinking`) text, if any, is saved as a separate event type |
 | Timestamps | Created, started, finished |
 
 ### Suggested storage shape

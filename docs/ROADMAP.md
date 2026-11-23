@@ -26,6 +26,8 @@ Ollama until the real machines are ready.
 
 ## Phase 0: Foundation
 
+The step-by-step checklist is [SETUP-GUIDE.md](SETUP-GUIDE.md).
+
 - Free up disk on Mane and Firmino.
 - Mane: no sleep, auto-start after power failure, services start on boot.
 - Firmino: lid and sleep settings, apply updates and reboot, normal user instead
@@ -33,8 +35,8 @@ Ollama until the real machines are ready.
 - Fixed LAN addresses for both machines.
 - Ollama running on both. Firmino's firewalled to Mane only.
 - Tailscale access from the MacBook Air to Mane, with ACLs.
-- Install starting models (3B and 8B on Mane, 14B on Firmino) and measure real
-  speeds. Update [HARDWARE-AND-MODELS.md](HARDWARE-AND-MODELS.md).
+- Install starting models (`llama3.2:3b` and `llama3.1:8b` on Mane, `qwen2.5:14b` on
+  Firmino) and measure real speeds. Update [HARDWARE-AND-MODELS.md](HARDWARE-AND-MODELS.md).
 
 Done when: from Mane, each machine answers a simple request, and the MacBook
 Air can reach Mane over Tailscale.
