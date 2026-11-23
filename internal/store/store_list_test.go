@@ -24,7 +24,7 @@ func TestListJobsBefore(t *testing.T) {
 		})
 	}
 	before := base.Add(2 * time.Hour)
-	list, err := st.ListJobs(ctx, "", &before, 10)
+	list, err := st.ListJobs(ctx, "", "", "", &before, 10)
 	if err != nil {
 		t.Fatal(err)
 	}

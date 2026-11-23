@@ -43,6 +43,7 @@ function buildBody() {
   if ($('fast').checked && !$('machine').value && !$('model').value) body.fast = true;
   if ($('model').value) body.model = $('model').value;
   if ($('machine').value) body.machine = $('machine').value;
+  if (jobsOn && $('batch-lane').checked) body.lane = 'batch';
   return body;
 }
 
@@ -144,7 +145,8 @@ async function refreshJobs() {
       const li = document.createElement('li');
       li.className = j.id === selectedJobId ? 'selected' : '';
       const when = j.updated_at ? new Date(j.updated_at).toLocaleString() : '';
-      li.textContent = `${j.status} · ${j.prompt_preview || j.id}${when ? ` · ${when}` : ''}`;
+      const lane = j.lane && j.lane !== 'interactive' ? `${j.lane} · ` : '';
+      li.textContent = `${lane}${j.status} · ${j.prompt_preview || j.id}${when ? ` · ${when}` : ''}`;
       li.onclick = () => openJob(j.id);
       ul.appendChild(li);
     });
@@ -181,6 +183,7 @@ async function refreshHealth() {
     const h = await fetch('/api/health').then((r) => r.json());
     jobsOn = !!h.jobs;
     $('jobs-panel').classList.toggle('hidden', !jobsOn);
+    $('lane-wrap').classList.toggle('hidden', !jobsOn);
     if (jobsOn) refreshJobs();
   } catch (_) {}
 }

@@ -72,6 +72,7 @@ func TestRetryWindowEventuallyFailed(t *testing.T) {
 func TestRecoveryRunningBecomesRetrying(t *testing.T) {
 	cfg := jobTestCfg(t, "http://127.0.0.1:9")
 	st, _ := store.Open(t.TempDir())
+	defer st.Close()
 	now := time.Now().UTC()
 	_ = st.InsertJob(context.Background(), &store.Job{
 		ID: "r1", CreatedAt: now, UpdatedAt: now, Status: store.StatusRunning,
@@ -80,9 +81,13 @@ func TestRecoveryRunningBecomesRetrying(t *testing.T) {
 	g := gate.New(map[string]int{"m": 1})
 	reg := registry.New(cfg, g)
 	svc := jobs.New(cfg, st, reg, g, clock.Real{})
-	svc.Start(context.Background())
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	svc.Start(ctx)
 	j, _ := st.GetJob(context.Background(), "r1")
 	if j.Status != store.StatusRetrying {
 		t.Fatalf("got %s", j.Status)
 	}
+	_ = svc.Cancel(context.Background(), "r1")
+	cancel()
 }

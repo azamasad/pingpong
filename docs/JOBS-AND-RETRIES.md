@@ -156,18 +156,27 @@ target is free. With several requests waiting for the same machine, their
 order is first come, first served. Priorities and lanes belong to the queue
 (below).
 
-## 6. The queue (planned for V3, not in V1 or V2)
+## 6. The queue (V3)
 
-The owner expects to need a real queue soon. It should be:
+Built on the V2 job store (D-066). No broker.
 
-- Built on the V2 saved-request store, not a separate system.
-- Simple: first come, first served with at most two lanes (interactive and
-  batch), and a low per-machine limit on concurrent work.
-- Usable from the terminal for submitting batches and fetching results.
-- Free of heavy infrastructure (no brokers or job frameworks).
+| Lane | Meaning |
+|---|---|
+| `interactive` | Default for `POST /api/jobs` and the page |
+| `batch` | Set `"lane":"batch"` on a job, or submit `POST /api/batches` |
 
-Details to decide when it is scheduled. Keep V2's store and states compatible
-with it.
+On one machine, waiting interactive jobs are admitted before waiting batch jobs.
+Within a lane, order is oldest first. `max_concurrent` is unchanged. A job that
+has already been admitted keeps its place (no preemption).
+
+Terminal:
+
+```bash
+pingpong batch submit --url http://127.0.0.1:8787 --file items.json
+pingpong batch get --url http://127.0.0.1:8787 --id <batch-id>
+```
+
+`items.json` is `{"items":[{"prompt":"..."}, ...]}`. Fetch with `GET /api/batches/{id}`.
 
 ## 7. Open questions
 

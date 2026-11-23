@@ -79,7 +79,9 @@ func (s *Server) handleJobList(w http.ResponseWriter, r *http.Request) {
 		}
 		before = &t
 	}
-	list, err := s.Jobs.List(r.Context(), status, before, limit)
+	lane := r.URL.Query().Get("lane")
+	batchID := r.URL.Query().Get("batch_id")
+	list, err := s.Jobs.List(r.Context(), status, lane, batchID, before, limit)
 	if err != nil {
 		writeErr(w, apperrors.New("INTERNAL", "list failed"))
 		return
@@ -233,6 +235,7 @@ func jobSummary(j *store.Job) map[string]any {
 	return map[string]any{
 		"id": j.ID, "created_at": j.CreatedAt, "updated_at": j.UpdatedAt,
 		"status": j.Status, "machine": j.Machine, "model": j.Model, "mode": j.Mode,
+		"lane": j.Lane, "batch_id": j.BatchID,
 		"prompt_preview": truncate(prompt, 120),
 	}
 }
@@ -284,4 +287,71 @@ func truncate(s string, n int) string {
 		return s
 	}
 	return s[:n] + "…"
+}
+
+func (s *Server) handleBatchCreate(w http.ResponseWriter, r *http.Request) {
+	if !s.jobsEnabled(w) {
+		return
+	}
+	body, err := readBodyLimited(r, s.Cfg.Router.MaxBodyBytes)
+	if err != nil || int64(len(body)) > s.Cfg.Router.MaxBodyBytes {
+		writeErr(w, apperrors.New("BAD_REQUEST", "invalid body"))
+		return
+	}
+	var req struct {
+		Items []json.RawMessage `json:"items"`
+	}
+	if err := json.Unmarshal(body, &req); err != nil || len(req.Items) == 0 {
+		writeErr(w, apperrors.New("BAD_REQUEST", "items required"))
+		return
+	}
+	if len(req.Items) > 100 {
+		writeErr(w, apperrors.New("BAD_REQUEST", "too many items"))
+		return
+	}
+	bodies := make([]string, len(req.Items))
+	for i, raw := range req.Items {
+		bodies[i] = string(raw)
+	}
+	id, ids, err := s.Jobs.SubmitBatch(r.Context(), bodies)
+	if err != nil {
+		var re *jobs.RouteRejectedError
+		if errors.As(err, &re) {
+			writeErr(w, apperrors.New(re.Code, routeMessages(re.Code)))
+			return
+		}
+		writeErr(w, apperrors.New("INTERNAL", "could not create batch"))
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusAccepted)
+	_ = json.NewEncoder(w).Encode(map[string]any{"id": id, "job_ids": ids})
+}
+
+func (s *Server) handleBatchGet(w http.ResponseWriter, r *http.Request) {
+	if !s.jobsEnabled(w) {
+		return
+	}
+	id := r.PathValue("id")
+	list, err := s.Jobs.List(r.Context(), "", "", id, nil, 200)
+	if err != nil || len(list) == 0 {
+		writeErr(w, apperrors.New("NOT_FOUND", "batch not found"))
+		return
+	}
+	for i, j := 0, len(list)-1; i < j; i, j = i+1, j-1 {
+		list[i], list[j] = list[j], list[i]
+	}
+	jobsOut := make([]any, 0, len(list))
+	pending := 0
+	for _, j := range list {
+		jobsOut = append(jobsOut, jobDetail(j))
+		switch j.Status {
+		case store.StatusWaiting, store.StatusRunning, store.StatusRetrying:
+			pending++
+		}
+	}
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(map[string]any{
+		"id": id, "pending": pending, "jobs": jobsOut,
+	})
 }

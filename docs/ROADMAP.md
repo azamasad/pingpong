@@ -69,14 +69,12 @@ Done when: the V2 acceptance criteria in [PRD.md](PRD.md) pass.
 
 ## Phase 3: V3, queue
 
-Expected soon after V2. Build on V2's saved-request store. Keep it simple.
+Implemented on `cursor/v3-queue-aa2f` (D-066).
 
-- Interactive and batch lanes, first-come first-served within each.
-- Low per-machine concurrency.
-- Terminal submission of batches and fetching results.
+- Interactive and batch lanes, interactive admitted first, FIFO within a lane.
+- Per-machine concurrency stays `max_concurrent`.
+- `POST /api/batches`, `GET /api/batches/{id}`, and `pingpong batch`.
 - No brokers or job frameworks.
-
-Design details to be decided when scheduled.
 
 ## Phase 4: V4, expansion
 
