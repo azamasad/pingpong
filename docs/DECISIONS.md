@@ -70,3 +70,4 @@ Format: ID, date, decision, reason.
 | D-060 | 2026-11-23 | Owner confirmed FileVault stays off on Mane. The owner states both machines are physically secure. Confirms D-039. | Unattended recovery after a power failure. |
 | D-061 | 2026-11-23 | Tailscale access uses a tag-based ACL: `tag:router` (Mane) and `tag:worker` (Firmino and future machines). Members reach the router on 443 and workers on SSH only. A `tests` block guards the policy. A new machine only needs a tag. | Simple, secure by default (deny everything else), and scales without rule changes. |
 | D-062 | 2026-11-23 | V1 config file format is YAML (`gopkg.in/yaml.v3`). Durations are strings like `30m`. | Matches the illustrative example in CONFIGURATION.md with minimal dependency. |
+| D-063 | 2026-11-23 | V1 router is a single Go binary; web UI is `go:embed` under `internal/api/web/`. Only non-stdlib dependency is `gopkg.in/yaml.v3`. | Keeps RAM and deployment simple. |

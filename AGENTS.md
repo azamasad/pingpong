@@ -22,17 +22,25 @@ unclear or conflicting, stop and ask the owner, then fix the docs.
 
 ## Current state
 
-**V1 in progress** on branch `cursor/v1-implementation-aa2f`.
+**V1 implementation** on branch `cursor/v1-implementation-aa2f` ([PR #2](https://github.com/azamasad/pingpong/pull/2)).
 
 | Milestone | Status |
 |---|---|
-| M0 Scaffold | Done (Go module, Makefile, CI, `.gitignore`) |
-| M1 Config | Done (`internal/config`, `deploy/config.example.yaml`) |
-| M4 Routing | Done (`internal/route`, unit tests) |
-| M2–M3, M5–M10 | Not started |
+| M0 Scaffold | Done |
+| M1 Config | Done |
+| M2 Ollama client + fake | Done (`internal/ollama`, `internal/fakeollama`) |
+| M3 Registry + health | Done (`internal/registry`) |
+| M4 Routing | Done (`internal/route`) |
+| M5 Gate | Done (`internal/gate`) |
+| M6 HTTP API | Done (`internal/api`) |
+| M7 Web UI | Done (embedded in `internal/api/web/`) |
+| M8a Packaging | Done (`deploy/`, `deploy/BUILD.md`, launchd example) |
+| M9a Memory check | Linux proxy test (`memory_linux_test.go`); **M9b on Mane still owner** |
+| M8b, M10 | **Owner** on real machines (SETUP-GUIDE, TESTING §4) |
 
-The binary serves `GET /api/health` only. Build with `make build`. Do not start
-V2 features until V1 is complete.
+Run: `make test && make build`. Config: `deploy/config.example.yaml` (placeholders only).
+
+Do not start V2 (SQLite jobs, retries, history UI).
 
 ## Rules
 
@@ -87,11 +95,12 @@ V2 features until V1 is complete.
 Ask the owner. Do not guess on anything that affects routing, memory use,
 security, or scope.
 
-If you cannot ask (for example you are running unattended), choose the simplest
-option that obeys the constitution, record the choice and reasoning in the pull
-request and in [docs/DECISIONS.md](docs/DECISIONS.md), and continue. Never use
-this to widen scope.
+## V1 on one page
 
-Start with the "V1 on one page" summary at the top of
-[docs/IMPLEMENTATION-PLAN.md](docs/IMPLEMENTATION-PLAN.md). It is the shortest
-correct description of what to build.
+See [docs/IMPLEMENTATION-PLAN.md](docs/IMPLEMENTATION-PLAN.md) section 0. If code
+and docs disagree, fix whichever is wrong before shipping.
+
+## Unattended-decision rule
+
+If you cannot ask the owner, pick the simplest option that obeys the
+constitution, record it in DECISIONS, and continue (D-053).

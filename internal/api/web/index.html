@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Pingpong</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <h1>Pingpong</h1>
+    <p id="machines" class="machines">Loading machines…</p>
+  </header>
+  <main>
+    <div class="controls">
+      <label><input type="checkbox" id="fast"> Fast (Mane)</label>
+      <label>Model <select id="model"><option value="">—</option></select></label>
+      <label>Machine <select id="machine"><option value="">—</option></select></label>
+    </div>
+  <textarea id="prompt" rows="5" placeholder="Message…"></textarea>
+  <div class="actions">
+    <button id="send">Send</button>
+    <button id="stop" disabled>Stop</button>
+    <span id="state"></span>
+    <span id="elapsed"></span>
+  </div>
+  <p id="provenance"></p>
+  <div id="thinking" class="collapsed"></div>
+  <pre id="out"></pre>
+  <p id="warn" class="warn hidden"></p>
+  <p id="err" class="err hidden"></p>
+  </main>
+  <script src="app.js"></script>
+</body>
+</html>

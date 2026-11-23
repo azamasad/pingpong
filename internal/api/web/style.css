@@ -1,0 +1,15 @@
+* { box-sizing: border-box; }
+body { font-family: system-ui, sans-serif; margin: 1rem; max-width: 48rem; line-height: 1.4; }
+header h1 { margin: 0 0 0.25rem; font-size: 1.25rem; }
+.machines { font-size: 0.85rem; color: #444; }
+.controls { display: flex; flex-wrap: wrap; gap: 0.75rem; margin-bottom: 0.5rem; font-size: 0.9rem; }
+textarea { width: 100%; font: inherit; padding: 0.5rem; }
+.actions { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; margin: 0.5rem 0; }
+#out { white-space: pre-wrap; background: #f6f6f6; padding: 0.75rem; min-height: 4rem; border-radius: 4px; }
+#thinking { font-size: 0.8rem; color: #666; margin: 0.25rem 0; }
+#thinking.collapsed { display: none; }
+.err { color: #a00; }
+.warn { color: #a60; }
+.hidden { display: none; }
+button:disabled { opacity: 0.5; }
+@media (max-width: 480px) { body { margin: 0.5rem; } }

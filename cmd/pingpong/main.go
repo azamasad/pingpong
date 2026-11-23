@@ -1,14 +1,19 @@
 package main
 
 import (
-	"encoding/json"
+	"context"
 	"flag"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
 
+	"github.com/azamasad/pingpong/internal/api"
 	"github.com/azamasad/pingpong/internal/config"
+	"github.com/azamasad/pingpong/internal/gate"
+	"github.com/azamasad/pingpong/internal/registry"
 )
 
 func main() {
@@ -30,15 +35,34 @@ func main() {
 		log.Printf("config warning: %s", w)
 	}
 
-	mux := http.NewServeMux()
-	mux.HandleFunc("GET /api/health", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
-	})
-
-	addr := cfg.Router.Listen
-	log.Printf("pingpong listening on %s", addr)
-	if err := http.ListenAndServe(addr, mux); err != nil {
-		log.Fatal(err)
+	limits := make(map[string]int)
+	for _, m := range cfg.Machines {
+		limits[m.Name] = m.MaxConcurrent
 	}
+	g := gate.New(limits)
+	reg := registry.New(cfg, g)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	reg.Start(ctx)
+
+	srv := api.NewServer(cfg, reg, g)
+	httpSrv := &http.Server{
+		Addr:    cfg.Router.Listen,
+		Handler: srv.Handler(),
+	}
+
+	go func() {
+		log.Printf("pingpong %s listening on %s", api.Version, cfg.Router.Listen)
+		if err := httpSrv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Fatal(err)
+		}
+	}()
+
+	ch := make(chan os.Signal, 1)
+	signal.Notify(ch, syscall.SIGINT, syscall.SIGTERM)
+	<-ch
+	cancel()
+	_ = httpSrv.Shutdown(context.Background())
+	reg.Stop()
 }
