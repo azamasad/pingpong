@@ -196,9 +196,9 @@ home LAN.
       unless you installed the command-line tool separately.
 - [ ] Set `allowed_hosts` in the router config to Mane's **full** tailnet name
       (`mane.<tailnet>.ts.net`), plus `localhost` and `127.0.0.1`.
-- [ ] Edit the Tailscale ACL (the default allows everything) so that your devices can:
-      reach Mane on port 443 only; reach Firmino on SSH (port 22) only. Nobody
-      reaches Firmino on 11434.
+- [ ] Apply the tag-based Tailscale ACL from [NETWORK-AND-SECURITY.md](NETWORK-AND-SECURITY.md)
+      (the default allows everything). Follow its safe order, and keep an SSH
+      session to Firmino open while you do it.
 - [ ] Check from the MacBook Air that the page loads, and from a device **not**
       on your tailnet that it does not.
 - [ ] Check from the MacBook Air that `http://<Firmino tailnet address>:11434` is
