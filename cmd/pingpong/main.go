@@ -20,8 +20,13 @@ import (
 )
 
 func main() {
-	if len(os.Args) > 1 && os.Args[1] == "batch" {
-		os.Exit(runBatch(os.Args[2:]))
+	if len(os.Args) > 1 {
+		switch os.Args[1] {
+		case "batch":
+			os.Exit(runBatch(os.Args[2:]))
+		case "doctor":
+			os.Exit(runDoctor(os.Args[2:]))
+		}
 	}
 	configPath := flag.String("config", "", "path to YAML config (or set PINGPONG_CONFIG)")
 	flag.Parse()
