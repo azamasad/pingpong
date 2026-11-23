@@ -6,9 +6,8 @@ local LLM requests run across a few always-on machines on a home network.
 You send a request to Mane. Mane either handles it itself (fast, small models)
 or hands it to **Firmino** (slower, larger models, long-running work).
 
-> Status: planning. This repository currently contains documentation only.
-> No code has been written yet. The docs are written so that someone (or an AI
-> coding agent) can build V1 from them.
+> Status: **V1 code complete.** Docs in `docs/`. Router binary `cmd/pingpong`.
+> Go-live on your machines: [docs/PRODUCTION.md](docs/PRODUCTION.md).
 
 ## The machines
 
@@ -44,6 +43,21 @@ More machines can be added later. They are always controlled through Mane.
 
 See [docs/ROADMAP.md](docs/ROADMAP.md).
 
+## Build (V1)
+
+Requires Go 1.22 or newer.
+
+```bash
+make tidy && make test && make build
+```
+
+Run with a config file outside the repo (see `deploy/config.example.yaml`):
+
+```bash
+export PINGPONG_CONFIG=/path/to/your.local.yaml
+./bin/pingpong
+```
+
 ## Documents
 
 Read in this order if you are new. If documents disagree, the constitution wins,
@@ -63,6 +77,7 @@ then the PRD, then the rest.
 | 10 | [docs/NETWORK-AND-SECURITY.md](docs/NETWORK-AND-SECURITY.md) | Access paths, firewall, privacy |
 | 11 | [docs/SETUP-GUIDE.md](docs/SETUP-GUIDE.md) | Step-by-step machine setup (Phase 0) |
 | 12 | [docs/OPERATIONS.md](docs/OPERATIONS.md) | Keeping the machines healthy |
+| | [docs/PRODUCTION.md](docs/PRODUCTION.md) | V1 go-live on Mane and Firmino |
 | 13 | [docs/IMPLEMENTATION-PLAN.md](docs/IMPLEMENTATION-PLAN.md) | Build order, milestones, guardrails |
 | 14 | [docs/TESTING.md](docs/TESTING.md) | How to verify each version |
 | 15 | [docs/ROADMAP.md](docs/ROADMAP.md) | Phases, and what is deferred |

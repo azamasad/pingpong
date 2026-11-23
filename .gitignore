@@ -1,0 +1,27 @@
+# Binaries
+/pingpong
+/bin/
+*.exe
+
+# Go
+/vendor/
+
+# Real config and local overrides (never commit)
+*.local.*
+*.local
+config.yaml
+config.yml
+/deploy/*.local.*
+
+# V2 data
+/data/
+*.db
+*.db-*
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# OS
+.DS_Store
