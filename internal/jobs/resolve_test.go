@@ -22,7 +22,7 @@ func TestResolveMissingModel(t *testing.T) {
 			DefaultModel: "installed:7b", MaxConcurrent: 1, NumCtx: 4096,
 		}},
 		Routing: config.RoutingConfig{AutoRole: "heavy", FastRole: "heavy"},
-		Health:  config.HealthConfig{RefreshOnModelMiss: true},
+		Health:  config.HealthConfig{},
 	}
 	g := gate.New(map[string]int{"m": 1})
 	reg := registry.New(cfg, g)

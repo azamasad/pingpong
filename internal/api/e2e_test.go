@@ -98,6 +98,17 @@ func TestE2EPinNotInstalled(t *testing.T) {
 	if res.StatusCode != 404 {
 		t.Fatalf("got %d", res.StatusCode)
 	}
+	var body struct {
+		Error struct {
+			Code string `json:"code"`
+		} `json:"error"`
+	}
+	if err := json.NewDecoder(res.Body).Decode(&body); err != nil {
+		t.Fatal(err)
+	}
+	if body.Error.Code != "MODEL_NOT_INSTALLED" {
+		t.Fatalf("code %q", body.Error.Code)
+	}
 }
 
 func TestE2EMachinesAndModels(t *testing.T) {
