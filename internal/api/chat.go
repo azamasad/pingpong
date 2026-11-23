@@ -69,6 +69,12 @@ func (s *Server) handleChat(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, err.(apperrors.APIError))
 		return
 	}
+	fast, model, machine, perr := s.Cfg.ApplyProfile(cb.Profile, cb.Fast, cb.Model, cb.Machine)
+	if perr != nil {
+		writeErr(w, apperrors.New("BAD_REQUEST", perr.Error()))
+		return
+	}
+	cb.Fast, cb.Model, cb.Machine = fast, model, machine
 	routeReq := route.Request{Fast: cb.Fast, Model: cb.Model, Machine: cb.Machine}
 	res := s.resolveRoute(r.Context(), routeReq)
 	if !res.OK {

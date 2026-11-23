@@ -17,6 +17,17 @@ async function refreshMeta() {
     $('machines').textContent = machines
       .map((m) => `${m.name}: ${m.reachable ? 'up' : 'down'}${m.busy ? ', busy' : ''}`)
       .join(' · ');
+    const profiles = await fetch('/api/profiles').then((r) => r.json()).catch(() => []);
+    const ps = $('profile');
+    const prev = ps.value;
+    ps.innerHTML = '<option value="">—</option>';
+    (profiles || []).forEach((p) => {
+      const o = document.createElement('option');
+      o.value = p.name;
+      o.textContent = p.name;
+      ps.appendChild(o);
+    });
+    if (prev) ps.value = prev;
     const ms = $('machine');
     const md = $('model');
     ms.innerHTML = '<option value="">—</option>';
@@ -40,6 +51,7 @@ async function refreshMeta() {
 
 function buildBody() {
   const body = { messages: [...history], stream: true };
+  if ($('profile').value) body.profile = $('profile').value;
   if ($('fast').checked && !$('machine').value && !$('model').value) body.fast = true;
   if ($('model').value) body.model = $('model').value;
   if ($('machine').value) body.machine = $('machine').value;

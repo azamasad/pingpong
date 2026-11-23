@@ -22,9 +22,9 @@ unclear or conflicting, stop and ask the owner, then fix the docs.
 
 ## Current state
 
-**V4 (roles)** on branch `cursor/v4-roles-aa2f`, stacked on V3. **V1** on `main`.
+**V5 (profiles)** on branch `cursor/v5-profiles-aa2f`, stacked on V4. **V1** on `main`.
 
-Do not start V5 until this branch is pushed. Role choice is D-067.
+V4 role choice is D-067. V5 presets are D-068.
 
 | Milestone | Status |
 |---|---|

@@ -7,6 +7,7 @@ import (
 	"io"
 	"io/fs"
 	"net/http"
+	"sort"
 	"strings"
 	"sync"
 
@@ -20,7 +21,7 @@ import (
 //go:embed web/*
 var webFS embed.FS
 
-const Version = "4.0.0"
+const Version = "5.0.0"
 
 type Server struct {
 	Cfg      *config.Config
@@ -44,6 +45,7 @@ func (s *Server) routes() {
 	s.Mux.HandleFunc("GET /api/health", s.handleHealth)
 	s.Mux.HandleFunc("GET /api/machines", s.handleMachines)
 	s.Mux.HandleFunc("GET /api/models", s.handleModels)
+	s.Mux.HandleFunc("GET /api/profiles", s.handleProfiles)
 	s.Mux.HandleFunc("POST /api/chat", s.handleChat)
 	s.Mux.HandleFunc("POST /api/jobs", s.handleJobCreate)
 	s.Mux.HandleFunc("GET /api/jobs", s.handleJobList)
@@ -107,6 +109,27 @@ func (s *Server) handleMachines(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleModels(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(s.Reg.ListModels())
+}
+
+func (s *Server) handleProfiles(w http.ResponseWriter, r *http.Request) {
+	type row struct {
+		Name    string `json:"name"`
+		Fast    bool   `json:"fast"`
+		Model   string `json:"model,omitempty"`
+		Machine string `json:"machine,omitempty"`
+	}
+	names := make([]string, 0, len(s.Cfg.Profiles))
+	for name := range s.Cfg.Profiles {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	out := make([]row, 0, len(names))
+	for _, name := range names {
+		p := s.Cfg.Profiles[name]
+		out = append(out, row{Name: name, Fast: p.Fast, Model: p.Model, Machine: p.Machine})
+	}
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(out)
 }
 
 func writeErr(w http.ResponseWriter, e apperrors.APIError) {
