@@ -16,8 +16,8 @@ done. It does not contain code.
   the doc and add an entry to [DECISIONS.md](DECISIONS.md) in the same change.
 - **The owner does the machine setup.** Phase 0 (power settings, firewall,
   Tailscale, installing Ollama and models) happens on real hardware that a
-  coding agent cannot reach. Do not assume it is done. Produce checklists
-  (see [OPERATIONS.md](OPERATIONS.md)) and build against a fake Ollama.
+  coding agent cannot reach. Do not assume it is done. The checklist is
+  [SETUP-GUIDE.md](SETUP-GUIDE.md). Build against a fake Ollama.
 
 ## 2. Technology (confirmed by the owner)
 
@@ -70,7 +70,7 @@ milestone, small commits, and a pull request.
 |---|---|---|---|
 | M0 | Scaffold | Repo layout, build, test command, lint, a simple CI check | Build and tests run from a clean checkout |
 | M1 | Config | Load and validate configuration per [CONFIGURATION.md](CONFIGURATION.md) | Bad configs produce clear errors. Example config with placeholders is committed. No real addresses |
-| M2 | Ollama client and fake Ollama | List models, stream a chat, cancel. A scriptable fake server for tests | Client works against the fake. Cancel closes the upstream call |
+| M2 | Ollama client and fake Ollama | List models, stream a chat (content and `thinking` text), cancel. A scriptable fake server for tests, following [API.md](API.md) section 6 | Client works against the fake. Cancel closes the upstream call |
 | M3 | Registry and health | Machine list, roles, installed models, reachability, refresh rules | Down and up transitions and model refresh covered by tests |
 | M4 | Routing decision | Pure function implementing [ROUTING.md](ROUTING.md) | Every case in [TESTING.md](TESTING.md) 2.1 passes |
 | M5 | Concurrency gate | Per-machine limit, first-come first-served waiting, removal on disconnect | Cases in TESTING 2.2 pass |
@@ -105,7 +105,7 @@ Record each in [DECISIONS.md](DECISIONS.md).
 |---|---|
 | Config file format | Any simple, human-editable format. Keep setting names as in CONFIGURATION |
 | Which Ollama endpoints | Check the installed version's API. Note it in [API.md](API.md) section 6 |
-| Exact default models | The owner chooses at setup. Use placeholders in committed files |
+| Default models | Already chosen: `llama3.1:8b`, `llama3.2:3b` and `qwen2.5:14b` (D-038). Put them in the example config. Do not hard-code them |
 | Flag and pin controls in the page | Keep minimal: a fast toggle and two optional selectors |
 
 ## 7. Guardrails (do not do these)

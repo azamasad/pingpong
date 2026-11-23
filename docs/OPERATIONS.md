@@ -9,11 +9,11 @@ healthy. Both machines are assumed always on.
 |---|---|
 | Sleep | Never sleep the computer. Display may sleep |
 | Power failure | Enable automatic startup after a power failure |
-| Start on boot | Router and Ollama start automatically after a reboot, without a manual login step if possible |
+| Start on boot | Ollama and the router run as user launch agents that start at automatic login, with keep-alive so they restart if they crash |
 | Updates | Install macOS updates deliberately, then confirm the services come back |
 | Disk | Free space. Keep only the 3B and 8B models plus room for V2 data |
-| Model memory | Set Ollama's keep-alive so the 8B stays loaded when useful, but unloads when idle if memory is needed |
-| Encryption | Enable FileVault (see security notes) |
+| Model memory | Keep-alive 30 minutes (tune). Check `ollama ps` shows `100% GPU` for each model |
+| Login | Automatic login on, FileVault off, so Mane recovers unattended after a power failure (see D-039 and [NETWORK-AND-SECURITY.md](NETWORK-AND-SECURITY.md)) |
 
 ## 2. Firmino (Ubuntu laptop)
 
@@ -32,12 +32,13 @@ healthy. Both machines are assumed always on.
 
 ## 2a. Ollama settings on each machine
 
-Ollama is configured through environment settings of its service. Check the
-exact names and how to apply them against the installed Ollama version.
+Ollama is configured through environment settings of its service. The full
+list, with reasons, is in [CONFIGURATION.md](CONFIGURATION.md) section 3, and
+the steps are in [SETUP-GUIDE.md](SETUP-GUIDE.md). In brief:
 
 | Machine | Setting | Value |
 |---|---|---|
-| Firmino | Listen address | The LAN interface, so Mane can reach it. Firewall to Mane only |
+| Firmino | Listen address | All interfaces on the Ollama port, with the firewall allowing only Mane |
 | Firmino | Parallel requests | 1 |
 | Firmino | Loaded models | 1 (more only if memory allows and is needed) |
 | Firmino | Keep-alive | Long enough that the 14B is not reloaded between requests. Tune |
@@ -46,7 +47,7 @@ exact names and how to apply them against the installed Ollama version.
 | Mane | Parallel requests | 1 |
 | Mane | Loaded models | 2 (the 3B and 8B) |
 | Mane | Keep-alive | Tune. Free memory when idle if needed |
-| Mane | How set | Through the service or app that launches Ollama. Confirm the settings are picked up after a reboot |
+| Mane | How set | In the launch agent that runs `ollama serve` (not `launchctl setenv`, which is lost on reboot). Confirm after a reboot |
 
 These match `max_concurrent = 1` in [CONFIGURATION.md](CONFIGURATION.md).
 
@@ -54,7 +55,7 @@ These match `max_concurrent = 1` in [CONFIGURATION.md](CONFIGURATION.md).
 
 | Item | Guidance |
 |---|---|
-| Service | A `launchd` service that starts on boot and restarts on failure |
+| Service | A user launch agent (`launchd`) that starts at automatic login and restarts on failure. The router listens on localhost, and Tailscale Serve publishes it to the tailnet |
 | Config | A config file on Mane with real values. Never committed |
 | Logs | Written by the service. Metadata only, never prompts. Check log size occasionally |
 | Updates | Replace the program, restart the service, and confirm it comes up (V1 loses active requests on restart) |
@@ -118,5 +119,5 @@ The web page shows reachability. Anything deeper is out of scope for now.
 ## 8. Open questions
 
 - Which BIOS options exist on the ThinkBook.
-- Whether Ollama on Mane runs as the desktop app or as a managed service, and
-  how its settings are applied at boot.
+- None on service supervision: Ollama and the router run as user launch agents
+  (see [SETUP-GUIDE.md](SETUP-GUIDE.md)).

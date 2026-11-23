@@ -39,7 +39,8 @@ logins, used by one person.
 | Settings | Fast toggle and pins stay as set between messages, so a conversation keeps its target until changed |
 | Stop button | Shown while a request is waiting or running. Pressing it cancels the request (the worker stops) |
 | Waiting | Shows "Waiting for Firmino" (or the machine name) and the position if more than one |
-| Mode label | Each answer shows a small label such as "Firmino, 14B, auto" |
+| Mode label | Each answer shows a small label such as "Firmino, qwen2.5:14b, auto" |
+| Thinking text | If a reasoning model streams `thinking` events, show them collapsed and separate from the answer, or hide them. Never mix them into the answer |
 | Errors | Plain language, built from the error codes in [API.md](API.md), for example "That model is not installed" or "Firmino is down" |
 | Machine status | A small indicator per machine: reachable, busy, down |
 | Pin controls | Dropdowns filled from `GET /api/machines` and `GET /api/models`. Default is "none" |

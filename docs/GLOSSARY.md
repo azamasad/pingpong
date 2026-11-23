@@ -30,6 +30,8 @@
 | **Quantization** | Compressing a model (for example 4-bit) so it uses less memory |
 | **tok/s** | Tokens per second. A measure of generation speed |
 | **First-token delay** | Time before the first word appears. Long on CPU for big prompts |
+| **Thinking model** | A model that writes out reasoning before its answer (for example the Qwen3 family). Slow on CPU, so not used by default. Its reasoning arrives as separate `thinking` events |
+| **Tailscale Serve** | A Tailscale feature that publishes a local service to the tailnet only, with HTTPS. Used so the router can stay on localhost |
 | **Context window** | How much text a model can consider at once. Larger uses more memory |
 | **RAG** | Retrieval over documents. Out of scope here |
 | **NDJSON** | Newline-delimited JSON. One JSON object per line. Used for streaming |

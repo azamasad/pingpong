@@ -13,6 +13,9 @@ Read this before touching the repository.
    [docs/API.md](docs/API.md) and [docs/CONFIGURATION.md](docs/CONFIGURATION.md)
    before changing any behaviour.
 5. [docs/TESTING.md](docs/TESTING.md) for what to test and how.
+6. [docs/SETUP-GUIDE.md](docs/SETUP-GUIDE.md) only for context. It is the owner's
+   checklist for the real machines, and it lists the settings your code should
+   assume (localhost listening, 8192 context, one request per machine).
 
 If documents disagree: constitution, then PRD, then the rest. If something is
 unclear or conflicting, stop and ask the owner, then fix the docs.

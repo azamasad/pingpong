@@ -54,7 +54,12 @@ A table of cases derived from [ROUTING.md](ROUTING.md) section 8, including:
 - `Host` and `Origin` checks reject unexpected values.
 - Oversized bodies are rejected.
 - Fake Ollama scenarios: slow first token, long gaps between tokens (timeouts),
-  connection dropped mid-stream, machine unreachable, model list changes.
+  connection dropped mid-stream, an `error` line mid-stream, machine unreachable,
+  HTTP 503 when overloaded, model list changes, and a reasoning model whose
+  stream includes `thinking` text (it must arrive as `thinking` events, never
+  inside `token` text).
+- Statistics: nanosecond durations from Ollama are converted correctly into
+  milliseconds and tokens per second.
 
 ### 2.4 Health and registry
 
@@ -101,6 +106,9 @@ Done by the owner after setup. Check off against the PRD acceptance criteria.
 | 8 | Watch traffic between Mane and Firmino | LAN addresses only |
 | 9 | Check the router's memory on Mane | Within budget |
 | 10 | Check that Firmino's inference port is unreachable from the MacBook Air directly | Blocked |
+| 11 | Send a prompt longer than the old 4096 default but under 8192 | The model uses all of it (the context window is set explicitly) |
+| 12 | Reboot each machine, and cut power to Mane briefly | Both come back and answer without help |
+| 13 | Open the router address from a device not on your tailnet | It does not load |
 
 V2 additions: start a long task, close the laptop, return later and read the
 result; switch Firmino off, confirm retries every 2 minutes and a failure
