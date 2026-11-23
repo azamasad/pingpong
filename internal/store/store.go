@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	_ "modernc.org/sqlite"
@@ -161,13 +162,21 @@ func scanJob(row *sql.Row) (*Job, error) {
 	return &j, nil
 }
 
-func (s *Store) ListJobs(ctx context.Context, status string, limit int) ([]*Job, error) {
+func (s *Store) ListJobs(ctx context.Context, status string, before *time.Time, limit int) ([]*Job, error) {
 	q := `SELECT id, created_at, updated_at, status, request_json, machine, model, mode,
 output_text, output_thinking, error_code, error_message, attempt, first_failure_at, next_attempt_at FROM jobs`
 	args := []any{}
+	where := []string{}
 	if status != "" {
-		q += ` WHERE status=?`
+		where = append(where, `status=?`)
 		args = append(args, status)
+	}
+	if before != nil {
+		where = append(where, `created_at < ?`)
+		args = append(args, before.UTC().Format(time.RFC3339))
+	}
+	if len(where) > 0 {
+		q += ` WHERE ` + strings.Join(where, ` AND `)
 	}
 	q += ` ORDER BY created_at DESC`
 	if limit > 0 {

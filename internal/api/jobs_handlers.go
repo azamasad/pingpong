@@ -70,7 +70,16 @@ func (s *Server) handleJobList(w http.ResponseWriter, r *http.Request) {
 			limit = n
 		}
 	}
-	list, err := s.Jobs.List(r.Context(), status, limit)
+	var before *time.Time
+	if v := r.URL.Query().Get("before"); v != "" {
+		t, err := time.Parse(time.RFC3339, v)
+		if err != nil {
+			writeErr(w, apperrors.New("BAD_REQUEST", "invalid before timestamp"))
+			return
+		}
+		before = &t
+	}
+	list, err := s.Jobs.List(r.Context(), status, before, limit)
 	if err != nil {
 		writeErr(w, apperrors.New("INTERNAL", "list failed"))
 		return
@@ -93,8 +102,32 @@ func (s *Server) handleJobGet(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, apperrors.New("NOT_FOUND", "job not found"))
 		return
 	}
+	detail := jobDetail(j)
+	if events, err := s.Jobs.EventsSince(r.Context(), id, 1); err == nil {
+		detail["status_history"] = statusHistoryFromEvents(events)
+	}
 	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(jobDetail(j))
+	_ = json.NewEncoder(w).Encode(detail)
+}
+
+func statusHistoryFromEvents(events []store.Event) []map[string]any {
+	var hist []map[string]any
+	for _, e := range events {
+		if e.Type != "status" && e.Type != "error" {
+			continue
+		}
+		var data map[string]any
+		_ = json.Unmarshal([]byte(e.DataJSON), &data)
+		if data == nil {
+			data = map[string]any{}
+		}
+		entry := map[string]any{"at": e.CreatedAt, "type": e.Type}
+		for k, v := range data {
+			entry[k] = v
+		}
+		hist = append(hist, entry)
+	}
+	return hist
 }
 
 func (s *Server) handleJobDelete(w http.ResponseWriter, r *http.Request) {
