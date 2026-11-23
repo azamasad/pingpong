@@ -102,3 +102,32 @@ func TestDefaultProfiles(t *testing.T) {
 		t.Fatalf("pin should win: %v %v %s", err, fast, model)
 	}
 }
+
+func TestStorageDataDirExpandsHome(t *testing.T) {
+	t.Setenv("HOME", "/home/pp")
+	cases := map[string]string{
+		"~/data":     "/home/pp/data",
+		"~":          "/home/pp",
+		"/abs/data":  "/abs/data",
+		"rel/data":   "rel/data",
+		"":           "",
+		"~other/dir": "~other/dir",
+	}
+	for in, want := range cases {
+		if got := expandHome(in); got != want {
+			t.Errorf("expandHome(%q)=%q want %q", in, got, want)
+		}
+	}
+}
+
+func TestRefreshOnMissDefaultsOn(t *testing.T) {
+	var h HealthConfig
+	if !h.RefreshOnMiss() {
+		t.Fatal("omitted key should default to on")
+	}
+	off := false
+	h.RefreshOnModelMiss = &off
+	if h.RefreshOnMiss() {
+		t.Fatal("explicit false should disable")
+	}
+}
