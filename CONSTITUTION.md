@@ -71,6 +71,19 @@ requirement, scheduled after the first version (see the roadmap).
 Significant choices and their reasons go in
 [docs/DECISIONS.md](docs/DECISIONS.md) so they are not re-debated.
 
+**P16. Never log content.**
+Prompts and model outputs are never written to logs. In V2 they are stored
+only in the saved-request store, for the retention period.
+
+**P17. Public repository, private system.**
+The repository is public. It never contains real addresses, keys, tokens,
+login links, or real configuration. Only placeholders.
+
+**P18. Documents win over assumptions.**
+If the docs and an implementation disagree, resolve it deliberately: fix
+whichever is wrong and record why. Precedence is this constitution, then the
+PRD, then the other documents.
+
 ## Hard limits
 
 | Limit | Value |
@@ -82,6 +95,8 @@ Significant choices and their reasons go in
 | Public exposure | None |
 | Retry window for an unavailable machine | Every 2 minutes, up to 3 hours, then stop |
 | Retention of finished results (when stored) | 90 days |
+| Logging of prompts or outputs | Never |
+| Concurrency per machine (default) | 1 request in flight |
 
 ## Non-goals
 

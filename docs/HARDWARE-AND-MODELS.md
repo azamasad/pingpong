@@ -102,12 +102,38 @@ The owner accepts slow responses on Firmino. Speed is not the priority.
 Saved results (V2) are text and small. 90 days of normal use should be a
 minor share of disk.
 
-## 6. Future machines
+## 6. Context window
+
+The context window is how much text a model considers at once. Larger windows
+use more memory and make long prompts slower, especially on Firmino's CPU.
+
+| Item | Guidance |
+|---|---|
+| Starting point | A modest window (for example 4,096 to 8,192 tokens) on both machines. Raise it after measuring |
+| Setting | An optional `num_ctx` per machine in [CONFIGURATION.md](CONFIGURATION.md). Unset means Ollama's default |
+| Mane | Keep it modest. Memory is tight |
+| Firmino | More room for larger windows, but processing long prompts is slow |
+| Conversations | The whole history is resent on each turn, so long chats grow slower |
+
+## 7. Measurements (to fill in after setup)
+
+Replace the estimates in section 4 with real numbers.
+
+| Machine | Model | Cold load time | First-token delay (short prompt) | First-token delay (long prompt) | Tokens per second | Memory in use |
+|---|---|---|---|---|---|---|
+| Mane | 8B | | | | | |
+| Mane | 3B | | | | | |
+| Firmino | 14B | | | | | |
+
+Also record the router's memory use on Mane (idle and under load) against the
+50 MB working budget.
+
+## 8. Future machines
 
 Possible additions such as a Mac Studio or DGX Spark would be registered by
 role (see [ARCHITECTURE.md](ARCHITECTURE.md)) and described here when added.
 
-## 7. Open questions
+## 9. Open questions
 
 - Exact models and quantization for each size.
 - Measured speeds on both machines.

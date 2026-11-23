@@ -31,3 +31,16 @@ Format: ID, date, decision, reason.
 | D-021 | 2026-11-23 | Machines are described by roles in a registry. | Easier to add machines such as a Mac Studio or DGX Spark. |
 | D-022 | 2026-11-23 | The router is movable to another machine. | A larger machine may become a better home later. |
 | D-023 | 2026-11-23 | Docs live in this repository, with documents under `docs/`. | The owner's instruction. |
+| D-024 | 2026-11-23 | Proposed: build the router in Go, as one small program with the page embedded. Pending owner confirmation. | Small memory footprint against the 50 MB budget, easy service deployment, cross-compiles for macOS and Linux. Python and Node are likelier to strain the budget. |
+| D-025 | 2026-11-23 | Proposed: V2 stores saved requests in a single SQLite file on Mane. Plain files are an acceptable alternative. Pending owner confirmation. | Embedded, small, reliable, no server process. |
+| D-026 | 2026-11-23 | Machines have a concurrency limit, default 1. Requests wait first come, first served. | Fits CPU inference on Firmino and keeps behaviour predictable. Mane's own direct use of Ollama is not counted. |
+| D-027 | 2026-11-23 | In V1, closing the client connection cancels the request, including upstream, so the worker stops. | Avoids wasted CPU. Surviving disconnects is V2. |
+| D-028 | 2026-11-23 | The router keeps no conversation state in V1. The client sends full history. | Keeps V1 small. |
+| D-029 | 2026-11-23 | Pins override `fast`. A pinned model on several machines with no machine named is an error. | Pinned means pinned, and no guessing. |
+| D-030 | 2026-11-23 | The retry window runs from the first failure and is not reset by later failures. | The owner's rule: retry every 2 minutes until 3 hours, then stop. |
+| D-031 | 2026-11-23 | A `cancelled` state and explicit cancel and delete are added for V2. | A 3-hour retry loop needs a way to stop it. |
+| D-032 | 2026-11-23 | Prompts and outputs are never written to logs. | Privacy. V2 stores them only in the saved-request store. |
+| D-033 | 2026-11-23 | The router checks Host and Origin headers. | It has no login, and this blocks other web pages from using it through the browser. |
+| D-034 | 2026-11-23 | Timeouts are generous by default: 20 minutes to first token, 5 minutes between tokens. They are starting values to tune. | CPU inference on long prompts can take minutes. |
+| D-035 | 2026-11-23 | An OpenAI-compatible endpoint, model aliases, and conversation threads are deferred. | Not needed for V1. Do not over-engineer. |
+| D-036 | 2026-11-23 | Real addresses and config are never committed. Only placeholders. | The repository is public. |

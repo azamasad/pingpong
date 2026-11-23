@@ -2,12 +2,25 @@
 
 Read this before touching the repository.
 
-## Read first
+## Read first, in this order
 
 1. [CONSTITUTION.md](CONSTITUTION.md). It overrides everything else.
-2. [docs/PRD.md](docs/PRD.md) for what is in and out of scope.
-3. [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) and [docs/ROUTING.md](docs/ROUTING.md)
+2. [docs/PRD.md](docs/PRD.md) for what is in and out of scope, and which
+   version each requirement belongs to.
+3. [docs/IMPLEMENTATION-PLAN.md](docs/IMPLEMENTATION-PLAN.md) for build order,
+   milestones and guardrails.
+4. [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), [docs/ROUTING.md](docs/ROUTING.md),
+   [docs/API.md](docs/API.md) and [docs/CONFIGURATION.md](docs/CONFIGURATION.md)
    before changing any behaviour.
+5. [docs/TESTING.md](docs/TESTING.md) for what to test and how.
+
+If documents disagree: constitution, then PRD, then the rest. If something is
+unclear or conflicting, stop and ask the owner, then fix the docs.
+
+## Current state
+
+Documentation only. The next work is **V1** (milestones M0 to M10 in the
+implementation plan). Do not start V2 or later.
 
 ## Rules
 
@@ -15,24 +28,47 @@ Read this before touching the repository.
   not add queues, brokers, databases, frameworks or abstractions that the PRD
   does not call for.
 - **Respect the memory budget.** The router and web page on Mane stay within
-  the budget in the constitution (working budget 50 MB). Avoid heavyweight
-  dependencies and runtimes.
+  the working budget of 50 MB. Avoid heavyweight dependencies and runtimes.
+  Justify every dependency.
 - **Do not add features that are not in the PRD.** If something seems useful,
   propose it by adding to the backlog in [docs/ROADMAP.md](docs/ROADMAP.md).
   Do not build it.
 - **Keep deferred items deferred.** Profiles, the full queue, notifications,
-  high availability and RAG are out of scope until the roadmap says otherwise.
+  high availability, aliases, an OpenAI-compatible API and RAG are out of scope
+  until the roadmap says otherwise.
 - **Routing is rule-based.** Never route by reading or classifying prompt
   content.
 - **Pinned means pinned.** Never substitute a different model or machine for a
   pinned request.
-- **No UI on workers.** The only web page lives on Mane.
+- **Wait, do not reroute.** A request waits for its intended machine.
+- **No UI or router on workers.** The only web page lives on Mane.
 - **Mane-to-worker traffic stays on the LAN.**
-- **No secrets in the repository.** It is public. No keys, tokens, LAN or
-  Tailscale addresses, or login links.
-- **Update the docs with the change.** If behaviour changes, update the
-  matching document and add an entry to [docs/DECISIONS.md](docs/DECISIONS.md)
-  when a decision was made.
+- **Never log prompts or outputs.**
+- **No secrets or real addresses in the repository.** It is public. No keys,
+  tokens, LAN or Tailscale addresses, login links, or real config files. Commit
+  placeholders only.
+- **You cannot reach the real machines.** Phase 0 setup is done by the owner.
+  Build and test against a fake Ollama, and give the owner checklists for
+  anything that must happen on real hardware.
+
+## Working agreement
+
+- Small commits, one pull request per milestone, using the branch naming your
+  environment requires.
+- Add tests with every behaviour change. Make time-dependent code testable
+  with an injectable clock.
+- Run the build and tests before pushing.
+- Update the matching docs in the same change, and add an entry to
+  [docs/DECISIONS.md](docs/DECISIONS.md) when a decision is made.
+- Measure the router's memory use before calling a milestone done (M9).
+
+## Definition of done for a milestone
+
+1. The behaviour matches the docs.
+2. Tests for it pass.
+3. Docs are updated, with any decision recorded.
+4. No guardrail in the implementation plan is broken.
+5. No real addresses or secrets are committed.
 
 ## When unsure
 

@@ -39,6 +39,29 @@ Status: draft v1.
 Ollama has no built-in authentication, so the firewall and Tailscale are the
 protection. Do not rely on obscurity.
 
+### Router access checks
+
+The router has no login, so it adds two cheap checks (see
+[API.md](API.md) section 5):
+
+- It accepts only expected `Host` names (Mane's Tailscale name and localhost).
+- It rejects `POST` requests with an unexpected `Origin`.
+
+This stops other web pages open in the owner's browser from sending requests
+to the router. It does not replace Tailscale.
+
+### Ports
+
+| Port | Where | Exposure |
+|---|---|---|
+| Router port | Mane | Reachable from the tailnet only |
+| Inference port | Firmino | Reachable from Mane only |
+| Inference port | Mane | Local only |
+| SSH | Firmino | Via Tailscale SSH, key-based, no root login |
+
+Port numbers are set in configuration. Do not record real addresses in this
+public repository.
+
 ## 5. Tailscale
 
 - The MacBook Air and Mane are on the same tailnet.
@@ -70,6 +93,9 @@ protection. Do not rely on obscurity.
 | Internet exposure | No port forwarding. Tailscale only |
 | Tailscale account compromise | Strong account security and two-factor on the Tailscale identity |
 | Lost laptop | Remove it from the tailnet and review ACLs |
+| Malicious web page sending requests via the owner's browser | Host and Origin checks on the router |
+| Prompts leaking via logs | Prompts and outputs are never logged |
+| Secrets or addresses committed to the public repository | Commit only placeholders. Real config stays on Mane |
 
 ## 9. Out of scope
 

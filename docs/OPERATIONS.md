@@ -30,6 +30,36 @@ healthy. Both machines are assumed always on.
 | Firewall | Allow the inference port only from Mane. See [NETWORK-AND-SECURITY.md](NETWORK-AND-SECURITY.md) |
 | Disk | Free space. Decide on reclaiming the unused Windows partitions |
 
+## 2a. Ollama settings on each machine
+
+Ollama is configured through environment settings of its service. Check the
+exact names and how to apply them against the installed Ollama version.
+
+| Machine | Setting | Value |
+|---|---|---|
+| Firmino | Listen address | The LAN interface, so Mane can reach it. Firewall to Mane only |
+| Firmino | Parallel requests | 1 |
+| Firmino | Loaded models | 1 (more only if memory allows and is needed) |
+| Firmino | Keep-alive | Long enough that the 14B is not reloaded between requests. Tune |
+| Firmino | How set | A systemd service override, so settings survive updates |
+| Mane | Listen address | Local only |
+| Mane | Parallel requests | 1 |
+| Mane | Loaded models | 2 (the 3B and 8B) |
+| Mane | Keep-alive | Tune. Free memory when idle if needed |
+| Mane | How set | Through the service or app that launches Ollama. Confirm the settings are picked up after a reboot |
+
+These match `max_concurrent = 1` in [CONFIGURATION.md](CONFIGURATION.md).
+
+## 2b. Running the router on Mane
+
+| Item | Guidance |
+|---|---|
+| Service | A `launchd` service that starts on boot and restarts on failure |
+| Config | A config file on Mane with real values. Never committed |
+| Logs | Written by the service. Metadata only, never prompts. Check log size occasionally |
+| Updates | Replace the program, restart the service, and confirm it comes up (V1 loses active requests on restart) |
+| Memory check | Look at the router's memory now and then against the 50 MB working budget |
+
 ## 3. Health checks
 
 Basic checks the router performs, and the owner can run by hand:
@@ -51,6 +81,18 @@ The web page shows reachability. Anything deeper is out of scope for now.
 | Removing a model | Remove it on the machine. Check that no default points at it |
 | Disk budget | Mane: a few models only. Firmino: the larger library |
 | Size rule | Nothing over 8B on Mane |
+
+## 4a. Troubleshooting
+
+| Symptom | Check |
+|---|---|
+| Page does not load | Is the MacBook Air on the tailnet? Is the router running on Mane? |
+| "Firmino is down" | Is Firmino on and on the network? Is Ollama running there? Is the firewall allowing Mane? |
+| "Model not installed" | Is it installed on that machine? Does the name match exactly (including the tag)? |
+| A request waits a long time | Is another request running on that machine? Firmino on a long prompt can take minutes |
+| First answer is slow | The model may be loading from disk. Later requests are faster while it stays loaded |
+| Mane feels sluggish | Check memory pressure. Is a model larger than 8B loaded? |
+| Firmino very hot or loud | Check thermals and ventilation. Consider limiting load |
 
 ## 5. After a reboot or power loss
 
@@ -76,4 +118,5 @@ The web page shows reachability. Anything deeper is out of scope for now.
 ## 8. Open questions
 
 - Which BIOS options exist on the ThinkBook.
-- How services are supervised on Mane.
+- Whether Ollama on Mane runs as the desktop app or as a managed service, and
+  how its settings are applied at boot.
