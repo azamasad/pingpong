@@ -7,6 +7,7 @@ import (
 	"io"
 	"io/fs"
 	"net/http"
+	"strings"
 	"sync"
 
 	"github.com/azamasad/pingpong/internal/apperrors"
@@ -18,7 +19,7 @@ import (
 //go:embed web/*
 var webFS embed.FS
 
-const Version = "0.1.0"
+const Version = "1.0.0"
 
 type Server struct {
 	Cfg      *config.Config
@@ -54,8 +55,32 @@ func (s *Server) Handler() http.Handler {
 			writeErr(w, err.(apperrors.APIError))
 			return
 		}
-		s.Mux.ServeHTTP(w, r)
+		rec := &statusRecorder{ResponseWriter: w, status: http.StatusOK}
+		s.Mux.ServeHTTP(rec, r)
+		if rec.status == http.StatusNotFound && strings.HasPrefix(r.URL.Path, "/api/") {
+			writeErr(w, apperrors.New("NOT_FOUND", "not found"))
+		}
 	})
+}
+
+type statusRecorder struct {
+	http.ResponseWriter
+	status int
+}
+
+func (r *statusRecorder) WriteHeader(code int) {
+	r.status = code
+	if code == http.StatusNotFound {
+		return
+	}
+	r.ResponseWriter.WriteHeader(code)
+}
+
+func (r *statusRecorder) Write(b []byte) (int, error) {
+	if r.status == http.StatusNotFound {
+		return len(b), nil
+	}
+	return r.ResponseWriter.Write(b)
 }
 
 func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {

@@ -84,6 +84,38 @@ func (s *Server) handleChat(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	var req map[string]any
+	_ = json.NewDecoder(r.Body).Decode(&req)
+	stream := true
+	if v, ok := req["stream"].(bool); ok {
+		stream = v
+	}
+	if !stream {
+		var content, thinking string
+		var done DoneStats
+		for _, step := range steps {
+			if step.Content != "" {
+				content = step.Content
+			}
+			if step.Thinking != "" {
+				thinking = step.Thinking
+			}
+			if step.Done != nil {
+				done = *step.Done
+			}
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"model": "fake",
+			"message": map[string]string{
+				"role": "assistant", "content": content, "thinking": thinking,
+			},
+			"done": true, "eval_count": done.EvalCount, "prompt_eval_count": done.PromptEvalCount,
+			"done_reason": done.DoneReason, "total_duration": int64(time.Second),
+		})
+		return
+	}
+
 	flusher, _ := w.(http.Flusher)
 	w.Header().Set("Content-Type", "application/x-ndjson")
 

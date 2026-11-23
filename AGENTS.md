@@ -22,7 +22,8 @@ unclear or conflicting, stop and ask the owner, then fix the docs.
 
 ## Current state
 
-**V1 implementation** on branch `cursor/v1-implementation-aa2f` ([PR #2](https://github.com/azamasad/pingpong/pull/2)).
+**V1 ready for production** on branch `cursor/v1-implementation-aa2f` ([PR #2](https://github.com/azamasad/pingpong/pull/2)).
+CI green. Owner steps: [docs/PRODUCTION.md](docs/PRODUCTION.md), [SETUP-GUIDE.md](docs/SETUP-GUIDE.md) M8b–M10.
 
 | Milestone | Status |
 |---|---|

@@ -6,9 +6,8 @@ local LLM requests run across a few always-on machines on a home network.
 You send a request to Mane. Mane either handles it itself (fast, small models)
 or hands it to **Firmino** (slower, larger models, long-running work).
 
-> Status: **V1 implementation in progress.** Documentation is in `docs/`. Early
-> Go code lives on branch `cursor/v1-implementation-aa2f` (config, routing, health
-> endpoint). See [AGENTS.md](AGENTS.md) for milestone status.
+> Status: **V1 code complete.** Docs in `docs/`. Router binary `cmd/pingpong`.
+> Go-live on your machines: [docs/PRODUCTION.md](docs/PRODUCTION.md).
 
 ## The machines
 
@@ -78,6 +77,7 @@ then the PRD, then the rest.
 | 10 | [docs/NETWORK-AND-SECURITY.md](docs/NETWORK-AND-SECURITY.md) | Access paths, firewall, privacy |
 | 11 | [docs/SETUP-GUIDE.md](docs/SETUP-GUIDE.md) | Step-by-step machine setup (Phase 0) |
 | 12 | [docs/OPERATIONS.md](docs/OPERATIONS.md) | Keeping the machines healthy |
+| | [docs/PRODUCTION.md](docs/PRODUCTION.md) | V1 go-live on Mane and Firmino |
 | 13 | [docs/IMPLEMENTATION-PLAN.md](docs/IMPLEMENTATION-PLAN.md) | Build order, milestones, guardrails |
 | 14 | [docs/TESTING.md](docs/TESTING.md) | How to verify each version |
 | 15 | [docs/ROADMAP.md](docs/ROADMAP.md) | Phases, and what is deferred |
