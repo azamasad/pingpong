@@ -277,7 +277,9 @@ not check workers (use `/api/machines`).
 
 ## 4. V2 endpoints (durable sessions)
 
-Not part of V1. Specified here so V1 choices do not block them.
+Built in V2. They exist only when `storage.data_dir` is set, and otherwise
+return `404 NOT_FOUND` ("jobs not configured"). `GET /api/health` reports this
+as `"jobs": true` or `false`.
 
 | Method and path | Purpose |
 |---|---|
@@ -304,6 +306,26 @@ sequence number.
 | `GET /api/batches/{id}` | Batch status: `pending` count and each job's detail |
 
 Terminal: `pingpong batch submit` and `pingpong batch get` (see [JOBS-AND-RETRIES.md](JOBS-AND-RETRIES.md)).
+
+### 4.2 V5 profiles
+
+| Method and path | Purpose |
+|---|---|
+| `GET /api/profiles` | List the named presets: `[{"name","fast","model","machine"}]`. `model` and `machine` are omitted when unset. Always available, with or without saved requests |
+
+The request field `profile` is described in section 2.1. An explicit `fast`,
+`model` or `machine` always wins over the preset.
+
+### 4.3 Planned: V6 and V7 (not built)
+
+| Method and path | Version | Purpose |
+|---|---|---|
+| `GET /api/status` | V6 | Machines, queue counts, recent failures (no content), storage. See [V6-OPERABILITY.md](V6-OPERABILITY.md) |
+| `GET /api/aliases` | V7 | Configured aliases and where each model is installed. See [V7-ALIASES.md](V7-ALIASES.md) |
+
+Also planned: error code `ROUTER_RESTARTING` (503, retryable, V6) and an
+optional `alias` field on the `route` event and job detail (V7). None of these
+exist yet, and clients must not depend on them.
 
 ## 5. Security notes for the API
 

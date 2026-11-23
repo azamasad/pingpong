@@ -6,7 +6,9 @@ local LLM requests run across a few always-on machines on a home network.
 You send a request to Mane. Mane either handles it itself (fast, small models)
 or hands it to **Firmino** (slower, larger models, long-running work).
 
-> Status: **V1 code complete.** Docs in `docs/`. Router binary `cmd/pingpong`.
+> Status: **V1 to V5 built, tested against a fake Ollama and merged.** V6 and
+> V7 are specified, not built. Not yet run on the real machines. Docs in
+> `docs/`. Router binary `cmd/pingpong`.
 > Go-live on your machines: [docs/PRODUCTION.md](docs/PRODUCTION.md).
 
 ## The machines
@@ -40,10 +42,13 @@ More machines can be added later. They are always controlled through Mane.
 | V2 | Durable sessions, saved results (90 days), retries, cancel, history |
 | V3 | A simple queue for batch work |
 | V4 | More machines, by role |
+| V5 | Named profiles: fast, balanced, deep |
+| V6 (planned) | `doctor`, graceful shutdown, backup, status view. [Spec](docs/V6-OPERABILITY.md) |
+| V7 (planned) | Model aliases. [Spec](docs/V7-ALIASES.md) |
 
 See [docs/ROADMAP.md](docs/ROADMAP.md).
 
-## Build (V1)
+## Build
 
 Requires Go 1.22 or newer.
 
@@ -81,13 +86,16 @@ then the PRD, then the rest.
 | 13 | [docs/IMPLEMENTATION-PLAN.md](docs/IMPLEMENTATION-PLAN.md) | Build order, milestones, guardrails |
 | 14 | [docs/TESTING.md](docs/TESTING.md) | How to verify each version |
 | 15 | [docs/ROADMAP.md](docs/ROADMAP.md) | Phases, and what is deferred |
+| | [docs/V6-OPERABILITY.md](docs/V6-OPERABILITY.md) | V6 spec (planned) |
+| | [docs/V7-ALIASES.md](docs/V7-ALIASES.md) | V7 spec (planned) |
 | 16 | [docs/DECISIONS.md](docs/DECISIONS.md) | Log of decisions and the reasons behind them |
 | 17 | [docs/GLOSSARY.md](docs/GLOSSARY.md) | Terms used in these documents |
 | | [AGENTS.md](AGENTS.md) | Rules for AI coding assistants working in this repo |
 
 ## Conventions
 
-- **V1, V2, V3, V4** tag when a feature arrives. Do not build later versions early.
+- **V1 to V7** tag when a feature arrives. Do not build later versions early.
+  V6 and V7 are specified but not built.
 - **Proposed** means a suggestion pending the owner's confirmation. Nothing is
   currently pending.
 - Figures for speed and size are estimates until measured.
@@ -98,7 +106,7 @@ then the PRD, then the rest.
 - RAG (retrieval over documents). It is being explored separately. If it ever
   needs a local model, it can call Mane like any other client.
 - High availability. Both machines are assumed to be up.
-- Notifications. Deferred.
+- Notifications. Deferred (proposed as V10, see the roadmap).
 
 ## License
 

@@ -155,6 +155,28 @@ If something is not specified, use these. Record anything new in DECISIONS.
 
 Owner hardware acceptance: [TESTING.md](TESTING.md) §4 after merge.
 
+## 5a. V3 to V5 (done, merged to `main`)
+
+| Version | Work | Status |
+|---|---|---|
+| V3 | Lanes, `POST /api/batches`, `pingpong batch` (D-066) | Done |
+| V4 | Role choice among several machines (D-067) | Done |
+| V5 | Named profiles, `GET /api/profiles`, page selector (D-068) | Done |
+
+Hardware acceptance for all of them is the owner's: [PRODUCTION.md](PRODUCTION.md)
+section 3 and [TESTING.md](TESTING.md) section 4.
+
+## 5b. V6 and V7 (planned, not started)
+
+| Version | Spec | Milestones |
+|---|---|---|
+| V6 operability | [V6-OPERABILITY.md](V6-OPERABILITY.md) (D-069) | M11a, M11b, M12, M13, M14, M15 |
+| V7 model aliases | [V7-ALIASES.md](V7-ALIASES.md) (D-070) | M16 to M20 |
+
+Start V6 only when the owner says so. Fold in the findings of the real-machine
+trial first, since V6's `doctor --chat` exists to check what that trial
+reveals about real Ollama.
+
 ## 6. Things to decide early in implementation
 
 Record each in [DECISIONS.md](DECISIONS.md).
