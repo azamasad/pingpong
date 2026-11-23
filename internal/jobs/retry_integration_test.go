@@ -22,7 +22,7 @@ func jobTestCfg(t *testing.T, url string) *config.Config {
 			DefaultModel: "qwen:14b", MaxConcurrent: 1, NumCtx: 4096,
 		}},
 		Routing: config.RoutingConfig{AutoRole: "heavy", FastRole: "heavy"},
-		Health:  config.HealthConfig{RefreshOnModelMiss: true},
+		Health:  config.HealthConfig{},
 		Storage: config.StorageConfig{OutputFlushInterval: config.Duration{Duration: time.Millisecond}},
 	}
 	cfg.Retry.RetryInterval = config.Duration{Duration: 30 * time.Millisecond}

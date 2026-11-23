@@ -6,6 +6,7 @@ import (
 	"net"
 	"net/url"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -77,7 +78,13 @@ type HealthConfig struct {
 	Timeout                 Duration `yaml:"timeout"`
 	FailuresToMarkDown      int      `yaml:"failures_to_mark_down"`
 	RegistryRefreshInterval Duration `yaml:"registry_refresh_interval"`
-	RefreshOnModelMiss      bool     `yaml:"refresh_on_model_miss"`
+	RefreshOnModelMiss      *bool    `yaml:"refresh_on_model_miss"`
+}
+
+// RefreshOnMiss reports whether a pinned-model miss triggers one refresh.
+// It defaults to true when the key is omitted.
+func (h HealthConfig) RefreshOnMiss() bool {
+	return h.RefreshOnModelMiss == nil || *h.RefreshOnModelMiss
 }
 
 // Duration wraps time.Duration for YAML like "30m" and "15s".
@@ -139,6 +146,7 @@ func PathFromEnvOrFlag(flagPath string) (string, error) {
 }
 
 func (c *Config) applyDefaults() {
+	c.Storage.DataDir = expandHome(c.Storage.DataDir)
 	if c.Router.Listen == "" {
 		c.Router.Listen = "127.0.0.1:8787"
 	}
@@ -330,4 +338,16 @@ func (c *Config) FirstMachineWithRole(role string) (*Machine, bool) {
 		}
 	}
 	return nil, false
+}
+
+func expandHome(p string) string {
+	p = strings.TrimSpace(p)
+	if p != "~" && !strings.HasPrefix(p, "~/") {
+		return p
+	}
+	home, err := os.UserHomeDir()
+	if err != nil || home == "" {
+		return p
+	}
+	return filepath.Join(home, strings.TrimPrefix(p, "~"))
 }
