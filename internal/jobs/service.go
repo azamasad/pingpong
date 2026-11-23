@@ -66,7 +66,7 @@ func (s *Service) EventsSince(ctx context.Context, id string, fromSeq int64) ([]
 func (s *Service) resolve(req route.Request) route.Result {
 	snap := s.reg.RouteSnapshot()
 	res := route.Decide(req, snap)
-	if res.NeedRefresh && s.cfg.Health.RefreshOnModelMiss {
+	if res.NeedRefresh && s.cfg.Health.RefreshOnMiss() {
 		ctx := context.Background()
 		for _, m := range s.cfg.Machines {
 			s.reg.RefreshMachine(ctx, m.Name)
@@ -75,7 +75,8 @@ func (s *Service) resolve(req route.Request) route.Result {
 		res = route.Decide(req, snap)
 	}
 	if res.NeedRefresh {
-		return route.Result{Code: route.CodeModelsUnknown}
+		snap.RefreshedModels = true
+		res = route.Decide(req, snap)
 	}
 	return res
 }

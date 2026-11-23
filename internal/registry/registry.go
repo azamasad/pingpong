@@ -138,23 +138,34 @@ func (r *Registry) checkOne(ctx context.Context, name string) {
 	ctx2, cancel := context.WithTimeout(ctx, r.cfg.Health.Timeout.Duration)
 	_, err := cli.Tags(ctx2)
 	cancel()
+	needModels := r.recordCheck(name, err)
+	if needModels {
+		r.refreshOne(ctx, name)
+	}
+}
+
+// recordCheck stores a health result. It reports true when the machine just
+// became reachable or has no model list yet, so the caller loads models now
+// instead of waiting for the next registry refresh.
+func (r *Registry) recordCheck(name string, err error) bool {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	ms := r.state[name]
-	now := time.Now()
-	ms.lastChecked = now
+	ms.lastChecked = time.Now()
 	if err != nil {
 		ms.failures++
 		if ms.failures >= r.cfg.Health.FailuresToMarkDown {
 			ms.down = true
 			ms.reachable = false
 		}
-		return
+		return false
 	}
+	needModels := !ms.reachable || len(ms.names) == 0
 	ms.failures = 0
 	ms.down = false
 	ms.reachable = true
 	ms.neverReached = false
+	return needModels
 }
 
 func (r *Registry) mustMachine(name string) config.Machine {
