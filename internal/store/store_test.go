@@ -37,4 +37,14 @@ func TestJobRoundTrip(t *testing.T) {
 	if err != nil || len(evs) != 1 {
 		t.Fatalf("%v %v", evs, err)
 	}
+	if err := st.SaveOutput(ctx, "a", "partial", "", now); err != nil {
+		t.Fatal(err)
+	}
+	got, err = st.GetJob(ctx, "a")
+	if err != nil || got.OutputText != "partial" || got.Status != store.StatusWaiting {
+		t.Fatalf("save output changed the job: %+v %v", got, err)
+	}
+	if err := st.DeleteJob(ctx, "missing"); err == nil {
+		t.Fatal("missing job should not delete")
+	}
 }
