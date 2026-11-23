@@ -142,16 +142,18 @@ If something is not specified, use these. Record anything new in DECISIONS.
 | Memory budget measure | Resident memory of the process |
 | Waiting request when its machine goes down (V1) | Fails with an in-band `MACHINE_DOWN` |
 
-## 5. V2 outline (do not build yet)
+## 5. V2 (done on `cursor/v2-jobs-aa2f`, PR #3)
 
-| # | Milestone | Notes |
+| # | Milestone | Status |
 |---|---|---|
-| V2-1 | Store | SQLite file, schema per [JOBS-AND-RETRIES.md](JOBS-AND-RETRIES.md), retention sweep |
-| V2-2 | Detached execution | Requests run independent of the client. Output saved as produced |
-| V2-3 | Job endpoints | Submit, list, get, events with resume, cancel, delete |
-| V2-4 | Retry | Every 2 minutes up to 3 hours from first failure, mid-task restart from the beginning |
-| V2-5 | Restart recovery | Rules in JOBS-AND-RETRIES |
-| V2-6 | Page: history | List, open, reattach, cancel, retry status |
+| V2-1 | Store | Done |
+| V2-2 | Detached execution | Done |
+| V2-3 | Job endpoints | Done |
+| V2-4 | Retry | Done |
+| V2-5 | Restart recovery | Done |
+| V2-6 | Page: history | Done (filter, open, reattach, cancel, delete) |
+
+Owner hardware acceptance: [TESTING.md](TESTING.md) §4 after merge.
 
 ## 6. Things to decide early in implementation
 

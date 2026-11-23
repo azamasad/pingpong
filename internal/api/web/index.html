@@ -13,7 +13,9 @@
   </header>
   <main>
     <div class="controls">
+      <label>Profile <select id="profile"><option value="">—</option></select></label>
       <label><input type="checkbox" id="fast"> Fast (Mane)</label>
+      <label id="lane-wrap" class="hidden"><input type="checkbox" id="batch-lane"> Batch lane</label>
       <label>Model <select id="model"><option value="">—</option></select></label>
       <label>Machine <select id="machine"><option value="">—</option></select></label>
     </div>
@@ -29,6 +31,33 @@
   <pre id="out"></pre>
   <p id="warn" class="warn hidden"></p>
   <p id="err" class="err hidden"></p>
+  <aside id="jobs-panel" class="jobs hidden">
+    <div class="jobs-header">
+      <h2>Request history</h2>
+      <label>Status
+        <select id="jobs-filter">
+          <option value="">All</option>
+          <option value="waiting">waiting</option>
+          <option value="running">running</option>
+          <option value="retrying">retrying</option>
+          <option value="done">done</option>
+          <option value="failed">failed</option>
+          <option value="cancelled">cancelled</option>
+        </select>
+      </label>
+    </div>
+    <ul id="jobs-list"></ul>
+    <div id="job-detail" class="job-detail hidden">
+      <p id="job-meta" class="job-meta"></p>
+      <div class="job-actions">
+        <button type="button" id="job-reattach">Watch / reattach</button>
+        <button type="button" id="job-cancel">Cancel</button>
+        <button type="button" id="job-delete">Delete</button>
+      </div>
+      <pre id="job-out"></pre>
+      <ul id="job-history" class="job-history"></ul>
+    </div>
+  </aside>
   </main>
   <script src="app.js"></script>
 </body>

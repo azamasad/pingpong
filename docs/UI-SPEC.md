@@ -1,6 +1,6 @@
 # UI Specification
 
-Status: draft v1.
+Status: draft v2 (V2 job UI implemented).
 
 A tiny, built-in web page served by the router on Mane. One page, no
 logins, used by one person.

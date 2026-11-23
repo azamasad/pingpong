@@ -21,6 +21,7 @@ type ChatBody struct {
 	Think    *bool                `json:"think"`
 	Stream   *bool                `json:"stream"`
 	Options  map[string]any       `json:"options"`
+	Profile  string               `json:"profile"`
 }
 
 func filterOptions(in map[string]any) map[string]any {
