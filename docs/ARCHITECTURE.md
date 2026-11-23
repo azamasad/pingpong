@@ -122,12 +122,19 @@ the background.
 
 1. Client sends a request to Mane with optional flags.
 2. Router validates it and selects the target (see ROUTING).
-3. If the target is down, return an error.
-4. The request enters the target's wait gate. If busy, it waits and the client
-   sees "waiting".
-5. Router forwards to the target's Ollama and streams the answer back with the
-   model, machine and mode.
-6. If the client disconnects at any point, the request is dropped or cancelled.
+3. If the target is marked down, return an HTTP error. Nothing has been written yet.
+4. Router writes the `200` header and the `route` event, so the client can show
+   the target at once.
+5. The request enters the target's wait gate. If the machine is at its limit, it
+   waits and the client sees "waiting". Heartbeats keep the connection alive.
+6. Router forwards to the target's Ollama and streams the answer back with the
+   model, machine and mode. Any failure from here on is an in-band `error`.
+7. If the client disconnects at any point, the request is dropped or cancelled.
+
+Go implementation note: do not use a server write timeout or a client total
+timeout on streaming calls, because they would cut off 30-minute streams. Use the
+router's own timers (first chunk, idle, total run time). Any response-header
+timeout on the call to Ollama must be at least `first_token_timeout`.
 
 ### V2 (durable)
 
@@ -164,14 +171,17 @@ Details in [NETWORK-AND-SECURITY.md](NETWORK-AND-SECURITY.md).
 | Exposure | Listens on localhost only. Tailscale Serve publishes it to the tailnet |
 | Configuration | A config file on Mane (real values are not committed) |
 | Data (V2) | A data directory on Mane's disk |
-| Updates | Replace the program and restart. Active requests in V1 are lost on restart. In V2 they resume |
+| Updates | Replace the program and restart. Active requests in V1 are lost on restart. In V2 waiting and retrying requests resume, and an interrupted attempt restarts from the beginning |
 | Workers | Ollama only, with firewall rules. Nothing of ours runs on Firmino |
 
 ## 7. Logging
 
 - Logs go to the service's log output, with rotation handled by the host.
-- Log request metadata only: request ID (V2), mode, machine, model, state
-  changes, timings, and errors.
+- Log request metadata only, as one line per event with these fields and no
+  others: time, level, event name, request ID (V2), mode, machine, model, state,
+  duration, error code, and error message text from the router itself.
+  Never log a request body, prompt, output, or Ollama's raw error body (it can
+  echo prompt text).
 - **Never log prompts or outputs.**
 - Keep logs modest. This is a single-user system.
 
@@ -200,7 +210,7 @@ better home for the brain.
 | Pinned target unavailable | Fail with a clear message. No substitution |
 | Failure partway through | Error (V1). Retry and restart from the beginning (V2) |
 | Client disconnects | V1: cancel. V2: keep running |
-| Mane restarts | V1: active requests lost. V2: they resume |
+| Mane restarts | V1: active requests lost. V2: waiting and retrying requests resume, and a request that was running restarts from the beginning |
 | Mane down | Whole service unavailable. Accepted for now |
 
 ## 11. Out of scope

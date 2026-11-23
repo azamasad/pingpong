@@ -51,7 +51,7 @@ Slower is acceptable for long-running work.
 | UC3 | Pin a specific model or machine for a particular task. |
 | UC4 | See which model and machine produced an answer. |
 | UC5 | See that a request is waiting, running, failed or done. |
-| UC6 | Stop a request that is no longer wanted. |
+| UC6 | Stop a request that is no longer wanted. In V1 this means closing or stopping the request. In V2 it is an explicit cancel. |
 | UC7 | (V2) Start a long task, close the laptop, and read the result later. |
 | UC8 | (V4) Add a new machine without changing routing rules. |
 
@@ -116,6 +116,9 @@ Interfaces are specified in [API.md](API.md), settings in
 | F27 | The page shows whether each machine is reachable and busy. | V1 |
 | F28 | The page lists past requests and their statuses. | V2 |
 | F29 | A scriptable endpoint for terminal use, with the same flags. | V1 |
+| F31 | The request can pass a small allow-list of generation options and a `think` setting, and can ask for a single non-streamed reply (`stream:false`). | V1 |
+| F32 | Read-only endpoints list machines (with reachable and busy), installed models, and overall health. | V1 |
+| F33 | The router rejects requests with an unexpected `Host` or `Origin`, and bodies over a size limit. | V1 |
 
 ### Machines
 
@@ -137,9 +140,13 @@ Interfaces are specified in [API.md](API.md), settings in
 | N8 | Slower responses on Firmino are acceptable. |
 | N9 | Prompts and outputs are never written to logs. |
 | N10 | Timeouts are generous enough for CPU inference on long prompts (see CONFIGURATION). |
+| N11 | The router starts on boot and restarts after failure. |
 | N12 | The context window is set explicitly on both machines (8192 tokens to start), never left at Ollama's silent 4096 default. |
 | N13 | Reasoning (thinking) output, if a model produces it, is kept separate from the answer. |
-| N11 | The router starts on boot and restarts after failure. |
+| N14 | Open streams send periodic heartbeats, so a long silent wait is not mistaken for a dead connection, and dead clients are detected. |
+| N15 | If a prompt fills the context window, the response carries a visible warning instead of failing silently. |
+| N16 | While a request is running or waiting, the owner can see how long it has run. Total running time is capped (default 2 hours) so a stuck request cannot block a machine indefinitely. |
+| N17 | The 50 MB budget (N1) means the router's resident memory: well under it when idle, and at most 50 MB during a defined load of 4 concurrent streams plus one 8,192-token prompt. |
 
 ## 8. Starting models
 
@@ -172,6 +179,8 @@ The manual check list is in [TESTING.md](TESTING.md) section 4.
 - Mane-to-Firmino traffic is confirmed to use the LAN.
 - Firmino's inference port is not reachable from the MacBook Air directly.
 - Logs contain no prompts or outputs.
+- A long quiet wait on Firmino (many minutes) does not drop the connection, and the page shows elapsed time.
+- A prompt that fills the context window shows a warning.
 
 **V2**
 

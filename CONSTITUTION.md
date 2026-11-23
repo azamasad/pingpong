@@ -93,7 +93,7 @@ PRD, then the other documents.
 | Users | One (the owner) |
 | Logins | None. Tailscale is the access control. |
 | Public exposure | None |
-| Retry window for an unavailable machine | Every 2 minutes, up to 3 hours, then stop |
+| Retry window for an unavailable machine (V2) | Every 2 minutes, up to 3 hours, then stop |
 | Retention of finished results (when stored) | 90 days |
 | Logging of prompts or outputs | Never |
 | Concurrency per machine (default) | 1 request in flight |

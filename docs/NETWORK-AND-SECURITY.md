@@ -33,10 +33,13 @@ Status: draft v1.
 
 | Machine | Rule |
 |---|---|
-| Firmino | Allow the inference port only from Mane's LAN address. Deny all other sources. |
-| Firmino | Inference service listens on the LAN interface, not on every interface. |
+| Firmino | Ollama binds to Firmino's LAN address only (`OLLAMA_HOST`), so it never listens on the tailnet address. |
+| Firmino | The firewall allows the inference port only from Mane's LAN address and denies other LAN sources. |
+| Firmino | The Tailscale ACL does not allow any tailnet device to reach port 11434 on Firmino (defence in depth). |
 | Mane | The router listens on localhost only. Tailscale Serve publishes it to the tailnet, so the LAN cannot reach it directly. |
 | Mane | Mane's own Ollama is local only, used by the router. |
+
+**Tailscale bypasses the Linux firewall.** On Linux, Tailscale adds a rule that accepts everything arriving on its own interface before `ufw` runs (this is deliberate, and Tailscale's ACLs are the control for tailnet traffic). So a `ufw` rule can **not** keep your MacBook Air off Firmino's Ollama over the tailnet. The bind address and the Tailscale ACL do that job. `ufw` still protects against other devices on the home LAN.
 
 Ollama has no built-in authentication, so the firewall and Tailscale are the
 protection. Do not rely on obscurity.
@@ -46,7 +49,7 @@ protection. Do not rely on obscurity.
 The router has no login, so it adds two cheap checks (see
 [API.md](API.md) section 5):
 
-- It accepts only expected `Host` names (Mane's Tailscale name and localhost).
+- It accepts only expected `Host` names (Mane's full tailnet name, `localhost` and `127.0.0.1`).
 - It rejects `POST` requests with an unexpected `Origin`.
 
 This stops other web pages open in the owner's browser from sending requests
@@ -67,10 +70,21 @@ public repository.
 ## 5. Tailscale
 
 - The MacBook Air and Mane are on the same tailnet.
-- Use access rules (ACLs) so only the owner's devices can reach Mane's router.
+- Use access rules (ACLs) so that: your devices can reach Mane's published router
+  port (HTTPS 443) and nothing else on Mane; your devices can reach Firmino
+  on SSH (port 22) only; nobody reaches port 11434 on Firmino. The default ACL
+  allows everything, so this needs editing.
+- Tailscale SSH is handled by Tailscale itself, not by `ufw` or `sshd`, so no
+  firewall rule is needed for it.
 - Firmino stays on Tailscale for administration only. It is not part of the
   inference path.
 - Prefer stable machine names (MagicDNS) over IP addresses in notes and config.
+- HTTPS through Tailscale Serve needs HTTPS certificates enabled for the tailnet.
+  Tailscale's certificates are public, so the machine's tailnet host name appears
+  in public certificate logs. The name becomes visible but the machine is still
+  unreachable to anyone outside the tailnet. If this bothers you, the fallback is
+  plain HTTP on the tailnet (the traffic is already encrypted by Tailscale), at
+  the cost of the browser marking the page "not secure" (D-040).
 
 ## 6. Hardening Firmino
 
@@ -114,5 +128,6 @@ disk encryption.
 ## 10. Open questions
 
 - Which router handles the DHCP reservations.
-- Exact Tailscale ACL rules (see SETUP-GUIDE section 4 for what they must achieve).
-- Exact `tailscale serve` syntax for the installed version.
+- The exact Tailscale ACL text for your tailnet (write it from the rules above).
+- Whether macOS blocks the launch-agent router from reaching Firmino (see
+  [SETUP-GUIDE.md](SETUP-GUIDE.md) section 3.5).
