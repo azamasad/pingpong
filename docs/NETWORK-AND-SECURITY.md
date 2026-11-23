@@ -41,6 +41,65 @@ Status: draft v1.
 
 **Tailscale bypasses the Linux firewall.** On Linux, Tailscale adds a rule that accepts everything arriving on its own interface before `ufw` runs (this is deliberate, and Tailscale's ACLs are the control for tailnet traffic). So a `ufw` rule can **not** keep your MacBook Air off Firmino's Ollama over the tailnet. The bind address and the Tailscale ACL do that job. `ufw` still protects against other devices on the home LAN.
 
+### Tailscale ACL template (simple, tag-based)
+
+Idea: give each machine a **tag** for its role, and write rules about tags, not
+individual machines. Adding a machine later means giving it a tag, with no rule
+changes. Anything not allowed is denied. Mane-to-Firmino traffic uses the LAN,
+so it needs no tailnet rule.
+
+Paste into the Tailscale admin console, Access controls (replace the
+placeholders, and do not commit your real values to this public repo):
+
+```
+{
+  "tagOwners": {
+    "tag:router": ["autogroup:admin"],
+    "tag:worker": ["autogroup:admin"]
+  },
+  "acls": [
+    {
+      "action": "accept",
+      "src": ["autogroup:member"],
+      "dst": ["tag:router:443", "tag:worker:22"]
+    }
+  ],
+  "ssh": [
+    {
+      "action": "accept",
+      "src": ["autogroup:member"],
+      "dst": ["tag:router", "tag:worker"],
+      "users": ["<LINUX_USER>", "<MAC_USER>"]
+    }
+  ],
+  "tests": [
+    {
+      "src": "<YOUR_EMAIL>",
+      "accept": ["tag:router:443", "tag:worker:22"],
+      "deny": ["tag:worker:11434", "tag:router:22"]
+    }
+  ]
+}
+```
+
+What it says: you (any member of your tailnet) may open Mane's page (443) and SSH
+to Firmino (22), and nothing else. Nobody reaches port 11434. The `tests` block
+makes the console refuse a policy that does not behave this way.
+
+Safe order (so you cannot lock yourself out):
+
+1. Add only `tagOwners` first, and save.
+2. Tag Mane as `tag:router` and Firmino as `tag:worker` (admin console, machine
+   menu, edit ACL tags). Tagged machines no longer expire their keys, which suits
+   always-on machines.
+3. Keep your current SSH session to Firmino open.
+4. Replace `acls`, `ssh` and `tests` with the template, and save. If the tests
+   fail, the console tells you and does not apply it.
+5. Check from the MacBook Air: Mane's page loads, SSH to Firmino works, and
+   `http://<Firmino tailnet address>:11434` fails.
+
+A new worker later: install Tailscale, tag it `tag:worker`, done.
+
 Ollama has no built-in authentication, so the firewall and Tailscale are the
 protection. Do not rely on obscurity.
 
@@ -128,6 +187,5 @@ disk encryption.
 ## 10. Open questions
 
 - Which router handles the DHCP reservations.
-- The exact Tailscale ACL text for your tailnet (write it from the rules above).
 - Whether macOS blocks the launch-agent router from reaching Firmino (see
   [SETUP-GUIDE.md](SETUP-GUIDE.md) section 3.5).
