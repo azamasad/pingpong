@@ -20,8 +20,15 @@ import (
 )
 
 func main() {
-	if len(os.Args) > 1 && os.Args[1] == "batch" {
-		os.Exit(runBatch(os.Args[2:]))
+	if len(os.Args) > 1 {
+		switch os.Args[1] {
+		case "batch":
+			os.Exit(runBatch(os.Args[2:]))
+		case "doctor":
+			os.Exit(runDoctor(os.Args[2:]))
+		case "backup":
+			os.Exit(runBackup(os.Args[2:]))
+		}
 	}
 	configPath := flag.String("config", "", "path to YAML config (or set PINGPONG_CONFIG)")
 	flag.Parse()
@@ -53,8 +60,10 @@ func main() {
 	reg.Start(ctx)
 
 	var jobSvc *jobs.Service
+	var st *store.Store
 	if cfg.JobsEnabled() {
-		st, err := store.Open(cfg.Storage.DataDir)
+		var err error
+		st, err = store.Open(cfg.Storage.DataDir)
 		if err != nil {
 			log.Fatalf("store: %v", err)
 		}
@@ -79,7 +88,19 @@ func main() {
 	ch := make(chan os.Signal, 1)
 	signal.Notify(ch, syscall.SIGINT, syscall.SIGTERM)
 	<-ch
+	srv.BeginShutdown()
+	if jobSvc != nil {
+		jobSvc.BeginShutdown()
+	}
+	shutdownCtx, shutdownCancel := context.WithTimeout(
+		context.Background(),
+		cfg.Router.ShutdownGrace.Duration,
+	)
+	defer shutdownCancel()
+	_ = httpSrv.Shutdown(shutdownCtx)
 	cancel()
-	_ = httpSrv.Shutdown(context.Background())
 	reg.Stop()
+	if st != nil {
+		_ = st.Checkpoint()
+	}
 }

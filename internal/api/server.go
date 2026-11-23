@@ -10,6 +10,8 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"sync/atomic"
+	"time"
 
 	"github.com/azamasad/pingpong/internal/apperrors"
 	"github.com/azamasad/pingpong/internal/config"
@@ -21,23 +23,31 @@ import (
 //go:embed web/*
 var webFS embed.FS
 
-const Version = "5.0.0"
+const Version = "7.0.0"
 
 type Server struct {
-	Cfg      *config.Config
-	Reg      *registry.Registry
-	Gate     *gate.Gate
-	Jobs     *jobs.Service
-	Mux      *http.ServeMux
-	shutdown context.CancelFunc
-	once     sync.Once
+	Cfg          *config.Config
+	Reg          *registry.Registry
+	Gate         *gate.Gate
+	Jobs         *jobs.Service
+	Mux          *http.ServeMux
+	shuttingDown atomic.Bool
+	startedAt    time.Time
+	shutdown     context.CancelFunc
+	once         sync.Once
 }
 
 func NewServer(cfg *config.Config, reg *registry.Registry, g *gate.Gate, jobSvc *jobs.Service) *Server {
-	s := &Server{Cfg: cfg, Reg: reg, Gate: g, Jobs: jobSvc, Mux: http.NewServeMux()}
+	s := &Server{
+		Cfg: cfg, Reg: reg, Gate: g, Jobs: jobSvc, Mux: http.NewServeMux(),
+		startedAt: time.Now(),
+	}
 	s.routes()
 	return s
 }
+
+// BeginShutdown refuses new mutating API requests until exit.
+func (s *Server) BeginShutdown() { s.shuttingDown.Store(true) }
 
 func (s *Server) routes() {
 	static, _ := fs.Sub(webFS, "web")
@@ -46,6 +56,8 @@ func (s *Server) routes() {
 	s.Mux.HandleFunc("GET /api/machines", s.handleMachines)
 	s.Mux.HandleFunc("GET /api/models", s.handleModels)
 	s.Mux.HandleFunc("GET /api/profiles", s.handleProfiles)
+	s.Mux.HandleFunc("GET /api/aliases", s.handleAliases)
+	s.Mux.HandleFunc("GET /api/status", s.handleStatus)
 	s.Mux.HandleFunc("POST /api/chat", s.handleChat)
 	s.Mux.HandleFunc("POST /api/jobs", s.handleJobCreate)
 	s.Mux.HandleFunc("GET /api/jobs", s.handleJobList)
@@ -65,6 +77,10 @@ func (s *Server) Handler() http.Handler {
 		}
 		if err := checkOrigin(r, s.Cfg.Router.AllowedHosts); err != nil {
 			writeErr(w, err.(apperrors.APIError))
+			return
+		}
+		if s.shuttingDown.Load() && r.Method != http.MethodGet && r.Method != http.MethodHead {
+			writeErr(w, apperrors.New("ROUTER_RESTARTING", "router is shutting down"))
 			return
 		}
 		rec := &statusRecorder{ResponseWriter: w, status: http.StatusOK}

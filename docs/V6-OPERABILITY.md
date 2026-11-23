@@ -1,8 +1,6 @@
 # V6: Operability
 
-Status: **planned, not built.** Do not code this before the real-machine trial
-of V1 to V5 (see [PRODUCTION.md](PRODUCTION.md)) has been run and its findings
-are folded in here.
+Status: **built (M11a–M14).** M15 (owner checks on real Mane/Firmino) remains.
 
 Related: [ROADMAP.md](ROADMAP.md) phase 6, [OPERATIONS.md](OPERATIONS.md),
 [TESTING.md](TESTING.md), decision D-069.

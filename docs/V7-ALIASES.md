@@ -1,7 +1,6 @@
 # V7: Model aliases
 
-Status: **planned, not built.** Builds on V5 profiles. Do not code this before
-V6 and the real-machine trial.
+Status: **built (M16–M19).** M20 (owner on real machines) remains.
 
 Related: [ROADMAP.md](ROADMAP.md) phase 7, [ROUTING.md](ROUTING.md),
 [CONFIGURATION.md](CONFIGURATION.md), [API.md](API.md), decision D-070.

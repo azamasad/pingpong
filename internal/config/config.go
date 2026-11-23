@@ -7,11 +7,14 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 
 	"gopkg.in/yaml.v3"
 )
+
+var aliasNameRe = regexp.MustCompile(`^[a-z0-9_-]+$`)
 
 // Config is the router configuration (V1 fields; V2 sections are ignored until used).
 type Config struct {
@@ -23,6 +26,13 @@ type Config struct {
 	Retry    RetryConfig        `yaml:"retry"`
 	Storage  StorageConfig      `yaml:"storage"`
 	Profiles map[string]Profile `yaml:"profiles"`
+	Aliases  map[string]Alias   `yaml:"aliases"`
+}
+
+// Alias maps a short name to a real model and optional machine (V7).
+type Alias struct {
+	Model   string `yaml:"model"`
+	Machine string `yaml:"machine"`
 }
 
 // Profile is a named preset (V5). It fills fast, model, and machine when the client leaves them unset.
@@ -45,10 +55,11 @@ type StorageConfig struct {
 }
 
 type RouterConfig struct {
-	Listen       string   `yaml:"listen"`
-	AllowedHosts []string `yaml:"allowed_hosts"`
-	MaxBodyBytes int64    `yaml:"max_body_bytes"`
-	LogLevel     string   `yaml:"log_level"`
+	Listen        string   `yaml:"listen"`
+	AllowedHosts  []string `yaml:"allowed_hosts"`
+	MaxBodyBytes  int64    `yaml:"max_body_bytes"`
+	LogLevel      string   `yaml:"log_level"`
+	ShutdownGrace Duration `yaml:"shutdown_grace"`
 }
 
 type Machine struct {
@@ -156,6 +167,9 @@ func (c *Config) applyDefaults() {
 	if c.Router.LogLevel == "" {
 		c.Router.LogLevel = "info"
 	}
+	if c.Router.ShutdownGrace.Duration == 0 {
+		c.Router.ShutdownGrace = Duration{10 * time.Second}
+	}
 	for i := range c.Machines {
 		m := &c.Machines[i]
 		if m.MaxConcurrent == 0 {
@@ -244,6 +258,24 @@ func (c *Config) ApplyProfile(name string, fast bool, model, machine string) (bo
 	return fast, model, machine, nil
 }
 
+// ResolveAlias expands a configured alias on model. It returns the alias name
+// when one was used. Call after ApplyProfile.
+func (c *Config) ResolveAlias(model, machine string) (resolvedModel, resolvedMachine, alias string) {
+	if c.Aliases == nil {
+		return model, machine, ""
+	}
+	a, ok := c.Aliases[model]
+	if !ok {
+		return model, machine, ""
+	}
+	alias = model
+	model = a.Model
+	if machine == "" && a.Machine != "" {
+		machine = a.Machine
+	}
+	return model, machine, alias
+}
+
 // JobsEnabled is true when durable job storage is configured.
 func (c *Config) JobsEnabled() bool {
 	return strings.TrimSpace(c.Storage.DataDir) != ""
@@ -303,6 +335,36 @@ func (c *Config) validate() ([]string, error) {
 	host, _, _ := net.SplitHostPort(c.Router.Listen)
 	if host != "127.0.0.1" && host != "localhost" {
 		return warnings, fmt.Errorf("router.listen must bind to localhost (got host %q)", host)
+	}
+	machineNames := make(map[string]struct{}, len(c.Machines))
+	for _, m := range c.Machines {
+		machineNames[m.Name] = struct{}{}
+	}
+	for name, p := range c.Profiles {
+		if p.Machine != "" {
+			if _, ok := machineNames[p.Machine]; !ok {
+				return warnings, fmt.Errorf("profile %q: unknown machine %q", name, p.Machine)
+			}
+		}
+	}
+	for name, a := range c.Aliases {
+		if !aliasNameRe.MatchString(name) {
+			return warnings, fmt.Errorf("alias %q: name must match [a-z0-9_-]+", name)
+		}
+		if strings.Contains(name, ":") || strings.Contains(name, "/") {
+			return warnings, fmt.Errorf("alias %q: name must not contain : or /", name)
+		}
+		if a.Model == "" {
+			return warnings, fmt.Errorf("alias %q: model is required", name)
+		}
+		if _, ok := c.Aliases[a.Model]; ok {
+			return warnings, fmt.Errorf("alias %q: cannot point at another alias", name)
+		}
+		if a.Machine != "" {
+			if _, ok := machineNames[a.Machine]; !ok {
+				return warnings, fmt.Errorf("alias %q: unknown machine %q", name, a.Machine)
+			}
+		}
 	}
 	return warnings, nil
 }

@@ -63,6 +63,10 @@ These match `max_concurrent = 1` in [CONFIGURATION.md](CONFIGURATION.md).
 
 ## 3. Health checks
 
+Run `pingpong doctor` on Mane (same config path as the router). It checks config,
+storage, and each machine without starting the router. Add `--json` for scripts.
+The `--chat` check is added in a later V6 milestone.
+
 Basic checks the router performs, and the owner can run by hand:
 
 | Check | Meaning |
