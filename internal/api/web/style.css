@@ -12,4 +12,7 @@ textarea { width: 100%; font: inherit; padding: 0.5rem; }
 .warn { color: #a60; }
 .hidden { display: none; }
 button:disabled { opacity: 0.5; }
+.jobs { margin-top: 1.5rem; font-size: 0.85rem; border-top: 1px solid #ddd; padding-top: 0.75rem; }
+.jobs ul { list-style: none; padding: 0; margin: 0; }
+.jobs li { padding: 0.35rem 0; border-bottom: 1px solid #eee; }
 @media (max-width: 480px) { body { margin: 0.5rem; } }

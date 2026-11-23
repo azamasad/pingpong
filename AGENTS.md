@@ -22,26 +22,20 @@ unclear or conflicting, stop and ask the owner, then fix the docs.
 
 ## Current state
 
-**V1 ready for production** on branch `cursor/v1-implementation-aa2f` ([PR #2](https://github.com/azamasad/pingpong/pull/2)).
-CI green. Owner steps: [docs/PRODUCTION.md](docs/PRODUCTION.md), [SETUP-GUIDE.md](docs/SETUP-GUIDE.md) M8b–M10.
+**V2 (jobs)** on branch `cursor/v2-jobs-aa2f`. **V1** is on `main` ([PR #2](https://github.com/azamasad/pingpong/pull/2) merged).
 
 | Milestone | Status |
 |---|---|
-| M0 Scaffold | Done |
-| M1 Config | Done |
-| M2 Ollama client + fake | Done (`internal/ollama`, `internal/fakeollama`) |
-| M3 Registry + health | Done (`internal/registry`) |
-| M4 Routing | Done (`internal/route`) |
-| M5 Gate | Done (`internal/gate`) |
-| M6 HTTP API | Done (`internal/api`) |
-| M7 Web UI | Done (embedded in `internal/api/web/`) |
-| M8a Packaging | Done (`deploy/`, `deploy/BUILD.md`, launchd example) |
-| M9a Memory check | Linux proxy test (`memory_linux_test.go`); **M9b on Mane still owner** |
-| M8b, M10 | **Owner** on real machines (SETUP-GUIDE, TESTING §4) |
+| M0–M8a, M9a | Done (see `main`) |
+| V2-1 SQLite store | Done (`internal/store`) |
+| V2-2 Detached runner | Done (`internal/jobs`) |
+| V2-3 Jobs API | Done (`/api/jobs*`) |
+| V2-4 Retries | Done (2m / 3h window) |
+| V2-5 Restart recovery | Done (`Service.Start`) |
+| V2-6 UI job list | Minimal (`internal/api/web/`) |
+| M8b, M9b, M10 | **Owner** on real machines |
 
-Run: `make test && make build`. Config: `deploy/config.example.yaml` (placeholders only).
-
-Do not start V2 (SQLite jobs, retries, history UI).
+Run: `make test && make build`. Enable jobs with `storage.data_dir` in config (`deploy/config.example.yaml`).
 
 ## Rules
 

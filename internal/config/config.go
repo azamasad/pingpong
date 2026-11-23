@@ -19,6 +19,20 @@ type Config struct {
 	Routing  RoutingConfig `yaml:"routing"`
 	Timeouts TimeoutConfig `yaml:"timeouts"`
 	Health   HealthConfig  `yaml:"health"`
+	Retry    RetryConfig   `yaml:"retry"`
+	Storage  StorageConfig `yaml:"storage"`
+}
+
+type RetryConfig struct {
+	RetryInterval Duration `yaml:"retry_interval"`
+	RetryWindow   Duration `yaml:"retry_window"`
+}
+
+type StorageConfig struct {
+	DataDir                string   `yaml:"data_dir"`
+	RetentionDays          int      `yaml:"retention_days"`
+	RetentionSweepInterval Duration `yaml:"retention_sweep_interval"`
+	OutputFlushInterval    Duration `yaml:"output_flush_interval"`
 }
 
 type RouterConfig struct {
@@ -168,6 +182,26 @@ func (c *Config) applyDefaults() {
 	if c.Health.RegistryRefreshInterval.Duration == 0 {
 		c.Health.RegistryRefreshInterval = Duration{5 * time.Minute}
 	}
+	if c.Retry.RetryInterval.Duration == 0 {
+		c.Retry.RetryInterval = Duration{2 * time.Minute}
+	}
+	if c.Retry.RetryWindow.Duration == 0 {
+		c.Retry.RetryWindow = Duration{3 * time.Hour}
+	}
+	if c.Storage.RetentionDays == 0 {
+		c.Storage.RetentionDays = 90
+	}
+	if c.Storage.RetentionSweepInterval.Duration == 0 {
+		c.Storage.RetentionSweepInterval = Duration{24 * time.Hour}
+	}
+	if c.Storage.OutputFlushInterval.Duration == 0 {
+		c.Storage.OutputFlushInterval = Duration{time.Second}
+	}
+}
+
+// JobsEnabled is true when durable job storage is configured.
+func (c *Config) JobsEnabled() bool {
+	return strings.TrimSpace(c.Storage.DataDir) != ""
 }
 
 func (c *Config) validate() ([]string, error) {
