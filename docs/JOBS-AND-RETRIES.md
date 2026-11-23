@@ -78,7 +78,7 @@ its attempt number, for reference. It is not used to resume. The final output
 is that of the last successful attempt.
 
 Non-retryable errors (do not retry, mark `failed`): a pinned model that is not
-installed anywhere, an unknown machine, an ambiguous pinned model, or a
+installed anywhere (`MODEL_NOT_INSTALLED`; `MODELS_UNKNOWN` is retryable), an unknown machine, an ambiguous pinned model, or a
 malformed request. Where possible these are rejected at submission and never
 saved.
 

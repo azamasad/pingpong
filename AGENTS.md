@@ -77,3 +77,12 @@ implementation plan). Do not start V2 or later.
 
 Ask the owner. Do not guess on anything that affects routing, memory use,
 security, or scope.
+
+If you cannot ask (for example you are running unattended), choose the simplest
+option that obeys the constitution, record the choice and reasoning in the pull
+request and in [docs/DECISIONS.md](docs/DECISIONS.md), and continue. Never use
+this to widen scope.
+
+Start with the "V1 on one page" summary at the top of
+[docs/IMPLEMENTATION-PLAN.md](docs/IMPLEMENTATION-PLAN.md). It is the shortest
+correct description of what to build.

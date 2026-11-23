@@ -138,8 +138,9 @@ What this means:
   is why the first-token timeout is generous and why interactive long-context
   work is better on Mane.
 - With an 8K context limit, the worst case is about 8,000 tokens. At 8 tokens/s
-  that is about 17 minutes, inside the 20-minute first-token timeout. If you
-  measure slower, raise the timeout or lower the context limit.
+  that is about 17 minutes, and at 5 tokens/s about 27 minutes, inside the
+  30-minute first-token timeout (the default). If you measure slower than
+  5 tokens/s, raise the timeout or lower the context limit.
 
 ## 6. Disk plan
 

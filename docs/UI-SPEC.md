@@ -37,6 +37,9 @@ logins, used by one person.
 |---|---|
 | Conversation | The page keeps the message history in the browser and sends it all with each request. Reloading the page loses it in V1 |
 | Settings | Fast toggle and pins stay as set between messages, so a conversation keeps its target until changed |
+| Elapsed time | While waiting or running, show elapsed time. The clock ticks in the browser, and `ping` events confirm the connection is alive and correct the clock. If pings stop arriving for more than about twice the heartbeat interval, show a "connection lost" state |
+| Context warning | If `context_warning` is set on `done`, show a clear notice: the prompt filled the context window and part of it may have been cut |
+| Machine status refresh | Refresh machine status every few seconds while the page is open |
 | Stop button | Shown while a request is waiting or running. Pressing it cancels the request (the worker stops) |
 | Waiting | Shows "Waiting for Firmino" (or the machine name) and the position if more than one |
 | Mode label | Each answer shows a small label such as "Firmino, qwen2.5:14b, auto" |
