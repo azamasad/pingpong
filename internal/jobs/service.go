@@ -42,8 +42,8 @@ func New(cfg *config.Config, st *store.Store, reg *registry.Registry, g *gate.Ga
 
 func (s *Service) Store() *store.Store { return s.store }
 
-func (s *Service) List(ctx context.Context, status string, limit int) ([]*store.Job, error) {
-	return s.store.ListJobs(ctx, status, limit)
+func (s *Service) List(ctx context.Context, status string, before *time.Time, limit int) ([]*store.Job, error) {
+	return s.store.ListJobs(ctx, status, before, limit)
 }
 
 func (s *Service) Get(ctx context.Context, id string) (*store.Job, error) {
@@ -132,9 +132,9 @@ func (s *Service) runLoop(id string) {
 			return
 		case store.StatusRetrying:
 			if j.NextAttemptAt != nil && s.clk.Now().Before(*j.NextAttemptAt) {
-				wait := time.Until(*j.NextAttemptAt)
+				wait := j.NextAttemptAt.Sub(s.clk.Now())
 				if wait > 0 {
-					timer := time.NewTimer(wait)
+					timer := s.clk.NewTimer(wait)
 					<-timer.C
 				}
 				continue
@@ -195,9 +195,12 @@ func (s *Service) execute(id string) {
 	j.UpdatedAt = now
 	j.OutputText, j.OutputThinking = "", ""
 	_ = s.store.UpdateJob(ctx, j)
+	s.emit(ctx, id, "route", map[string]any{"machine": res.Machine, "model": res.Model, "mode": res.Mode})
 	s.emit(ctx, id, "status", map[string]any{"state": "running"})
 
-	if err := s.gate.Acquire(ctx, res.Machine, nil, func() bool { return s.reg.IsDown(res.Machine) }); err != nil {
+	if err := s.gate.Acquire(ctx, res.Machine, func(pos int) {
+		s.emit(ctx, id, "status", map[string]any{"state": "waiting", "position": pos})
+	}, func() bool { return s.reg.IsDown(res.Machine) }); err != nil {
 		if errors.Is(err, context.Canceled) {
 			j.Status = store.StatusCancelled
 			j.UpdatedAt = s.clk.Now().UTC()
@@ -239,6 +242,16 @@ func (s *Service) execute(id string) {
 	firstTO := s.cfg.Timeouts.FirstTokenTimeout.Duration
 	idleTO := s.cfg.Timeouts.IdleTokenTimeout.Duration
 	maxRun := s.cfg.Timeouts.MaxRunTime.Duration
+	flushEvery := s.cfg.Storage.OutputFlushInterval.Duration
+	var lastFlush time.Time
+
+	flushOutput := func() {
+		j.OutputText = buf.String()
+		j.OutputThinking = think.String()
+		j.UpdatedAt = s.clk.Now().UTC()
+		_ = s.store.UpdateJob(ctx, j)
+		lastFlush = s.clk.Now()
+	}
 
 	for {
 		select {
@@ -249,20 +262,28 @@ func (s *Service) execute(id string) {
 			return
 		default:
 		}
+		savePartial := func() {
+			j.OutputText = buf.String()
+			j.OutputThinking = think.String()
+		}
 		if s.clk.Now().Sub(start) > maxRun {
+			savePartial()
 			s.markRetry(j, "TIMEOUT", "max run time", s.clk.Now().UTC())
 			return
 		}
 		if !gotFirst && s.clk.Now().Sub(start) > firstTO {
+			savePartial()
 			s.markRetry(j, "TIMEOUT", "first chunk timeout", s.clk.Now().UTC())
 			return
 		}
 		if gotFirst && s.clk.Now().Sub(lastChunk) > idleTO {
+			savePartial()
 			s.markRetry(j, "TIMEOUT", "idle timeout", s.clk.Now().UTC())
 			return
 		}
 		ch, ok, err := stream.Next()
 		if err != nil {
+			savePartial()
 			code := "UPSTREAM_ERROR"
 			if gotFirst {
 				code = "MACHINE_FAILED"
@@ -272,6 +293,7 @@ func (s *Service) execute(id string) {
 		}
 		if !ok {
 			if !gotFirst {
+				savePartial()
 				s.markRetry(j, "MACHINE_FAILED", "connection closed", s.clk.Now().UTC())
 			} else {
 				j.Status = store.StatusDone
@@ -296,6 +318,9 @@ func (s *Service) execute(id string) {
 			buf.WriteString(ch.Message.Content)
 			s.emit(ctx, id, "token", map[string]any{"text": ch.Message.Content})
 			lastChunk = s.clk.Now()
+		}
+		if flushEvery > 0 && (buf.Len() > 0 || think.Len() > 0) && s.clk.Now().Sub(lastFlush) >= flushEvery {
+			flushOutput()
 		}
 		if ch.Done {
 			j.Status = store.StatusDone
@@ -342,7 +367,7 @@ func (s *Service) markRetry(j *store.Job, code, msg string, now time.Time) {
 	j.ErrorMessage = msg
 	j.NextAttemptAt = &na
 	j.UpdatedAt = now
-	_ = s.store.UpdateJob(ctx, j)
+	_ = s.store.UpdateJob(ctx, j) // keeps partial output_text when set
 	s.emit(ctx, j.ID, "status", map[string]any{
 		"state": "retrying", "attempt": j.Attempt, "next_attempt_at": na.Format(time.RFC3339),
 	})

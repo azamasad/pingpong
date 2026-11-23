@@ -22,18 +22,16 @@ unclear or conflicting, stop and ask the owner, then fix the docs.
 
 ## Current state
 
-**V2 (jobs)** on branch `cursor/v2-jobs-aa2f`. **V1** is on `main` ([PR #2](https://github.com/azamasad/pingpong/pull/2) merged).
+**V2 (jobs)** ready on branch `cursor/v2-jobs-aa2f` — [PR #3](https://github.com/azamasad/pingpong/pull/3) (merge to ship). **V1** on `main`.
 
 | Milestone | Status |
 |---|---|
-| M0–M8a, M9a | Done (see `main`) |
-| V2-1 SQLite store | Done (`internal/store`) |
-| V2-2 Detached runner | Done (`internal/jobs`) |
-| V2-3 Jobs API | Done (`/api/jobs*`) |
-| V2-4 Retries | Done (2m / 3h window) |
-| V2-5 Restart recovery | Done (`Service.Start`) |
-| V2-6 UI job list | Minimal (`internal/api/web/`) |
-| M8b, M9b, M10 | **Owner** on real machines |
+| M0–M8a, M9a | Done (`main`) |
+| V2-1 … V2-6 | Done (store, runner, API, retries, recovery, full job UI) |
+| V2 automated tests | `docs/TESTING.md` §2.5 coverage in CI |
+| M8b, M9b, M10 | **Owner** on real machines after merge |
+
+Do not start V3 until PR #3 is merged and owner signs off [TESTING.md](docs/TESTING.md) §4 (optional if CI + smoke is enough for you).
 
 Run: `make test && make build`. Enable jobs with `storage.data_dir` in config (`deploy/config.example.yaml`).
 
