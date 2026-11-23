@@ -38,11 +38,15 @@ func routeMessages(code string) string {
 func (s *Server) resolveRoute(ctx context.Context, req route.Request) route.Result {
 	snap := s.Reg.RouteSnapshot()
 	res := route.Decide(req, snap)
-	if res.NeedRefresh && s.Cfg.Health.RefreshOnModelMiss {
+	if res.NeedRefresh && s.Cfg.Health.RefreshOnMiss() {
 		for _, m := range s.Cfg.Machines {
 			s.Reg.RefreshMachine(ctx, m.Name)
 		}
 		snap = s.Reg.RouteSnapshotRefreshed()
+		res = route.Decide(req, snap)
+	}
+	if res.NeedRefresh {
+		snap.RefreshedModels = true
 		res = route.Decide(req, snap)
 	}
 	return res
