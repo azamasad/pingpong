@@ -40,6 +40,9 @@ More machines can be added later. They are always controlled through Mane.
 | V2 | Durable sessions, saved results (90 days), retries, cancel, history |
 | V3 | A simple queue for batch work |
 | V4 | More machines, by role |
+| V5 | Named profiles: fast, balanced, deep |
+| V6 (planned) | `doctor`, graceful shutdown, backup, status view. [Spec](docs/V6-OPERABILITY.md) |
+| V7 (planned) | Model aliases. [Spec](docs/V7-ALIASES.md) |
 
 See [docs/ROADMAP.md](docs/ROADMAP.md).
 
@@ -81,6 +84,8 @@ then the PRD, then the rest.
 | 13 | [docs/IMPLEMENTATION-PLAN.md](docs/IMPLEMENTATION-PLAN.md) | Build order, milestones, guardrails |
 | 14 | [docs/TESTING.md](docs/TESTING.md) | How to verify each version |
 | 15 | [docs/ROADMAP.md](docs/ROADMAP.md) | Phases, and what is deferred |
+| | [docs/V6-OPERABILITY.md](docs/V6-OPERABILITY.md) | V6 spec (planned) |
+| | [docs/V7-ALIASES.md](docs/V7-ALIASES.md) | V7 spec (planned) |
 | 16 | [docs/DECISIONS.md](docs/DECISIONS.md) | Log of decisions and the reasons behind them |
 | 17 | [docs/GLOSSARY.md](docs/GLOSSARY.md) | Terms used in these documents |
 | | [AGENTS.md](AGENTS.md) | Rules for AI coding assistants working in this repo |
