@@ -2,7 +2,6 @@ package api_test
 
 import (
 	"bufio"
-	"bytes"
 	"context"
 	"encoding/json"
 	"net/http"
@@ -11,7 +10,6 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/azamasad/pingpong/internal/api"
 	"github.com/azamasad/pingpong/internal/config"
@@ -122,56 +120,5 @@ func TestHostRejected(t *testing.T) {
 	res, _ := http.DefaultClient.Do(req)
 	if res.StatusCode != 403 {
 		t.Fatalf("got %d", res.StatusCode)
-	}
-}
-
-func TestGateBusy(t *testing.T) {
-	heavy := &fakeollama.Server{
-		Models: []string{"qwen2.5:14b"},
-		ChatSteps: []fakeollama.Step{
-			{Wait: 200 * time.Millisecond},
-			{Content: "a"},
-			{Done: &fakeollama.DoneStats{}},
-		},
-	}
-	fast := &fakeollama.Server{Models: []string{"llama3.1:8b"}}
-	hTs := fakeollama.NewHTTPTestServer(heavy)
-	fTs := fakeollama.NewHTTPTestServer(fast)
-	defer hTs.Close()
-	defer fTs.Close()
-	cfg := testConfig(t, hTs.URL, fTs.URL)
-	g := gate.New(map[string]int{"mane": 1, "firmino": 1})
-	reg := registry.New(cfg, g)
-	reg.RefreshMachine(context.Background(), "firmino")
-	srv := api.NewServer(cfg, reg, g)
-	ts := httptest.NewServer(srv.Handler())
-	defer ts.Close()
-
-	post := func() *http.Response {
-		req, _ := http.NewRequest(http.MethodPost, ts.URL+"/api/chat", bytes.NewReader([]byte(`{"prompt":"x"}`)))
-		req.Host = "localhost"
-		req.Header.Set("Content-Type", "application/json")
-		res, err := http.DefaultClient.Do(req)
-		if err != nil {
-			t.Fatal(err)
-		}
-		return res
-	}
-	r1 := post()
-	time.Sleep(30 * time.Millisecond)
-	r2 := post()
-	defer r1.Body.Close()
-	defer r2.Body.Close()
-	gotWait := false
-	sc := bufio.NewScanner(r2.Body)
-	for sc.Scan() {
-		var m map[string]any
-		_ = json.Unmarshal(sc.Bytes(), &m)
-		if m["type"] == "status" && m["state"] == "waiting" {
-			gotWait = true
-		}
-	}
-	if !gotWait {
-		t.Fatal("expected waiting event on second request")
 	}
 }

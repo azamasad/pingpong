@@ -3,12 +3,15 @@ package api
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/azamasad/pingpong/internal/apperrors"
+	"github.com/azamasad/pingpong/internal/gate"
+	"github.com/azamasad/pingpong/internal/logx"
 	"github.com/azamasad/pingpong/internal/ollama"
 	"github.com/azamasad/pingpong/internal/route"
 )
@@ -69,7 +72,11 @@ func (s *Server) handleChat(w http.ResponseWriter, r *http.Request) {
 	routeReq := route.Request{Fast: cb.Fast, Model: cb.Model, Machine: cb.Machine}
 	res := s.resolveRoute(r.Context(), routeReq)
 	if !res.OK {
-		writeErr(w, apperrors.New(res.Code, routeMessages(res.Code)))
+		ae := apperrors.New(res.Code, routeMessages(res.Code))
+		logx.Event("warn", "route_error", map[string]any{
+			"error_code": res.Code, "message": ae.Message, "machine": res.Machine, "model": res.Model,
+		})
+		writeErr(w, ae)
 		return
 	}
 	if !cb.streaming() {
@@ -102,8 +109,14 @@ func (s *Server) chatStream(w http.ResponseWriter, r *http.Request, cb ChatBody,
 			lastPos = pos
 			_ = writeLine(w, map[string]any{"type": "status", "state": "waiting", "position": pos})
 		}
-	})
+	}, func() bool { return s.Reg.IsDown(res.Machine) })
 	if err != nil {
+		if errors.Is(err, gate.ErrMachineDown) {
+			_ = writeLine(w, map[string]any{
+				"type": "error", "code": "MACHINE_DOWN",
+				"message": "machine went down while waiting", "retryable": true,
+			})
+		}
 		return
 	}
 	defer s.Gate.Release(res.Machine)
@@ -271,7 +284,10 @@ func (s *Server) writeStreamErr(w http.ResponseWriter, err error, machine string
 
 func (s *Server) chatNonStream(w http.ResponseWriter, r *http.Request, cb ChatBody, msgs []ollama.ChatMessage, res route.Result) {
 	ctx := r.Context()
-	if err := s.Gate.Acquire(ctx, res.Machine, nil); err != nil {
+	if err := s.Gate.Acquire(ctx, res.Machine, nil, func() bool { return s.Reg.IsDown(res.Machine) }); err != nil {
+		if errors.Is(err, gate.ErrMachineDown) {
+			writeErr(w, apperrors.New("MACHINE_DOWN", "machine went down while waiting"))
+		}
 		return
 	}
 	defer s.Gate.Release(res.Machine)

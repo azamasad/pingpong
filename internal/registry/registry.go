@@ -167,6 +167,13 @@ func (r *Registry) mustMachine(name string) config.Machine {
 }
 
 // MarkDownImmediate marks a machine down after connection failure.
+// IsDown reports whether the machine is marked down.
+func (r *Registry) IsDown(name string) bool {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	return r.state[name].down
+}
+
 func (r *Registry) MarkDownImmediate(name string) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
