@@ -90,7 +90,7 @@ an estimate until measured, so re-check this after the measurements.
 
 | Setting | Default | Meaning |
 |---|---|---|
-| `data_dir` | A directory on Mane's disk | Where saved requests live |
+| `data_dir` | A directory on Mane's disk (a leading `~/` is expanded to the home folder) | Where saved requests live |
 | `retention_days` | 90 | Finished results older than this are removed |
 | `retention_sweep_interval` | Daily | How often removal runs |
 | `output_flush_interval` | About 1 second | How often streamed output is saved, to limit disk writes |

@@ -69,7 +69,7 @@ func (s *Server) Handler() http.Handler {
 		}
 		rec := &statusRecorder{ResponseWriter: w, status: http.StatusOK}
 		s.Mux.ServeHTTP(rec, r)
-		if rec.status == http.StatusNotFound && strings.HasPrefix(r.URL.Path, "/api/") {
+		if rec.swallowed && !rec.wrote && strings.HasPrefix(r.URL.Path, "/api/") {
 			writeErr(w, apperrors.New("NOT_FOUND", "not found"))
 		}
 	})
@@ -77,22 +77,35 @@ func (s *Server) Handler() http.Handler {
 
 type statusRecorder struct {
 	http.ResponseWriter
-	status int
+	status    int
+	swallowed bool
+	wrote     bool
 }
 
+// The mux answers unknown /api/ paths with a plain-text 404. That is the only
+// 404 held back, and only while no body has been written, so handlers that
+// send their own JSON error with a 404 status keep it.
 func (r *statusRecorder) WriteHeader(code int) {
 	r.status = code
-	if code == http.StatusNotFound {
+	if code == http.StatusNotFound && !r.wrote && r.Header().Get("Content-Type") != "application/json" {
+		r.swallowed = true
 		return
 	}
 	r.ResponseWriter.WriteHeader(code)
 }
 
 func (r *statusRecorder) Write(b []byte) (int, error) {
-	if r.status == http.StatusNotFound {
+	if r.swallowed {
 		return len(b), nil
 	}
+	r.wrote = true
 	return r.ResponseWriter.Write(b)
+}
+
+func (r *statusRecorder) Flush() {
+	if f, ok := r.ResponseWriter.(http.Flusher); ok && !r.swallowed {
+		f.Flush()
+	}
 }
 
 func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {

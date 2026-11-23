@@ -26,7 +26,7 @@ func TestSubmitRejectedNonRetryable(t *testing.T) {
 			DefaultModel: "installed:7b", MaxConcurrent: 1, NumCtx: 4096,
 		}},
 		Routing: config.RoutingConfig{AutoRole: "heavy", FastRole: "heavy"},
-		Health:  config.HealthConfig{RefreshOnModelMiss: true},
+		Health:  config.HealthConfig{},
 	}
 	cfg.Retry.RetryInterval = config.Duration{Duration: 2 * time.Minute}
 	cfg.Retry.RetryWindow = config.Duration{Duration: 3 * time.Hour}
