@@ -33,7 +33,8 @@ See also the constitution.
 - Multiple users, logins, billing.
 - Notifications (deferred).
 - Automatic prompt classification (deferred).
-- Profiles such as "fast / balanced / deep" (deferred).
+- Profiles such as "fast / balanced / deep" (shipped in V5, D-068).
+- Model aliases (planned for V7, D-070).
 - An OpenAI-compatible API (deferred).
 
 ## 4. User and context
@@ -199,13 +200,13 @@ Recorded here so they are not forgotten. See [ROADMAP.md](ROADMAP.md).
 
 | Item | Notes |
 |---|---|
-| Full queue (priority lanes, batch submit from the terminal) | Needed soon (V3). Builds on V2's saved-request store. Keep it simple, with no heavy infrastructure. |
-| Profiles ("fast / balanced / deep") | Replaces or complements flags with named presets. |
+| Full queue (priority lanes, batch submit from the terminal) | Shipped as V3 (D-066). Builds on V2's saved-request store. Keep it simple, with no heavy infrastructure. |
+| Profiles ("fast / balanced / deep") | Shipped as V5 (D-068). |
 | Notifications when a task finishes | Not needed yet. |
 | Automatic classification of tasks | Only if rules prove insufficient. |
 | More machines (for example Mac Studio, DGX Spark) | Via the roles registry (V4). |
-| Several machines with the same role | Needs a rule for choosing between them. |
-| Model aliases (short names such as "small") | Convenience. Not needed for V1. |
+| Several machines with the same role | Shipped as V4 (D-067). |
+| Model aliases (short names such as "small") | Planned as V7 (D-070). See [V7-ALIASES.md](V7-ALIASES.md). |
 | Conversation threads stored on Mane | V2 stores individual requests. Threads are optional later. |
 | OpenAI-compatible endpoint | Would let other tools use Pingpong. Later, if wanted. |
 | High availability | Out of scope while both machines are assumed up. |

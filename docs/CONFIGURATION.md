@@ -172,6 +172,12 @@ storage:          # V2
   the least loaded machine that is up (see ROUTING).
 - Durations parse, and `first_token_timeout` is not shorter than
   `idle_token_timeout`.
+- `router.listen` is a valid `host:port` whose host is `127.0.0.1` or `localhost`.
+- Not checked today: that a profile's `machine` names a real machine. A typo
+  fails only when a request uses that profile. V7 adds this check.
+
+Planned keys, not built: `router.shutdown_grace` (V6) and `aliases` (V7). See
+[V6-OPERABILITY.md](V6-OPERABILITY.md) and [V7-ALIASES.md](V7-ALIASES.md).
 
 ## 6. Rules for changes
 

@@ -100,19 +100,29 @@ The web page shows reachability. Anything deeper is out of scope for now.
 1. Confirm both machines are on the network.
 2. Confirm Ollama is up on each.
 3. Confirm the router is up on Mane.
-4. In V2, confirm waiting and retrying requests resumed.
+4. Confirm waiting and retrying requests resumed (saved requests, V2 and later).
+5. If a request fails right after boot because Ollama was not ready yet, wait one
+   health interval (30 seconds by default). The router then loads the model list
+   by itself. No restart is needed.
 
-## 6. V2 data on Mane
+## 6. Saved-request data on Mane (V2 and later)
 
-- Saved requests live on Mane's disk. Keep an eye on size.
+- Saved requests live on Mane's disk, in `storage.data_dir` (use an absolute
+  path). Keep an eye on size.
 - Results older than 90 days are removed automatically.
 - Optional: copy the saved data elsewhere now and then if it becomes valuable.
+  Stop the router first, or wait for `pingpong backup` in V6
+  ([V6-OPERABILITY.md](V6-OPERABILITY.md)), which copies safely while it runs.
+- The data holds prompts and outputs. Treat copies as private.
 
-## 7. Adding a machine (later)
+## 7. Adding a machine (V4)
 
 1. Give it a fixed LAN address.
 2. Install and secure its inference service. Firewall it to Mane only.
-3. Register it with a role and capabilities.
+3. Add it to the `machines:` list in the local config with a name, address,
+   role (for example `heavy`), default model, `max_concurrent` and `num_ctx`,
+   then restart the router. No rule changes are needed. If it shares a role
+   with another machine, the least loaded machine that is up is chosen.
 4. Confirm it shows as reachable and its models are listed.
 5. Update [HARDWARE-AND-MODELS.md](HARDWARE-AND-MODELS.md).
 
