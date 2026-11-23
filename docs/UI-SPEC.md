@@ -31,6 +31,22 @@ logins, used by one person.
 | Machine status | Shows whether Mane and Firmino are reachable |
 | Clear errors | Plain messages, for example "Model not installed" or "Firmino is down" |
 
+### V1 behaviour details
+
+| Topic | Behaviour |
+|---|---|
+| Conversation | The page keeps the message history in the browser and sends it all with each request. Reloading the page loses it in V1 |
+| Settings | Fast toggle and pins stay as set between messages, so a conversation keeps its target until changed |
+| Stop button | Shown while a request is waiting or running. Pressing it cancels the request (the worker stops) |
+| Waiting | Shows "Waiting for Firmino" (or the machine name) and the position if more than one |
+| Mode label | Each answer shows a small label such as "Firmino, 14B, auto" |
+| Errors | Plain language, built from the error codes in [API.md](API.md), for example "That model is not installed" or "Firmino is down" |
+| Machine status | A small indicator per machine: reachable, busy, down |
+| Pin controls | Dropdowns filled from `GET /api/machines` and `GET /api/models`. Default is "none" |
+| Pin plus fast | Choosing a pin disables or ignores the fast toggle, matching the routing rules |
+| Not a chat history | Past conversations are not saved in V1 |
+| Accessibility | Keyboard friendly, readable text, works at phone widths |
+
 ## 3. V2 features
 
 | Feature | Description |
@@ -39,6 +55,8 @@ logins, used by one person.
 | Open a past request | See its prompt, flags, status history, and saved output |
 | Reattach | Open a still-running request and watch it continue |
 | Retry visibility | Shows the retrying state, attempt count and next attempt time |
+| Cancel and delete | Cancel an active request. Delete a saved one |
+| Status filter | Filter the history by status |
 
 ## 4. Not included
 
@@ -57,5 +75,6 @@ from the terminal arrives with the queue (see [ROADMAP.md](ROADMAP.md)).
 
 ## 6. Open questions
 
-- Exact flag and pin controls.
-- Whether to show raw token speed.
+- Whether to show raw token speed (nice to have, not required).
+- Whether the page should remember the last settings across reloads (for
+  example in the browser's local storage).

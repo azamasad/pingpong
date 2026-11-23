@@ -13,6 +13,17 @@ dependency, not by calendar.
 | 3 | V3: queue | A simple batch lane and terminal submission |
 | 4 | V4: expansion | More machines, by role |
 
+## Who does what
+
+| Work | Who |
+|---|---|
+| Phase 0 (hardware, OS, network, Tailscale, installing Ollama and models) | The owner, on the real machines. A coding agent cannot reach them |
+| Writing the router, page and tests | A coding agent or the owner, following [IMPLEMENTATION-PLAN.md](IMPLEMENTATION-PLAN.md) |
+| Acceptance runs on real hardware | The owner, using [TESTING.md](TESTING.md) section 4 |
+
+Phase 0 and V1 development can proceed in parallel. Development uses a fake
+Ollama until the real machines are ready.
+
 ## Phase 0: Foundation
 
 - Free up disk on Mane and Firmino.
@@ -37,6 +48,8 @@ Air can reach Mane over Tailscale.
 - Every response shows the model, machine, and how it was chosen.
 - Verify the RAM budget and LAN-only traffic.
 
+Build steps are in [IMPLEMENTATION-PLAN.md](IMPLEMENTATION-PLAN.md) (M0 to M10).
+
 Done when: the V1 acceptance criteria in [PRD.md](PRD.md) pass.
 
 ## Phase 2: V2, durable sessions
@@ -48,6 +61,7 @@ Done when: the V1 acceptance criteria in [PRD.md](PRD.md) pass.
 - Request history in the page, and reattaching to a running request.
 - 90-day retention.
 - Resume waiting and retrying requests after Mane restarts.
+- Explicit cancel and delete of requests.
 
 Done when: the V2 acceptance criteria in [PRD.md](PRD.md) pass.
 
@@ -77,6 +91,9 @@ Design details to be decided when scheduled.
 | Automatic task classification | Only if rules prove insufficient |
 | High availability | Out of scope while both machines are assumed up |
 | Task-specific routing refinements | After real usage shows the need |
+| Model aliases | Short names for models |
+| Conversation threads on Mane | Group saved requests into conversations |
+| OpenAI-compatible endpoint | So other tools can use Pingpong |
 
 ## Explicitly excluded
 
@@ -85,6 +102,6 @@ Design details to be decided when scheduled.
 
 ## Open decisions
 
-- Which models to start with.
-- What the router is built with.
-- How requests are stored in V2.
+- Which models to start with (owner, at setup).
+- Confirm the proposed language (see D-024).
+- Confirm the proposed V2 store (see D-025).
