@@ -166,6 +166,14 @@ id, created_at, updated_at, status, request_json, machine, model, mode, attempt,
 	return err
 }
 
+// SaveOutput writes generated text without touching status. A flush must not
+// put a cancelled or finished job back to running.
+func (s *Store) SaveOutput(ctx context.Context, id, text, thinking string, at time.Time) error {
+	_, err := s.db.ExecContext(ctx, `UPDATE jobs SET output_text=?, output_thinking=?, updated_at=? WHERE id=?`,
+		text, thinking, at.UTC().Format(time.RFC3339), id)
+	return err
+}
+
 func (s *Store) UpdateJob(ctx context.Context, j *Job) error {
 	ff, na := "", ""
 	if j.FirstFailureAt != nil {
@@ -307,8 +315,18 @@ func (s *Store) DeleteJob(ctx context.Context, id string) error {
 	if err != nil {
 		return err
 	}
-	_, err = s.db.ExecContext(ctx, `DELETE FROM jobs WHERE id=?`, id)
-	return err
+	res, err := s.db.ExecContext(ctx, `DELETE FROM jobs WHERE id=?`, id)
+	if err != nil {
+		return err
+	}
+	n, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if n == 0 {
+		return sql.ErrNoRows
+	}
+	return nil
 }
 
 func (s *Store) NextEventSeq(ctx context.Context, jobID string) (int64, error) {

@@ -58,6 +58,11 @@ func (s *Service) Get(ctx context.Context, id string) (*store.Job, error) {
 }
 
 func (s *Service) Delete(ctx context.Context, id string) error {
+	s.mu.Lock()
+	if c, ok := s.cancels[id]; ok {
+		c()
+	}
+	s.mu.Unlock()
 	return s.store.DeleteJob(ctx, id)
 }
 
@@ -192,8 +197,13 @@ func (s *Service) runLoop(id string) {
 			j.UpdatedAt = s.clk.Now().UTC()
 			_ = s.store.UpdateJob(context.Background(), j)
 		case store.StatusWaiting, store.StatusRunning:
+			if s.shuttingDown.Load() {
+				return
+			}
 			s.execute(id)
-			return
+			if s.shuttingDown.Load() {
+				return
+			}
 		default:
 			return
 		}
@@ -212,8 +222,12 @@ func (s *Service) execute(id string) {
 		cancel()
 	}()
 
-	j, err := s.store.GetJob(ctx, id)
+	j, err := s.store.GetJob(context.Background(), id)
 	if err != nil {
+		return
+	}
+	switch j.Status {
+	case store.StatusDone, store.StatusFailed, store.StatusCancelled:
 		return
 	}
 	cb, msgs, err := parseChatBody(j.RequestJSON)
@@ -233,7 +247,8 @@ func (s *Service) execute(id string) {
 		return
 	}
 	cb.Fast, cb.Model, cb.Machine = fast, model, machine
-	cb.Model, cb.Machine, _ = s.cfg.ResolveAlias(cb.Model, cb.Machine)
+	var alias string
+	cb.Model, cb.Machine, alias = s.cfg.ResolveAlias(cb.Model, cb.Machine)
 	routeReq := route.Request{Fast: cb.Fast, Model: cb.Model, Machine: cb.Machine}
 	res := s.resolve(routeReq)
 	now := s.clk.Now().UTC()
@@ -253,18 +268,8 @@ func (s *Service) execute(id string) {
 	j.Status = store.StatusWaiting
 	_ = s.store.UpdateJob(ctx, j)
 	if err := s.waitTurn(ctx, id, res.Machine); err != nil {
-		if errors.Is(err, context.Canceled) && s.shuttingDown.Load() {
-			flushPartial := func() {
-				j.UpdatedAt = s.clk.Now().UTC()
-				_ = s.store.UpdateJob(ctx, j)
-			}
-			flushPartial()
-			s.markRetry(j, "ROUTER_RESTARTING", "router shutting down", s.clk.Now().UTC())
-		} else {
-			j.Status = store.StatusCancelled
-			j.UpdatedAt = s.clk.Now().UTC()
-			_ = s.store.UpdateJob(ctx, j)
-			s.emit(ctx, id, "status", map[string]any{"state": "cancelled"})
+		if errors.Is(err, context.Canceled) {
+			s.finishStopped(j)
 		}
 		return
 	}
@@ -276,7 +281,7 @@ func (s *Service) execute(id string) {
 	j.OutputText, j.OutputThinking = "", ""
 	_ = s.store.UpdateJob(ctx, j)
 	routeEv := map[string]any{"machine": res.Machine, "model": res.Model, "mode": res.Mode}
-	if alias := aliasForRequest(s.cfg, j.RequestJSON); alias != "" {
+	if alias != "" {
 		routeEv["alias"] = alias
 	}
 	s.emit(ctx, id, "route", routeEv)
@@ -286,14 +291,7 @@ func (s *Service) execute(id string) {
 		s.emit(ctx, id, "status", map[string]any{"state": "waiting", "position": pos})
 	}, func() bool { return s.reg.IsDown(res.Machine) }); err != nil {
 		if errors.Is(err, context.Canceled) {
-			if s.shuttingDown.Load() {
-				s.markRetry(j, "ROUTER_RESTARTING", "router shutting down", s.clk.Now().UTC())
-			} else {
-				j.Status = store.StatusCancelled
-				j.UpdatedAt = s.clk.Now().UTC()
-				_ = s.store.UpdateJob(ctx, j)
-				s.emit(ctx, id, "status", map[string]any{"state": "cancelled"})
-			}
+			s.finishStopped(j)
 		} else {
 			s.markRetry(j, route.CodeMachineDown, "machine down", s.clk.Now().UTC())
 		}
@@ -341,7 +339,8 @@ func (s *Service) execute(id string) {
 		j.OutputText = buf.String()
 		j.OutputThinking = think.String()
 		j.UpdatedAt = s.clk.Now().UTC()
-		_ = s.store.UpdateJob(ctx, j)
+		// Output only. A full update would write status=running over a cancel.
+		_ = s.store.SaveOutput(context.Background(), j.ID, j.OutputText, j.OutputThinking, j.UpdatedAt)
 		lastFlush = s.clk.Now()
 	}
 
@@ -388,6 +387,11 @@ func (s *Service) execute(id string) {
 			return
 		}
 		if !ok {
+			if ctx.Err() != nil {
+				savePartial()
+				s.finishStopped(j)
+				return
+			}
 			if !gotFirst {
 				savePartial()
 				s.markRetry(j, "MACHINE_FAILED", "connection closed", s.clk.Now().UTC())
@@ -474,7 +478,6 @@ func (s *Service) markRetry(j *store.Job, code, msg string, now time.Time) {
 	s.emit(ctx, j.ID, "status", map[string]any{
 		"state": "retrying", "attempt": j.Attempt, "next_attempt_at": na.Format(time.RFC3339),
 	})
-	go s.runLoop(j.ID)
 }
 
 func (s *Service) emit(ctx context.Context, jobID, typ string, data any) {
