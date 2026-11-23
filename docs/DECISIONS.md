@@ -21,7 +21,7 @@ Format: ID, date, decision, reason.
 | D-011 | 2026-11-23 | No logins. Tailscale is the access control. | Single user. Keep it simple. |
 | D-012 | 2026-11-23 | A request waits for its intended machine when busy. No rerouting. | The owner's preference. Work meant for Firmino stays on Firmino. |
 | D-013 | 2026-11-23 | If a target is down or fails partway, retry every 2 minutes for up to 3 hours, restart from the beginning, then stop. Statuses are saved. | The owner's decision. |
-| D-014 | 2026-11-23 | The retry loop arrives in V2. In V1, a down target returns an error immediately. | Retrying needs requests to outlive the client, which is V2's saved-request store. Recorded as an assumption for the owner to confirm. |
+| D-014 | 2026-11-23 | The retry loop arrives in V2. In V1, a down target returns an error immediately. | Retrying needs requests to outlive the client, which is V2's saved-request store. Confirmed by the owner. |
 | D-015 | 2026-11-23 | Durable sessions are required but come after V1. | The owner wants to close the laptop and return later. V1 stays smaller. |
 | D-016 | 2026-11-23 | Finished results are kept for 90 days. | The owner's choice. Text is small. |
 | D-017 | 2026-11-23 | A simple queue is deferred but expected soon (V3). It builds on V2's store. | The owner expects to need it. No heavy infrastructure. |
@@ -31,8 +31,8 @@ Format: ID, date, decision, reason.
 | D-021 | 2026-11-23 | Machines are described by roles in a registry. | Easier to add machines such as a Mac Studio or DGX Spark. |
 | D-022 | 2026-11-23 | The router is movable to another machine. | A larger machine may become a better home later. |
 | D-023 | 2026-11-23 | Docs live in this repository, with documents under `docs/`. | The owner's instruction. |
-| D-024 | 2026-11-23 | Proposed: build the router in Go, as one small program with the page embedded. Pending owner confirmation. | Small memory footprint against the 50 MB budget, easy service deployment, cross-compiles for macOS and Linux. Python and Node are likelier to strain the budget. |
-| D-025 | 2026-11-23 | Proposed: V2 stores saved requests in a single SQLite file on Mane. Plain files are an acceptable alternative. Pending owner confirmation. | Embedded, small, reliable, no server process. |
+| D-024 | 2026-11-23 | Confirmed by the owner: build the router in Go, as one small program with the page embedded. | Small memory footprint against the 50 MB budget, easy service deployment, cross-compiles for macOS and Linux. Python and Node are likelier to strain the budget. |
+| D-025 | 2026-11-23 | Confirmed by the owner: V2 stores saved requests in a single SQLite file on Mane. | Embedded, small, reliable, no server process. |
 | D-026 | 2026-11-23 | Machines have a concurrency limit, default 1. Requests wait first come, first served. | Fits CPU inference on Firmino and keeps behaviour predictable. Mane's own direct use of Ollama is not counted. |
 | D-027 | 2026-11-23 | In V1, closing the client connection cancels the request, including upstream, so the worker stops. | Avoids wasted CPU. Surviving disconnects is V2. |
 | D-028 | 2026-11-23 | The router keeps no conversation state in V1. The client sends full history. | Keeps V1 small. |
@@ -44,3 +44,4 @@ Format: ID, date, decision, reason.
 | D-034 | 2026-11-23 | Timeouts are generous by default: 20 minutes to first token, 5 minutes between tokens. They are starting values to tune. | CPU inference on long prompts can take minutes. |
 | D-035 | 2026-11-23 | An OpenAI-compatible endpoint, model aliases, and conversation threads are deferred. | Not needed for V1. Do not over-engineer. |
 | D-036 | 2026-11-23 | Real addresses and config are never committed. Only placeholders. | The repository is public. |
+| D-037 | 2026-11-23 | Take a light approach: build V1 minimally, with the fewest dependencies and the least code that meets the PRD. Prefer the standard library. | The owner asked for a light approach, consistent with constitution P1 and P2. |

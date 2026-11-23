@@ -197,5 +197,16 @@ parts it relies on:
 | Listing installed models | The registry and reachability checks |
 | Listing running (loaded) models | Showing which models are loaded |
 
-Exact Ollama endpoint names should be checked against the installed Ollama
-version when building, and recorded in the code comments or here.
+Endpoints as understood at the time of writing. Verify each against the
+installed Ollama version and its documentation before relying on them, and
+correct this table if they differ:
+
+| Purpose | Ollama endpoint (to verify) |
+|---|---|
+| Stream a chat | `POST /api/chat` with `stream: true`. The reply is newline-delimited JSON, with a final object marked done that includes token counts and timings |
+| List installed models | `GET /api/tags`. Also used as the cheap reachability check |
+| List loaded models | `GET /api/ps` |
+| Cancel generation | Close the HTTP connection. Ollama stops generating |
+
+Model names in Ollama are `name:tag`. Settings such as the context window go in
+the request's options.

@@ -1,6 +1,6 @@
 # Architecture
 
-Status: draft v2. Language-neutral in the design. A proposed language is in
+Status: draft v2. Language-neutral in the design. The chosen language (Go) is in
 [IMPLEMENTATION-PLAN.md](IMPLEMENTATION-PLAN.md).
 
 Related: [API.md](API.md), [CONFIGURATION.md](CONFIGURATION.md),
