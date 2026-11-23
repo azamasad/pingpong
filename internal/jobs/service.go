@@ -312,6 +312,10 @@ func (s *Service) execute(id string) {
 		Model: res.Model, Messages: msgs, Think: cb.Think, Options: opt,
 	})
 	if err != nil {
+		if ctx.Err() != nil {
+			s.finishStopped(j)
+			return
+		}
 		code := route.CodeMachineDown
 		if !connectErr(err) {
 			code = "UPSTREAM_ERROR"
@@ -346,13 +350,7 @@ func (s *Service) execute(id string) {
 		case <-ctx.Done():
 			j.OutputText = buf.String()
 			j.OutputThinking = think.String()
-			if s.shuttingDown.Load() {
-				s.markRetry(j, "ROUTER_RESTARTING", "router shutting down", s.clk.Now().UTC())
-			} else {
-				j.Status = store.StatusCancelled
-				j.UpdatedAt = s.clk.Now().UTC()
-				_ = s.store.UpdateJob(ctx, j)
-			}
+			s.finishStopped(j)
 			return
 		default:
 		}
@@ -378,6 +376,10 @@ func (s *Service) execute(id string) {
 		ch, ok, err := stream.Next()
 		if err != nil {
 			savePartial()
+			if ctx.Err() != nil {
+				s.finishStopped(j)
+				return
+			}
 			code := "UPSTREAM_ERROR"
 			if gotFirst {
 				code = "MACHINE_FAILED"
@@ -417,6 +419,10 @@ func (s *Service) execute(id string) {
 			flushOutput()
 		}
 		if ch.Done {
+			if ctx.Err() != nil {
+				s.finishStopped(j)
+				return
+			}
 			j.Status = store.StatusDone
 			j.OutputText = buf.String()
 			j.OutputThinking = think.String()
@@ -498,6 +504,20 @@ func (s *Service) Cancel(ctx context.Context, id string) error {
 		return s.store.UpdateJob(ctx, j)
 	}
 	return nil
+}
+
+// finishStopped records a user cancel, or a planned restart, when the job context ends.
+// A user cancel must not be retried. A restart counts toward the retry window (D-071).
+func (s *Service) finishStopped(j *store.Job) {
+	if s.shuttingDown.Load() {
+		s.markRetry(j, "ROUTER_RESTARTING", "router shutting down", s.clk.Now().UTC())
+		return
+	}
+	j.Status = store.StatusCancelled
+	j.UpdatedAt = s.clk.Now().UTC()
+	ctx := context.Background()
+	_ = s.store.UpdateJob(ctx, j)
+	s.emit(ctx, j.ID, "status", map[string]any{"state": "cancelled"})
 }
 
 // BeginShutdown cancels running jobs so they can be marked retrying.
