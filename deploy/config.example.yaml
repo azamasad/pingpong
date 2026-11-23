@@ -29,6 +29,15 @@ routing:
   auto_role: heavy
   fast_role: fast
 
+# V5 named presets. Defaults if omitted: fast (fast flag), balanced (auto), deep (auto).
+# Set deep.model when a larger model is installed.
+# profiles:
+#   fast:
+#     fast: true
+#   balanced: {}
+#   deep:
+#     model: "qwen2.5:14b"
+
 timeouts:
   connect_timeout: 5s
   first_token_timeout: 30m

@@ -42,6 +42,7 @@ Request body (JSON):
 | `messages` | array of `{role, content}` | one of `messages` or `prompt` | Full conversation. Roles: `system`, `user`, `assistant` |
 | `prompt` | string | one of `messages` or `prompt` | Shorthand for a single user message |
 | `fast` | boolean | no | Send to the `fast` role machine (Mane) with its default model |
+| `profile` | string | no | V5 named preset. Fills `fast`, `model`, and `machine` when those are unset. Unknown names are `BAD_REQUEST` |
 | `model` | string | no | Pin a model. Exact Ollama name, for example `name:tag` |
 | `machine` | string | no | Pin a machine by registry name |
 | `think` | boolean | no | Pass through to Ollama for models that support reasoning. Leave unset for the default non-thinking models. If the model does not support it, Ollama returns an error, which is reported as `UPSTREAM_ERROR` |

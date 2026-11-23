@@ -14,13 +14,21 @@ import (
 
 // Config is the router configuration (V1 fields; V2 sections are ignored until used).
 type Config struct {
-	Router   RouterConfig  `yaml:"router"`
-	Machines []Machine     `yaml:"machines"`
-	Routing  RoutingConfig `yaml:"routing"`
-	Timeouts TimeoutConfig `yaml:"timeouts"`
-	Health   HealthConfig  `yaml:"health"`
-	Retry    RetryConfig   `yaml:"retry"`
-	Storage  StorageConfig `yaml:"storage"`
+	Router   RouterConfig       `yaml:"router"`
+	Machines []Machine          `yaml:"machines"`
+	Routing  RoutingConfig      `yaml:"routing"`
+	Timeouts TimeoutConfig      `yaml:"timeouts"`
+	Health   HealthConfig       `yaml:"health"`
+	Retry    RetryConfig        `yaml:"retry"`
+	Storage  StorageConfig      `yaml:"storage"`
+	Profiles map[string]Profile `yaml:"profiles"`
+}
+
+// Profile is a named preset (V5). It fills fast, model, and machine when the client leaves them unset.
+type Profile struct {
+	Fast    bool   `yaml:"fast"`
+	Model   string `yaml:"model"`
+	Machine string `yaml:"machine"`
 }
 
 type RetryConfig struct {
@@ -197,6 +205,35 @@ func (c *Config) applyDefaults() {
 	if c.Storage.OutputFlushInterval.Duration == 0 {
 		c.Storage.OutputFlushInterval = Duration{time.Second}
 	}
+	if len(c.Profiles) == 0 {
+		c.Profiles = map[string]Profile{
+			"fast":     {Fast: true},
+			"balanced": {},
+			"deep":     {},
+		}
+	}
+}
+
+// ApplyProfile fills unset routing fields from a named preset.
+// An explicit fast flag, model, or machine on the request wins.
+func (c *Config) ApplyProfile(name string, fast bool, model, machine string) (bool, string, string, error) {
+	if name == "" {
+		return fast, model, machine, nil
+	}
+	p, ok := c.Profiles[name]
+	if !ok {
+		return fast, model, machine, fmt.Errorf("unknown profile %q", name)
+	}
+	if !fast {
+		fast = p.Fast
+	}
+	if model == "" {
+		model = p.Model
+	}
+	if machine == "" {
+		machine = p.Machine
+	}
+	return fast, model, machine, nil
 }
 
 // JobsEnabled is true when durable job storage is configured.

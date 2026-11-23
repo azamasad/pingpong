@@ -117,6 +117,11 @@ func (s *Service) submit(ctx context.Context, bodyJSON, batchID string) (string,
 		}
 		return "", err
 	}
+	fast, model, machine, err := s.cfg.ApplyProfile(cb.Profile, cb.Fast, cb.Model, cb.Machine)
+	if err != nil {
+		return "", &RouteRejectedError{Code: "BAD_REQUEST"}
+	}
+	cb.Fast, cb.Model, cb.Machine = fast, model, machine
 	routeReq := route.Request{Fast: cb.Fast, Model: cb.Model, Machine: cb.Machine}
 	res := s.resolve(routeReq)
 	if !res.OK && !retryableCode(res.Code) {
@@ -215,6 +220,15 @@ func (s *Service) execute(id string) {
 		_ = s.store.UpdateJob(ctx, j)
 		return
 	}
+	fast, model, machine, err := s.cfg.ApplyProfile(cb.Profile, cb.Fast, cb.Model, cb.Machine)
+	if err != nil {
+		j.Status = store.StatusFailed
+		j.ErrorCode = "BAD_REQUEST"
+		j.UpdatedAt = s.clk.Now().UTC()
+		_ = s.store.UpdateJob(ctx, j)
+		return
+	}
+	cb.Fast, cb.Model, cb.Machine = fast, model, machine
 	routeReq := route.Request{Fast: cb.Fast, Model: cb.Model, Machine: cb.Machine}
 	res := s.resolve(routeReq)
 	now := s.clk.Now().UTC()

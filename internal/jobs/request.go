@@ -18,6 +18,7 @@ type chatBody struct {
 	Stream   *bool                `json:"stream"`
 	Options  map[string]any       `json:"options"`
 	Lane     string               `json:"lane"`
+	Profile  string               `json:"profile"`
 }
 
 func parseChatBody(bodyJSON string) (chatBody, []ollama.ChatMessage, error) {
