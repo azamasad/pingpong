@@ -20,6 +20,7 @@ var status = map[string]int{
 	"MACHINE_UNKNOWN":     404,
 	"MODEL_NOT_INSTALLED": 404,
 	"MODEL_AMBIGUOUS":     409,
+	"CONFLICT":            409,
 	"MODELS_UNKNOWN":      503,
 	"NO_TARGET":           503,
 	"MACHINE_DOWN":        503,
