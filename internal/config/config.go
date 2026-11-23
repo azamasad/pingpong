@@ -246,7 +246,7 @@ func (c *Config) validate() ([]string, error) {
 	}
 	for role, n := range roleCount {
 		if n > 1 {
-			warnings = append(warnings, fmt.Sprintf("role %q is on %d machines; V1 uses the first in file order", role, n))
+			warnings = append(warnings, fmt.Sprintf("role %q is on %d machines; V4 picks the least loaded machine that is up", role, n))
 		}
 	}
 	if c.Timeouts.FirstTokenTimeout.Duration < c.Timeouts.IdleTokenTimeout.Duration {

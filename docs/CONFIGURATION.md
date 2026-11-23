@@ -168,8 +168,8 @@ storage:          # V2
   and `num_ctx` above 0.
 - `auto_role` and `fast_role` each name a role that at least one machine has. One
   machine may have both roles.
-- If several machines share a role, V1 uses the first in file order and logs a
-  warning.
+- If several machines share a role, the router logs a warning and V4 chooses
+  the least loaded machine that is up (see ROUTING).
 - Durations parse, and `first_token_timeout` is not shorter than
   `idle_token_timeout`.
 

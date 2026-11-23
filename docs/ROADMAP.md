@@ -78,9 +78,11 @@ Implemented on `cursor/v3-queue-aa2f` (D-066).
 
 ## Phase 4: V4, expansion
 
-- Register new machines by role (for example Mac Studio, DGX Spark).
-- A rule for choosing between several machines of one role.
-- Reconsider where the brain should live.
+Implemented on `cursor/v4-roles-aa2f` (D-067).
+
+- New machines are config entries with a role. Rules still name roles.
+- Several machines with one role: least loaded machine that is up, then file order.
+- The brain stays on Mane. Moving it is a config change, not a code change.
 
 ## Deferred and backlog
 
