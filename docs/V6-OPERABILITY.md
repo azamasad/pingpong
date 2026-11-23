@@ -100,7 +100,8 @@ On `SIGTERM` or `SIGINT` the router:
    `retrying` with `error_code` `ROUTER_RESTARTING`. This is the state restart
    recovery already uses, so no new lifecycle is needed. As for any restart,
    the interrupted attempt counts as one failed attempt under the documented
-   rule in [JOBS-AND-RETRIES.md](JOBS-AND-RETRIES.md): the retry window runs
+   rule in [JOBS-AND-RETRIES.md](JOBS-AND-RETRIES.md). The owner confirmed that
+   a planned restart is part of the 3 hours (D-071). The retry window runs
    from the original first failure, or starts now if there was none. The
    recovery code does not yet start that window, so M12 includes aligning
    the code with the document.
@@ -219,8 +220,5 @@ Added to [TESTING.md](TESTING.md) when built.
 
 - Doctor thresholds for free disk (5 GB warn, 500 MB fail) are guesses. Adjust
   after the owner sees real database growth.
-- Whether a planned restart should count as a failed attempt at all. The
-  existing rule says yes for any restart, and this spec follows it. A restart
-  starting a 3-hour window is harmless, but the owner may prefer otherwise.
 - Whether the status tab should show Ollama's loaded-model memory use. Only if
   Ollama's `/api/ps` already returns it in a stable form on the real machines.
