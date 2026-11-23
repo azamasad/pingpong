@@ -10,9 +10,10 @@ let eventSource = null;
 
 async function refreshMeta() {
   try {
-    const [machines, models] = await Promise.all([
+    const [machines, models, aliases] = await Promise.all([
       fetch('/api/machines').then((r) => r.json()),
       fetch('/api/models').then((r) => r.json()),
+      fetch('/api/aliases').then((r) => r.json()).catch(() => []),
     ]);
     $('machines').textContent = machines
       .map((m) => `${m.name}: ${m.reachable ? 'up' : 'down'}${m.busy ? ', busy' : ''}`)
@@ -38,6 +39,12 @@ async function refreshMeta() {
       o.textContent = m.name;
       ms.appendChild(o);
     });
+    (aliases || []).forEach((a) => {
+      const o = document.createElement('option');
+      o.value = a.name;
+      o.textContent = `${a.name} (${a.model})`;
+      md.appendChild(o);
+    });
     models.forEach((m) => {
       const o = document.createElement('option');
       o.value = m.name;
@@ -61,7 +68,8 @@ function buildBody() {
 
 function applyStreamEvent(ev, answerRef) {
   if (ev.type === 'route') {
-    $('provenance').textContent = `${ev.machine}, ${ev.model}, ${ev.mode}`;
+    const via = ev.alias ? ` via ${ev.alias}` : '';
+    $('provenance').textContent = `${ev.machine}, ${ev.model}, ${ev.mode}${via}`;
   } else if (ev.type === 'status') {
     if (ev.state === 'waiting') {
       $('state').textContent = `Waiting (${ev.position || 1})`;
@@ -305,3 +313,33 @@ $('stop').onclick = async () => {
 $('machine').onchange = $('model').onchange = () => {
   if ($('machine').value || $('model').value) $('fast').checked = false;
 };
+
+let statusTimer = null;
+
+async function refreshStatus() {
+  try {
+    const s = await fetch('/api/status').then((r) => r.json());
+    $('status-out').textContent = JSON.stringify(s, null, 2);
+  } catch (_) {
+    $('status-out').textContent = 'Could not load status';
+  }
+}
+
+function showTab(which) {
+  const chat = which === 'chat';
+  $('panel-chat').classList.toggle('hidden', !chat);
+  $('panel-status').classList.toggle('hidden', chat);
+  $('tab-chat').classList.toggle('active', chat);
+  $('tab-status').classList.toggle('active', !chat);
+  if (statusTimer) {
+    clearInterval(statusTimer);
+    statusTimer = null;
+  }
+  if (!chat) {
+    refreshStatus();
+    statusTimer = setInterval(refreshStatus, 5000);
+  }
+}
+
+$('tab-chat').onclick = () => showTab('chat');
+$('tab-status').onclick = () => showTab('status');

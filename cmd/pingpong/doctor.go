@@ -20,11 +20,6 @@ func runDoctor(args []string) int {
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}
-	if *chat {
-		fmt.Fprintln(os.Stderr, "doctor: --chat is not implemented yet (M11b)")
-		return 2
-	}
-
 	path, err := config.PathFromEnvOrFlag(*configPath)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "doctor: %v\n", err)
@@ -54,7 +49,7 @@ func runDoctor(args []string) int {
 	checks = append(checks, doctor.Check{
 		Name: "config.load", Status: doctor.StatusOK, Message: "config loaded",
 	})
-	checks = append(checks, doctor.Run(context.Background(), cfg, warnings, doctor.Options{})...)
+	checks = append(checks, doctor.Run(context.Background(), cfg, warnings, doctor.Options{Chat: *chat})...)
 
 	printDoctorResults(checks, *asJSON)
 	return doctor.ExitCode(checks, nil)

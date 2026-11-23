@@ -7,6 +7,11 @@ import (
 	"syscall"
 )
 
+// FreeBytesOnFS reports available bytes for the file system hosting path.
+func FreeBytesOnFS(path string) (uint64, error) {
+	return freeBytesOnFS(path)
+}
+
 func freeBytesOnFS(path string) (uint64, error) {
 	var st syscall.Statfs_t
 	if err := syscall.Statfs(path, &st); err != nil {

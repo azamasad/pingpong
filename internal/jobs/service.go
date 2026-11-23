@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/azamasad/pingpong/internal/clock"
@@ -29,10 +30,11 @@ type Service struct {
 	gate  *gate.Gate
 	clk   clock.Clock
 
-	mu      sync.Mutex
-	cancels map[string]context.CancelFunc
-	holdMu  sync.Mutex
-	holding map[string]int
+	mu           sync.Mutex
+	cancels      map[string]context.CancelFunc
+	holdMu       sync.Mutex
+	holding      map[string]int
+	shuttingDown atomic.Bool
 }
 
 func New(cfg *config.Config, st *store.Store, reg *registry.Registry, g *gate.Gate, clk clock.Clock) *Service {
@@ -83,7 +85,7 @@ func (s *Service) resolve(req route.Request) route.Result {
 
 func retryableCode(code string) bool {
 	switch code {
-	case route.CodeModelsUnknown, route.CodeMachineDown, "MACHINE_FAILED", "TIMEOUT", "UPSTREAM_ERROR":
+	case route.CodeModelsUnknown, route.CodeMachineDown, "MACHINE_FAILED", "TIMEOUT", "UPSTREAM_ERROR", "ROUTER_RESTARTING":
 		return true
 	default:
 		return false
@@ -123,6 +125,7 @@ func (s *Service) submit(ctx context.Context, bodyJSON, batchID string) (string,
 		return "", &RouteRejectedError{Code: "BAD_REQUEST"}
 	}
 	cb.Fast, cb.Model, cb.Machine = fast, model, machine
+	cb.Model, cb.Machine, _ = s.cfg.ResolveAlias(cb.Model, cb.Machine)
 	routeReq := route.Request{Fast: cb.Fast, Model: cb.Model, Machine: cb.Machine}
 	res := s.resolve(routeReq)
 	if !res.OK && !retryableCode(res.Code) {
@@ -230,6 +233,7 @@ func (s *Service) execute(id string) {
 		return
 	}
 	cb.Fast, cb.Model, cb.Machine = fast, model, machine
+	cb.Model, cb.Machine, _ = s.cfg.ResolveAlias(cb.Model, cb.Machine)
 	routeReq := route.Request{Fast: cb.Fast, Model: cb.Model, Machine: cb.Machine}
 	res := s.resolve(routeReq)
 	now := s.clk.Now().UTC()
@@ -249,10 +253,19 @@ func (s *Service) execute(id string) {
 	j.Status = store.StatusWaiting
 	_ = s.store.UpdateJob(ctx, j)
 	if err := s.waitTurn(ctx, id, res.Machine); err != nil {
-		j.Status = store.StatusCancelled
-		j.UpdatedAt = s.clk.Now().UTC()
-		_ = s.store.UpdateJob(ctx, j)
-		s.emit(ctx, id, "status", map[string]any{"state": "cancelled"})
+		if errors.Is(err, context.Canceled) && s.shuttingDown.Load() {
+			flushPartial := func() {
+				j.UpdatedAt = s.clk.Now().UTC()
+				_ = s.store.UpdateJob(ctx, j)
+			}
+			flushPartial()
+			s.markRetry(j, "ROUTER_RESTARTING", "router shutting down", s.clk.Now().UTC())
+		} else {
+			j.Status = store.StatusCancelled
+			j.UpdatedAt = s.clk.Now().UTC()
+			_ = s.store.UpdateJob(ctx, j)
+			s.emit(ctx, id, "status", map[string]any{"state": "cancelled"})
+		}
 		return
 	}
 	defer s.releaseTurn(res.Machine)
@@ -262,17 +275,25 @@ func (s *Service) execute(id string) {
 	j.UpdatedAt = s.clk.Now().UTC()
 	j.OutputText, j.OutputThinking = "", ""
 	_ = s.store.UpdateJob(ctx, j)
-	s.emit(ctx, id, "route", map[string]any{"machine": res.Machine, "model": res.Model, "mode": res.Mode})
+	routeEv := map[string]any{"machine": res.Machine, "model": res.Model, "mode": res.Mode}
+	if alias := aliasForRequest(s.cfg, j.RequestJSON); alias != "" {
+		routeEv["alias"] = alias
+	}
+	s.emit(ctx, id, "route", routeEv)
 	s.emit(ctx, id, "status", map[string]any{"state": "running"})
 
 	if err := s.gate.Acquire(ctx, res.Machine, func(pos int) {
 		s.emit(ctx, id, "status", map[string]any{"state": "waiting", "position": pos})
 	}, func() bool { return s.reg.IsDown(res.Machine) }); err != nil {
 		if errors.Is(err, context.Canceled) {
-			j.Status = store.StatusCancelled
-			j.UpdatedAt = s.clk.Now().UTC()
-			_ = s.store.UpdateJob(ctx, j)
-			s.emit(ctx, id, "status", map[string]any{"state": "cancelled"})
+			if s.shuttingDown.Load() {
+				s.markRetry(j, "ROUTER_RESTARTING", "router shutting down", s.clk.Now().UTC())
+			} else {
+				j.Status = store.StatusCancelled
+				j.UpdatedAt = s.clk.Now().UTC()
+				_ = s.store.UpdateJob(ctx, j)
+				s.emit(ctx, id, "status", map[string]any{"state": "cancelled"})
+			}
 		} else {
 			s.markRetry(j, route.CodeMachineDown, "machine down", s.clk.Now().UTC())
 		}
@@ -323,9 +344,15 @@ func (s *Service) execute(id string) {
 	for {
 		select {
 		case <-ctx.Done():
-			j.Status = store.StatusCancelled
-			j.UpdatedAt = s.clk.Now().UTC()
-			_ = s.store.UpdateJob(ctx, j)
+			j.OutputText = buf.String()
+			j.OutputThinking = think.String()
+			if s.shuttingDown.Load() {
+				s.markRetry(j, "ROUTER_RESTARTING", "router shutting down", s.clk.Now().UTC())
+			} else {
+				j.Status = store.StatusCancelled
+				j.UpdatedAt = s.clk.Now().UTC()
+				_ = s.store.UpdateJob(ctx, j)
+			}
 			return
 		default:
 		}
@@ -428,7 +455,10 @@ func (s *Service) markRetry(j *store.Job, code, msg string, now time.Time) {
 		s.emit(ctx, j.ID, "error", map[string]any{"code": code, "message": msg, "retryable": false})
 		return
 	}
-	na := now.Add(s.cfg.Retry.RetryInterval.Duration)
+	na := now
+	if code != "ROUTER_RESTARTING" {
+		na = now.Add(s.cfg.Retry.RetryInterval.Duration)
+	}
 	j.Status = store.StatusRetrying
 	j.ErrorCode = code
 	j.ErrorMessage = msg
@@ -470,14 +500,31 @@ func (s *Service) Cancel(ctx context.Context, id string) error {
 	return nil
 }
 
+// BeginShutdown cancels running jobs so they can be marked retrying.
+func (s *Service) BeginShutdown() {
+	s.shuttingDown.Store(true)
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for _, c := range s.cancels {
+		c()
+	}
+}
+
 func (s *Service) Start(ctx context.Context) {
 	go s.retentionLoop(ctx)
 	jobs, _ := s.store.ActiveJobs(ctx)
 	for _, j := range jobs {
 		if j.Status == store.StatusRunning {
-			j.Status = store.StatusRetrying
 			now := s.clk.Now().UTC()
+			j.Status = store.StatusRetrying
+			j.Attempt++
+			if j.FirstFailureAt == nil {
+				j.FirstFailureAt = &now
+			}
+			j.ErrorCode = "ROUTER_RESTARTING"
+			j.ErrorMessage = "interrupted by restart"
 			j.NextAttemptAt = &now
+			j.UpdatedAt = now
 			_ = s.store.UpdateJob(ctx, j)
 		}
 		go s.runLoop(j.ID)
