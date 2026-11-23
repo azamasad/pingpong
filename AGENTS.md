@@ -22,7 +22,9 @@ unclear or conflicting, stop and ask the owner, then fix the docs.
 
 ## Current state
 
-**V2 (jobs)** ready on branch `cursor/v2-jobs-aa2f` — [PR #3](https://github.com/azamasad/pingpong/pull/3) (merge to ship). **V1** on `main`.
+**V3 (queue)** on branch `cursor/v3-queue-aa2f`, stacked on V2 [PR #3](https://github.com/azamasad/pingpong/pull/3). **V1** on `main`.
+
+Do not start V4 until V3 is merged.
 
 | Milestone | Status |
 |---|---|

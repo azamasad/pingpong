@@ -31,19 +31,24 @@ type Service struct {
 
 	mu      sync.Mutex
 	cancels map[string]context.CancelFunc
+	holdMu  sync.Mutex
+	holding map[string]int
 }
 
 func New(cfg *config.Config, st *store.Store, reg *registry.Registry, g *gate.Gate, clk clock.Clock) *Service {
 	if clk == nil {
 		clk = clock.Real{}
 	}
-	return &Service{cfg: cfg, store: st, reg: reg, gate: g, clk: clk, cancels: map[string]context.CancelFunc{}}
+	return &Service{
+		cfg: cfg, store: st, reg: reg, gate: g, clk: clk,
+		cancels: map[string]context.CancelFunc{}, holding: map[string]int{},
+	}
 }
 
 func (s *Service) Store() *store.Store { return s.store }
 
-func (s *Service) List(ctx context.Context, status string, before *time.Time, limit int) ([]*store.Job, error) {
-	return s.store.ListJobs(ctx, status, before, limit)
+func (s *Service) List(ctx context.Context, status, lane, batchID string, before *time.Time, limit int) ([]*store.Job, error) {
+	return s.store.ListJobs(ctx, status, lane, batchID, before, limit)
 }
 
 func (s *Service) Get(ctx context.Context, id string) (*store.Job, error) {
@@ -85,6 +90,26 @@ func retryableCode(code string) bool {
 }
 
 func (s *Service) Submit(ctx context.Context, bodyJSON string) (string, error) {
+	return s.submit(ctx, bodyJSON, "")
+}
+
+func (s *Service) SubmitBatch(ctx context.Context, bodies []string) (string, []string, error) {
+	if len(bodies) == 0 {
+		return "", nil, &RouteRejectedError{Code: "BAD_REQUEST"}
+	}
+	batchID := uuid.NewString()
+	ids := make([]string, 0, len(bodies))
+	for _, body := range bodies {
+		id, err := s.submit(ctx, body, batchID)
+		if err != nil {
+			return batchID, ids, err
+		}
+		ids = append(ids, id)
+	}
+	return batchID, ids, nil
+}
+
+func (s *Service) submit(ctx context.Context, bodyJSON, batchID string) (string, error) {
 	cb, _, err := parseChatBody(bodyJSON)
 	if err != nil {
 		if err.Error() == "BAD_REQUEST" {
@@ -97,12 +122,27 @@ func (s *Service) Submit(ctx context.Context, bodyJSON string) (string, error) {
 	if !res.OK && !retryableCode(res.Code) {
 		return "", &RouteRejectedError{Code: res.Code}
 	}
+	if batchID != "" {
+		cb.Lane = store.LaneBatch
+	}
+	lane := cb.Lane
+	if lane == "" {
+		lane = store.LaneInteractive
+	}
+	if lane != store.LaneInteractive && lane != store.LaneBatch {
+		return "", &RouteRejectedError{Code: "BAD_REQUEST"}
+	}
 	now := s.clk.Now().UTC()
 	id := uuid.NewString()
 	j := &store.Job{
 		ID: id, CreatedAt: now, UpdatedAt: now,
 		RequestJSON: bodyJSON,
 		Status:      store.StatusWaiting,
+		Lane:        lane,
+		BatchID:     batchID,
+	}
+	if batchID != "" {
+		j.Lane = store.LaneBatch
 	}
 	if res.OK {
 		j.Machine, j.Model, j.Mode = res.Machine, res.Model, res.Mode
@@ -189,10 +229,22 @@ func (s *Service) execute(id string) {
 		}
 		return
 	}
-	j.Status = store.StatusRunning
 	j.Machine, j.Model, j.Mode = res.Machine, res.Model, res.Mode
-	j.Attempt++
 	j.UpdatedAt = now
+	j.Status = store.StatusWaiting
+	_ = s.store.UpdateJob(ctx, j)
+	if err := s.waitTurn(ctx, id, res.Machine); err != nil {
+		j.Status = store.StatusCancelled
+		j.UpdatedAt = s.clk.Now().UTC()
+		_ = s.store.UpdateJob(ctx, j)
+		s.emit(ctx, id, "status", map[string]any{"state": "cancelled"})
+		return
+	}
+	defer s.releaseTurn(res.Machine)
+
+	j.Status = store.StatusRunning
+	j.Attempt++
+	j.UpdatedAt = s.clk.Now().UTC()
 	j.OutputText, j.OutputThinking = "", ""
 	_ = s.store.UpdateJob(ctx, j)
 	s.emit(ctx, id, "route", map[string]any{"machine": res.Machine, "model": res.Model, "mode": res.Mode})

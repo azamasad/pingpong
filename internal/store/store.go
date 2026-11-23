@@ -40,7 +40,17 @@ type Job struct {
 	Attempt        int
 	FirstFailureAt *time.Time
 	NextAttemptAt  *time.Time
+	Lane           string
+	BatchID        string
 }
+
+const (
+	LaneInteractive = "interactive"
+	LaneBatch       = "batch"
+)
+
+const jobCols = `id, created_at, updated_at, status, request_json, machine, model, mode,
+output_text, output_thinking, error_code, error_message, attempt, first_failure_at, next_attempt_at, lane, batch_id`
 
 type Event struct {
 	ID        int64
@@ -105,15 +115,47 @@ CREATE TABLE IF NOT EXISTS events (
 CREATE INDEX IF NOT EXISTS idx_jobs_status ON jobs(status);
 CREATE INDEX IF NOT EXISTS idx_events_job ON events(job_id, seq);
 `)
+	if err != nil {
+		return err
+	}
+	if err := s.addColumn("lane", `ALTER TABLE jobs ADD COLUMN lane TEXT NOT NULL DEFAULT 'interactive'`); err != nil {
+		return err
+	}
+	return s.addColumn("batch_id", `ALTER TABLE jobs ADD COLUMN batch_id TEXT`)
+}
+
+func (s *Store) addColumn(name, stmt string) error {
+	rows, err := s.db.Query(`PRAGMA table_info(jobs)`)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var cid int
+		var col, ctype string
+		var notnull, pk int
+		var dflt sql.NullString
+		if err := rows.Scan(&cid, &col, &ctype, &notnull, &dflt, &pk); err != nil {
+			return err
+		}
+		if col == name {
+			return nil
+		}
+	}
+	_, err = s.db.Exec(stmt)
 	return err
 }
 
 func (s *Store) InsertJob(ctx context.Context, j *Job) error {
+	lane := j.Lane
+	if lane == "" {
+		lane = LaneInteractive
+	}
 	_, err := s.db.ExecContext(ctx, `INSERT INTO jobs (
-id, created_at, updated_at, status, request_json, machine, model, mode, attempt
-) VALUES (?,?,?,?,?,?,?,?,?)`,
+id, created_at, updated_at, status, request_json, machine, model, mode, attempt, lane, batch_id
+) VALUES (?,?,?,?,?,?,?,?,?,?,?)`,
 		j.ID, j.CreatedAt.UTC().Format(time.RFC3339), j.UpdatedAt.UTC().Format(time.RFC3339),
-		j.Status, j.RequestJSON, j.Machine, j.Model, j.Mode, j.Attempt)
+		j.Status, j.RequestJSON, j.Machine, j.Model, j.Mode, j.Attempt, lane, j.BatchID)
 	return err
 }
 
@@ -134,21 +176,24 @@ WHERE id=?`,
 }
 
 func (s *Store) GetJob(ctx context.Context, id string) (*Job, error) {
-	row := s.db.QueryRowContext(ctx, `SELECT id, created_at, updated_at, status, request_json, machine, model, mode,
-output_text, output_thinking, error_code, error_message, attempt, first_failure_at, next_attempt_at FROM jobs WHERE id=?`, id)
+	row := s.db.QueryRowContext(ctx, `SELECT `+jobCols+` FROM jobs WHERE id=?`, id)
 	return scanJob(row)
 }
 
 func scanJob(row *sql.Row) (*Job, error) {
 	var j Job
 	var ca, ua, ff, na sql.NullString
-	var out, think, ec, em sql.NullString
+	var out, think, ec, em, lane, batch sql.NullString
 	if err := row.Scan(&j.ID, &ca, &ua, &j.Status, &j.RequestJSON, &j.Machine, &j.Model, &j.Mode,
-		&out, &think, &ec, &em, &j.Attempt, &ff, &na); err != nil {
+		&out, &think, &ec, &em, &j.Attempt, &ff, &na, &lane, &batch); err != nil {
 		return nil, err
 	}
 	j.OutputText, j.OutputThinking = out.String, think.String
 	j.ErrorCode, j.ErrorMessage = ec.String, em.String
+	j.Lane, j.BatchID = lane.String, batch.String
+	if j.Lane == "" {
+		j.Lane = LaneInteractive
+	}
 	j.CreatedAt, _ = time.Parse(time.RFC3339, ca.String)
 	j.UpdatedAt, _ = time.Parse(time.RFC3339, ua.String)
 	if ff.Valid {
@@ -162,14 +207,21 @@ func scanJob(row *sql.Row) (*Job, error) {
 	return &j, nil
 }
 
-func (s *Store) ListJobs(ctx context.Context, status string, before *time.Time, limit int) ([]*Job, error) {
-	q := `SELECT id, created_at, updated_at, status, request_json, machine, model, mode,
-output_text, output_thinking, error_code, error_message, attempt, first_failure_at, next_attempt_at FROM jobs`
+func (s *Store) ListJobs(ctx context.Context, status, lane, batchID string, before *time.Time, limit int) ([]*Job, error) {
+	q := `SELECT ` + jobCols + ` FROM jobs`
 	args := []any{}
 	where := []string{}
 	if status != "" {
 		where = append(where, `status=?`)
 		args = append(args, status)
+	}
+	if lane != "" {
+		where = append(where, `lane=?`)
+		args = append(args, lane)
+	}
+	if batchID != "" {
+		where = append(where, `batch_id=?`)
+		args = append(args, batchID)
 	}
 	if before != nil {
 		where = append(where, `created_at < ?`)
@@ -201,13 +253,17 @@ output_text, output_thinking, error_code, error_message, attempt, first_failure_
 func scanJobRow(rows *sql.Rows) (*Job, error) {
 	var j Job
 	var ca, ua, ff, na sql.NullString
-	var out, think, ec, em sql.NullString
+	var out, think, ec, em, lane, batch sql.NullString
 	if err := rows.Scan(&j.ID, &ca, &ua, &j.Status, &j.RequestJSON, &j.Machine, &j.Model, &j.Mode,
-		&out, &think, &ec, &em, &j.Attempt, &ff, &na); err != nil {
+		&out, &think, &ec, &em, &j.Attempt, &ff, &na, &lane, &batch); err != nil {
 		return nil, err
 	}
 	j.OutputText, j.OutputThinking = out.String, think.String
 	j.ErrorCode, j.ErrorMessage = ec.String, em.String
+	j.Lane, j.BatchID = lane.String, batch.String
+	if j.Lane == "" {
+		j.Lane = LaneInteractive
+	}
 	j.CreatedAt, _ = time.Parse(time.RFC3339, ca.String)
 	j.UpdatedAt, _ = time.Parse(time.RFC3339, ua.String)
 	if ff.Valid {
@@ -219,6 +275,24 @@ func scanJobRow(rows *sql.Rows) (*Job, error) {
 		j.NextAttemptAt = &t
 	}
 	return &j, nil
+}
+
+func (s *Store) WaitingForMachine(ctx context.Context, machine string) ([]*Job, error) {
+	rows, err := s.db.QueryContext(ctx, `SELECT `+jobCols+` FROM jobs WHERE machine=? AND status=? ORDER BY created_at`,
+		machine, StatusWaiting)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []*Job
+	for rows.Next() {
+		j, err := scanJobRow(rows)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, j)
+	}
+	return out, nil
 }
 
 func (s *Store) DeleteJob(ctx context.Context, id string) error {
@@ -270,8 +344,7 @@ func (s *Store) EventsSince(ctx context.Context, jobID string, fromSeq int64) ([
 }
 
 func (s *Store) ActiveJobs(ctx context.Context) ([]*Job, error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT id, created_at, updated_at, status, request_json, machine, model, mode,
-output_text, output_thinking, error_code, error_message, attempt, first_failure_at, next_attempt_at FROM jobs
+	rows, err := s.db.QueryContext(ctx, `SELECT `+jobCols+` FROM jobs
 WHERE status IN ('waiting','running','retrying')`)
 	if err != nil {
 		return nil, err

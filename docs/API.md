@@ -291,9 +291,18 @@ Event types extend V1's: `status` gains `retrying` (with `attempt` and
 `next_attempt_at`), `failed` and `cancelled`, and each event carries a
 sequence number.
 
-`POST /api/chat` may remain as a convenience that creates a job and attaches
-to it. If the client disconnects, the job continues. Decide when V2 is built
-and record it in [DECISIONS.md](DECISIONS.md).
+`POST /api/chat` stays connection-tied (D-064). Durable runs use `/api/jobs`.
+
+### 4.1 V3 queue
+
+| Method and path | Purpose |
+|---|---|
+| `POST /api/jobs` | Optional `"lane":"interactive"` (default) or `"batch"` |
+| `GET /api/jobs` | Also filters `lane` and `batch_id` |
+| `POST /api/batches` | Body `{"items":[ <job body>, ... ]}`. All items run on the batch lane. Returns `{"id","job_ids"}` |
+| `GET /api/batches/{id}` | Batch status: `pending` count and each job's detail |
+
+Terminal: `pingpong batch submit` and `pingpong batch get` (see [JOBS-AND-RETRIES.md](JOBS-AND-RETRIES.md)).
 
 ## 5. Security notes for the API
 
