@@ -1,0 +1,44 @@
+# Example only. Copy to a path outside the repo (for example ~/pingpong.local.yaml)
+# and point PINGPONG_CONFIG or --config at it. Do not commit real addresses.
+
+router:
+  listen: "127.0.0.1:8787"
+  allowed_hosts:
+    - "mane.<your-tailnet>.ts.net"
+    - "localhost"
+    - "127.0.0.1"
+  max_body_bytes: 4194304
+  log_level: info
+
+machines:
+  - name: mane
+    address: "http://127.0.0.1:11434"
+    roles: [fast]
+    default_model: "llama3.1:8b"
+    max_concurrent: 1
+    num_ctx: 8192
+
+  - name: firmino
+    address: "http://FIRMINO_LAN_ADDRESS:11434"
+    roles: [heavy]
+    default_model: "qwen2.5:14b"
+    max_concurrent: 1
+    num_ctx: 8192
+
+routing:
+  auto_role: heavy
+  fast_role: fast
+
+timeouts:
+  connect_timeout: 5s
+  first_token_timeout: 30m
+  idle_token_timeout: 5m
+  max_run_time: 2h
+  heartbeat_interval: 15s
+
+health:
+  interval: 30s
+  timeout: 10s
+  failures_to_mark_down: 2
+  registry_refresh_interval: 5m
+  refresh_on_model_miss: true

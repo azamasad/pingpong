@@ -6,9 +6,9 @@ local LLM requests run across a few always-on machines on a home network.
 You send a request to Mane. Mane either handles it itself (fast, small models)
 or hands it to **Firmino** (slower, larger models, long-running work).
 
-> Status: planning. This repository currently contains documentation only.
-> No code has been written yet. The docs are written so that someone (or an AI
-> coding agent) can build V1 from them.
+> Status: **V1 implementation in progress.** Documentation is in `docs/`. Early
+> Go code lives on branch `cursor/v1-implementation-aa2f` (config, routing, health
+> endpoint). See [AGENTS.md](AGENTS.md) for milestone status.
 
 ## The machines
 
@@ -43,6 +43,21 @@ More machines can be added later. They are always controlled through Mane.
 | V4 | More machines, by role |
 
 See [docs/ROADMAP.md](docs/ROADMAP.md).
+
+## Build (V1)
+
+Requires Go 1.22 or newer.
+
+```bash
+make tidy && make test && make build
+```
+
+Run with a config file outside the repo (see `deploy/config.example.yaml`):
+
+```bash
+export PINGPONG_CONFIG=/path/to/your.local.yaml
+./bin/pingpong
+```
 
 ## Documents
 

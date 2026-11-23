@@ -22,8 +22,17 @@ unclear or conflicting, stop and ask the owner, then fix the docs.
 
 ## Current state
 
-Documentation only. The next work is **V1** (milestones M0 to M10 in the
-implementation plan). Do not start V2 or later.
+**V1 in progress** on branch `cursor/v1-implementation-aa2f`.
+
+| Milestone | Status |
+|---|---|
+| M0 Scaffold | Done (Go module, Makefile, CI, `.gitignore`) |
+| M1 Config | Done (`internal/config`, `deploy/config.example.yaml`) |
+| M4 Routing | Done (`internal/route`, unit tests) |
+| M2–M3, M5–M10 | Not started |
+
+The binary serves `GET /api/health` only. Build with `make build`. Do not start
+V2 features until V1 is complete.
 
 ## Rules
 
