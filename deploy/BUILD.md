@@ -15,6 +15,12 @@ On Mane or a cross-compile host:
 GOOS=darwin GOARCH=arm64 make build
 ```
 
+Check a config and machines without starting the router:
+
+```bash
+./bin/pingpong doctor --config /path/to/pingpong.local.yaml
+```
+
 Copy `bin/pingpong` and a local config to Mane. Load
 `deploy/com.pingpong.router.plist.example` into `~/Library/LaunchAgents/` with
 absolute paths. Publish with `tailscale serve --bg 8787` (see SETUP-GUIDE).

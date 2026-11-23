@@ -188,10 +188,21 @@ The real binary is also smoke-run against two stand-in Ollama servers (health,
 auto, fast, profile, pin, jobs, batch CLI, host and origin guards, streaming
 timing, memory). That run is manual today. V6's `doctor` replaces most of it.
 
-### 2.7 V6 and V7 tests (planned)
+### 2.7 V6 tests (in progress)
 
-Listed in [V6-OPERABILITY.md](V6-OPERABILITY.md) section 10 and
-[V7-ALIASES.md](V7-ALIASES.md) section 8. Move them here when built.
+**M11a `pingpong doctor` (without `--chat`)**
+
+- `internal/doctor`: profile unknown machine, unreachable machine, missing default
+  model, storage warn when jobs off, writable `data_dir`, disk warn and fail
+  thresholds, exit codes.
+- `internal/ollama`: `Version` against a fake server.
+- `--chat`, shutdown, backup and `/api/status` are not built yet.
+
+See [V6-OPERABILITY.md](V6-OPERABILITY.md) section 10 for the rest.
+
+### 2.8 V7 tests (planned)
+
+Listed in [V7-ALIASES.md](V7-ALIASES.md) section 8.
 
 ### Fake Ollama scenario format
 

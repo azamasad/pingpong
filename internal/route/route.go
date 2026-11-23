@@ -208,6 +208,11 @@ func anyNeverReached(snap Snapshot) bool {
 }
 
 func modelInstalled(models []string, want string) bool {
+	return ModelInstalled(models, want)
+}
+
+// ModelInstalled reports whether want is present in the installed model list.
+func ModelInstalled(models []string, want string) bool {
 	_, ok := resolveInstalledName(models, want)
 	return ok
 }

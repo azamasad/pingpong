@@ -1,6 +1,7 @@
 # V6: Operability
 
-Status: **planned, not built.** Do not code this before the real-machine trial
+Status: **M11a in progress** (`pingpong doctor` without `--chat`). Remaining
+milestones (M11b to M15) not built. Do not code the rest before the real-machine trial
 of V1 to V5 (see [PRODUCTION.md](PRODUCTION.md)) has been run and its findings
 are folded in here.
 
