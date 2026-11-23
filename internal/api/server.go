@@ -20,7 +20,7 @@ import (
 //go:embed web/*
 var webFS embed.FS
 
-const Version = "3.0.0"
+const Version = "4.0.0"
 
 type Server struct {
 	Cfg      *config.Config

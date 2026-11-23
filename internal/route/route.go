@@ -30,6 +30,8 @@ type MachineState struct {
 	Models       []string
 	Down         bool
 	NeverReached bool
+	InFlight     int
+	Waiting      int
 }
 
 // Snapshot is registry state for a routing decision.
@@ -131,28 +133,53 @@ func pickTarget(req Request, snap Snapshot) (machine, model, mode, code string) 
 		role = snap.FastRole
 		mode = ModeFast
 	}
-	m := firstWithRole(snap, role)
+	m := pickRole(snap, role)
 	if m == nil {
 		return "", "", "", CodeNoTarget
 	}
 	return m.Name, m.DefaultModel, mode, ""
 }
 
+// pickRole chooses among machines that have role.
+// Up machines beat down ones. Among up machines, the fewest in-flight
+// requests wins, then the shortest wait queue, then file order.
+// If every match is down, the first in file order is returned so the
+// caller reports MACHINE_DOWN.
+func pickRole(snap Snapshot, role string) *MachineState {
+	var all []*MachineState
+	for i := range snap.Machines {
+		for _, r := range snap.Machines[i].Roles {
+			if r == role {
+				all = append(all, &snap.Machines[i])
+				break
+			}
+		}
+	}
+	if len(all) == 0 {
+		return nil
+	}
+	var up []*MachineState
+	for _, m := range all {
+		if !m.Down {
+			up = append(up, m)
+		}
+	}
+	if len(up) == 0 {
+		return all[0]
+	}
+	best := up[0]
+	for _, m := range up[1:] {
+		if m.InFlight < best.InFlight || (m.InFlight == best.InFlight && m.Waiting < best.Waiting) {
+			best = m
+		}
+	}
+	return best
+}
+
 func findMachine(snap Snapshot, name string) *MachineState {
 	for i := range snap.Machines {
 		if snap.Machines[i].Name == name {
 			return &snap.Machines[i]
-		}
-	}
-	return nil
-}
-
-func firstWithRole(snap Snapshot, role string) *MachineState {
-	for i := range snap.Machines {
-		for _, r := range snap.Machines[i].Roles {
-			if r == role {
-				return &snap.Machines[i]
-			}
 		}
 	}
 	return nil

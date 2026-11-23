@@ -22,9 +22,9 @@ unclear or conflicting, stop and ask the owner, then fix the docs.
 
 ## Current state
 
-**V3 (queue)** on branch `cursor/v3-queue-aa2f`, stacked on V2 [PR #3](https://github.com/azamasad/pingpong/pull/3). **V1** on `main`.
+**V4 (roles)** on branch `cursor/v4-roles-aa2f`, stacked on V3. **V1** on `main`.
 
-Do not start V4 until V3 is merged.
+Do not start V5 until this branch is pushed. Role choice is D-067.
 
 | Milestone | Status |
 |---|---|
