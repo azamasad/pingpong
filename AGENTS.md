@@ -26,6 +26,8 @@ unclear or conflicting, stop and ask the owner, then fix the docs.
 
 V4 role choice is D-067. V5 presets are D-068.
 
+**V6 and V7 are specified but not built.** See [docs/V6-OPERABILITY.md](docs/V6-OPERABILITY.md) (D-069) and [docs/V7-ALIASES.md](docs/V7-ALIASES.md) (D-070). Do not code them until the owner says so.
+
 | Milestone | Status |
 |---|---|
 | M0–M8a, M9a | Done (`main`) |
