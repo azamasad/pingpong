@@ -22,18 +22,23 @@ unclear or conflicting, stop and ask the owner, then fix the docs.
 
 ## Current state
 
-**V5 (profiles)** on branch `cursor/v5-profiles-aa2f`, stacked on V4. **V1** on `main`.
+**V1 to V5 are built and merged to `main`.** V3 lanes are D-066, V4 role choice is D-067, V5 presets are D-068.
 
-V4 role choice is D-067. V5 presets are D-068.
+**V6 and V7 are specified but not built.** See [docs/V6-OPERABILITY.md](docs/V6-OPERABILITY.md) (D-069) and [docs/V7-ALIASES.md](docs/V7-ALIASES.md) (D-070). Do not code them until the owner says so.
 
 | Milestone | Status |
 |---|---|
 | M0–M8a, M9a | Done (`main`) |
-| V2-1 … V2-6 | Done (store, runner, API, retries, recovery, full job UI) |
-| V2 automated tests | `docs/TESTING.md` §2.5 coverage in CI |
-| M8b, M9b, M10 | **Owner** on real machines after merge |
+| V2 (store, runner, API, retries, recovery, job UI) | Done |
+| V3 lanes and batches, V4 role choice, V5 profiles | Done |
+| Automated tests | `docs/TESTING.md` §2 in CI, plus a smoke run of the real binary against stand-in Ollama servers |
+| M8b, M9b, M10 | **Owner** on real machines. Not yet done |
+| V6 (M11a to M15), V7 (M16 to M20) | Specified. Not started |
 
-Do not start V3 until PR #3 is merged and owner signs off [TESTING.md](docs/TESTING.md) §4 (optional if CI + smoke is enough for you).
+The real Ollama stream format has never been checked against the router
+(D-052). Until the owner has run the real-machine checks in
+[docs/PRODUCTION.md](docs/PRODUCTION.md), treat any assumption about real
+Ollama as unverified.
 
 Run: `make test && make build`. Enable jobs with `storage.data_dir` in config (`deploy/config.example.yaml`).
 
@@ -48,9 +53,10 @@ Run: `make test && make build`. Enable jobs with `storage.data_dir` in config (`
 - **Do not add features that are not in the PRD.** If something seems useful,
   propose it by adding to the backlog in [docs/ROADMAP.md](docs/ROADMAP.md).
   Do not build it.
-- **Keep deferred items deferred.** Profiles, the full queue, notifications,
-  high availability, aliases, an OpenAI-compatible API and RAG are out of scope
-  until the roadmap says otherwise.
+- **Keep deferred items deferred.** Notifications, conversation threads, an
+  OpenAI-compatible API, high availability and RAG are out of scope until the
+  roadmap says otherwise. V6 and V7 are specified but are built only when the
+  owner says so.
 - **Routing is rule-based.** Never route by reading or classifying prompt
   content.
 - **Pinned means pinned.** Never substitute a different model or machine for a

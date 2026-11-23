@@ -12,6 +12,9 @@ dependency, not by calendar.
 | 2 | V2: durable sessions | Tasks survive the client closing. Retries. History |
 | 3 | V3: queue | A simple batch lane and terminal submission |
 | 4 | V4: expansion | More machines, by role |
+| 5 | V5: profiles | Named presets for fast, balanced and deep |
+| 6 | V6: operability (planned) | `doctor`, graceful shutdown, backup, status view |
+| 7 | V7: model aliases (planned) | Short names for models, defined once |
 
 ## Who does what
 
@@ -92,18 +95,36 @@ Implemented on `cursor/v5-profiles-aa2f` (D-068).
 - A request may set `profile`. Explicit `fast`, `model`, or `machine` overrides the preset.
 - `GET /api/profiles` lists them. The page has a profile selector.
 
+## Phase 6: V6, operability (planned)
+
+Spec: [V6-OPERABILITY.md](V6-OPERABILITY.md) (D-069). Not built. Starts after
+the real-machine trial of V1 to V5.
+
+- `pingpong doctor`, with an opt-in `--chat` check against the real Ollama.
+- Graceful shutdown with a retryable `ROUTER_RESTARTING` error.
+- `pingpong backup` using a consistent SQLite copy.
+- `GET /api/status` and a Status tab. No content is ever shown.
+
+## Phase 7: V7, model aliases (planned)
+
+Spec: [V7-ALIASES.md](V7-ALIASES.md) (D-070). Not built. Builds on V5 and V6.
+
+- `aliases:` in config map a short name to a real model, and optionally a machine.
+- An alias is a pin. Routing rules and errors are unchanged.
+- `GET /api/aliases`, an `alias` field on the route event, and a picker in the page.
+
 ## Deferred and backlog
 
 | Item | Notes |
 |---|---|
 | Profiles (fast / balanced / deep) | Shipped as V5 (D-068) |
-| Notifications when tasks finish | Not needed yet |
+| Notifications when tasks finish | Proposed as V10, not yet specified |
 | Automatic task classification | Only if rules prove insufficient |
 | High availability | Out of scope while both machines are assumed up |
 | Task-specific routing refinements | After real usage shows the need |
-| Model aliases | Short names for models |
-| Conversation threads on Mane | Group saved requests into conversations |
-| OpenAI-compatible endpoint | So other tools can use Pingpong |
+| Model aliases | Planned as V7 (D-070) |
+| Conversation threads on Mane | Group saved requests into conversations. Proposed as V8, not yet specified |
+| OpenAI-compatible endpoint | So other tools can use Pingpong. Proposed as V9, not yet specified |
 
 ## Explicitly excluded
 

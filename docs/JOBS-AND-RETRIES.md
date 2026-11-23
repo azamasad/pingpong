@@ -131,6 +131,13 @@ When the router starts, it reads saved requests:
 | `running` | The attempt was interrupted by the restart. Record it as a failed attempt, move to `retrying`, and try again at once. The retry window continues from the original first failure time (or starts now if this is the first failure) |
 | `done`, `failed`, `cancelled` | Left as they are |
 
+Planned (V6): a clean shutdown stops running jobs on purpose and marks them
+`retrying` with `error_code` `ROUTER_RESTARTING`, instead of relying on this
+recovery after the process dies. See [V6-OPERABILITY.md](V6-OPERABILITY.md)
+section 4. Today the code moves `running` to `retrying` with an immediate retry,
+but does not yet start the retry window as the table above says. V6 M12 fixes
+that.
+
 ### Cancel
 
 The owner can cancel a request in `waiting`, `running` or `retrying`. A

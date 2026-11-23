@@ -162,6 +162,37 @@ result; switch Firmino off, confirm retries every 2 minutes and a failure
 after 3 hours (or success on return); confirm results older than 90 days are
 removed.
 
+### 2.6 V3 to V5 tests (built)
+
+- **Lanes (V3):** an interactive job is admitted before a waiting batch job on
+  the same machine, and FIFO holds within a lane (`TestWaitTurnPrefersInteractive`).
+  A running job is never preempted.
+- **Batches (V3):** `POST /api/batches` then `GET /api/batches/{id}` returns the
+  jobs and a `pending` count. The `pingpong batch` commands are covered by the
+  API tests.
+- **Role choice (V4):** least in-flight machine wins among those that are up,
+  then shortest wait, then file order. A down machine is skipped. All down
+  gives `MACHINE_DOWN` (`TestRolePicksLeastLoadedUpMachine` and the cases next to it).
+- **Profiles (V5):** `fast` routes to the fast role, an explicit flag, model or
+  machine beats the preset, an unknown profile is `BAD_REQUEST`, and
+  `GET /api/profiles` lists them.
+- **Config:** default profiles exist, `refresh_on_model_miss` defaults to on
+  when omitted, and a leading `~/` in `data_dir` is expanded.
+- **Registry:** a machine that was down at start loads its model list at the
+  first health check after it comes up, not at the next 5-minute refresh.
+- **Error shape:** a pinned model that is not installed returns a JSON
+  `MODEL_NOT_INSTALLED` with status 404 (not an empty error, not a generic
+  `NOT_FOUND`).
+
+The real binary is also smoke-run against two stand-in Ollama servers (health,
+auto, fast, profile, pin, jobs, batch CLI, host and origin guards, streaming
+timing, memory). That run is manual today. V6's `doctor` replaces most of it.
+
+### 2.7 V6 and V7 tests (planned)
+
+Listed in [V6-OPERABILITY.md](V6-OPERABILITY.md) section 10 and
+[V7-ALIASES.md](V7-ALIASES.md) section 8. Move them here when built.
+
 ### Fake Ollama scenario format
 
 The fake Ollama is a small test server. Each test gives it a scenario: a list of

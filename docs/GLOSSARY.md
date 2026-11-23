@@ -22,7 +22,11 @@
 | **Durable session** | (V2) A request that keeps running with no client attached, with results saved |
 | **Job** | (V2) The saved record of a request, with status history and output |
 | **Queue** | (V3) A simple lane system for batch work, built on the saved-request store |
-| **Profile** | (Deferred) A named preset like "fast / balanced / deep" |
+| **Lane** | (V3) `interactive` (default) or `batch`. Interactive work on a machine is admitted before batch work |
+| **Batch** | (V3) A group of jobs submitted together on the batch lane, from `POST /api/batches` or `pingpong batch` |
+| **Profile** | (V5) A named preset such as `fast`, `balanced` or `deep` that fills `fast`, `model` and `machine` when a request leaves them unset |
+| **Alias** | (V7, planned) A short name for a real model, defined in config. It acts as a pin |
+| **Doctor** | (V6, planned) `pingpong doctor`, a command that checks config, storage and machines |
 | **Tailnet** | The private Tailscale network the owner's devices are on |
 | **LAN** | The home local network linking Mane and Firmino |
 | **Ollama** | The program on each machine that runs models and serves them over HTTP |
@@ -35,4 +39,4 @@
 | **Context window** | How much text a model can consider at once. Larger uses more memory |
 | **RAG** | Retrieval over documents. Out of scope here |
 | **NDJSON** | Newline-delimited JSON. One JSON object per line. Used for streaming |
-| **V1, V2, V3, V4** | Release stages. See [ROADMAP.md](ROADMAP.md) |
+| **V1 to V7** | Release stages. V1 to V5 are built. V6 and V7 are planned. See [ROADMAP.md](ROADMAP.md) |
