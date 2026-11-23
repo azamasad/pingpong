@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.pingpong.router</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/ABSOLUTE/PATH/TO/pingpong</string>
+    <string>--config</string>
+    <string>/ABSOLUTE/PATH/TO/pingpong.local.yaml</string>
+  </array>
+  <key>RunAtLoad</key>
+  <true/>
+  <key>KeepAlive</key>
+  <true/>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PINGPONG_CONFIG</key>
+    <string>/ABSOLUTE/PATH/TO/pingpong.local.yaml</string>
+  </dict>
+  <key>StandardOutPath</key>
+  <string>/tmp/pingpong.log</string>
+  <key>StandardErrorPath</key>
+  <string>/tmp/pingpong.err</string>
+</dict>
+</plist>
