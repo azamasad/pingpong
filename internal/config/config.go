@@ -168,11 +168,6 @@ func (c *Config) applyDefaults() {
 	if c.Health.RegistryRefreshInterval.Duration == 0 {
 		c.Health.RegistryRefreshInterval = Duration{5 * time.Minute}
 	}
-	// zero value RefreshOnModelMiss is false; default on per docs
-	if !c.Health.RefreshOnModelMiss {
-		// only apply default when health section exists but field omitted — impossible
-		// in plain YAML without pointer; treat false as explicit off. Example sets true.
-	}
 }
 
 func (c *Config) validate() ([]string, error) {
