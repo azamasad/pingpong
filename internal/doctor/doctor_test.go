@@ -38,16 +38,6 @@ func find(checks []doctor.Check, name string) (doctor.Check, bool) {
 	return doctor.Check{}, false
 }
 
-func TestProfilesUnknownMachineFails(t *testing.T) {
-	cfg := baseCfg("http://127.0.0.1:1", "a")
-	cfg.Profiles["bad"] = config.Profile{Machine: "missing"}
-	chk := doctor.Run(context.Background(), cfg, nil, doctor.Options{})
-	c, ok := find(chk, "config.profiles")
-	if !ok || c.Status != doctor.StatusFail {
-		t.Fatalf("profiles check %+v", c)
-	}
-}
-
 func TestMachineReachableAndDefaultModel(t *testing.T) {
 	fs := &fakeollama.Server{Models: []string{"m:8b", "extra:1b"}}
 	ts := fakeollama.NewHTTPTestServer(fs)

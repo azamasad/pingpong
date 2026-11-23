@@ -23,17 +23,19 @@ var status = map[string]int{
 	"MODELS_UNKNOWN":      503,
 	"NO_TARGET":           503,
 	"MACHINE_DOWN":        503,
+	"ROUTER_RESTARTING":   503,
 	"MACHINE_FAILED":      502,
 	"TIMEOUT":             504,
 	"UPSTREAM_ERROR":      502,
 }
 
 var retryable = map[string]bool{
-	"MODELS_UNKNOWN": true,
-	"MACHINE_DOWN":   true,
-	"MACHINE_FAILED": true,
-	"TIMEOUT":        true,
-	"UPSTREAM_ERROR": true,
+	"MODELS_UNKNOWN":    true,
+	"MACHINE_DOWN":      true,
+	"ROUTER_RESTARTING": true,
+	"MACHINE_FAILED":    true,
+	"TIMEOUT":           true,
+	"UPSTREAM_ERROR":    true,
 }
 
 func New(code, message string) APIError {

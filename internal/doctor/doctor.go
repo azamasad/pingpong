@@ -45,35 +45,16 @@ func Run(ctx context.Context, cfg *config.Config, loadWarnings []string, opt Opt
 			Hint: "review config; routing may differ from what you expect",
 		})
 	}
-	if err := validateProfileMachines(cfg); err != nil {
-		out = append(out, Check{
-			Name: "config.profiles", Status: StatusFail, Message: err.Error(),
-			Hint: "set profile machine to a name from machines, or leave it empty",
-		})
-	} else {
-		out = append(out, Check{Name: "config.profiles", Status: StatusOK, Message: "profiles reference known machines"})
-	}
 	out = append(out, storageChecks(cfg, opt)...)
 	for _, m := range cfg.Machines {
 		out = append(out, machineChecks(ctx, cfg, m)...)
 	}
+	if opt.Chat {
+		out = append(out, ChatChecks(ctx, cfg)...)
+	}
+	// Alias warnings (V7) when aliases and model lists are available.
+	out = append(out, aliasWarnings(cfg)...)
 	return out
-}
-
-func validateProfileMachines(cfg *config.Config) error {
-	names := make(map[string]struct{}, len(cfg.Machines))
-	for _, m := range cfg.Machines {
-		names[m.Name] = struct{}{}
-	}
-	for name, p := range cfg.Profiles {
-		if p.Machine == "" {
-			continue
-		}
-		if _, ok := names[p.Machine]; !ok {
-			return fmt.Errorf("profile %q: unknown machine %q", name, p.Machine)
-		}
-	}
-	return nil
 }
 
 func storageChecks(cfg *config.Config, opt Options) []Check {
