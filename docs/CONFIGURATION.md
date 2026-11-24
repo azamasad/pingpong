@@ -1,6 +1,6 @@
 # Configuration
 
-Status: draft v1. A specification of what is configurable and the defaults.
+Status: v2, all keys built. A specification of what is configurable and the defaults.
 The exact file format is chosen at implementation, but the setting names and
 meanings below should be kept stable. An illustrative example is included at
 the end.
@@ -34,7 +34,7 @@ Related: [ARCHITECTURE.md](ARCHITECTURE.md), [ROUTING.md](ROUTING.md),
 | Setting | Meaning |
 |---|---|
 | `name` | Registry name, for example `mane`, `firmino`. Used in pins |
-| `address` | Base URL of that machine's Ollama. For Mane itself this is localhost. For other machines it is their LAN address |
+| `address` | Base URL of that machine's Ollama. For Mane itself this is localhost. For other machines it is their private address: the LAN address on a shared subnet, or the Tailscale address (used for Firmino, D-072) |
 | `roles` | List of roles, for example `fast`, `heavy` |
 | `default_model` | Model used when none is pinned |
 | `max_concurrent` | Requests in flight at once on this machine. Default `1` |
@@ -67,8 +67,10 @@ Rule of thumb for `first_token_timeout`: it must exceed the time to read the
 largest allowed prompt on the slowest machine, that is the context limit divided
 by the measured prompt speed, plus model load time, plus margin. At an 8,192
 token limit, 8 tokens per second takes about 17 minutes and 5 tokens per second
-about 27 minutes, which is why the default is 30. The prompt speed on Firmino is
-an estimate until measured, so re-check this after the measurements.
+about 27 minutes, which is why the default is 30. The measured prompt speed on
+Firmino with the 30B model is about 30 to 35 tokens per second, so 8,192 tokens
+take 4 to 5 minutes, and the default of 30 minutes is generous. It can be
+lowered (one run measured, re-check first).
 
 | Setting | Default | Meaning |
 |---|---|---|
@@ -98,16 +100,17 @@ an estimate until measured, so re-check this after the measurements.
 ## 3. Environment on the workers (Ollama)
 
 These are settings on each machine's Ollama, not the router. (`OLLAMA_HOST` on
-Firmino is the LAN address only, because Tailscale lets tailnet traffic past the
-Linux firewall, so the bind address is what keeps Ollama off the tailnet.) They come from
+Firmino is its Tailscale address, because Mane and Firmino are on different
+subnets. Tailscale lets tailnet traffic past the Linux firewall, so a Tailscale
+ACL is what limits who can reach it, D-072.) They come from
 Ollama's own documentation (verified November 2026). See
 [SETUP-GUIDE.md](SETUP-GUIDE.md) for how to apply them on each machine.
 
 | Setting | Firmino | Mane | Why |
 |---|---|---|---|
-| `OLLAMA_HOST` | `<FIRMINO_LAN_IP>:11434` (its LAN address only, not `0.0.0.0`), plus a firewall allowing only Mane | `127.0.0.1:11434` | Firmino must be reachable by Mane and by nothing else. Binding to the LAN address means it does not listen on the tailnet address at all. Mane's Ollama is only for the router |
+| `OLLAMA_HOST` | `<FIRMINO_TAILSCALE_IP>:11434` (its Tailscale address, not `0.0.0.0`) | `127.0.0.1:11434` | Mane must reach Firmino, and nothing else should. Binding to the Tailscale address keeps it off the home LAN. The ACL then limits the tailnet to Mane. Mane's Ollama is only for the router |
 | `OLLAMA_NUM_PARALLEL` | `1` | `1` | Matches `max_concurrent = 1`. Set explicitly because on Apple GPUs Ollama may choose its own value |
-| `OLLAMA_MAX_LOADED_MODELS` | `1` | `2` | Mane holds the 8B and the 3B. Firmino holds the 14B |
+| `OLLAMA_MAX_LOADED_MODELS` | `1` | `2` | Mane holds the 8B and the 3B. Firmino holds the 30B mixture-of-experts model |
 | `OLLAMA_KEEP_ALIVE` | `30m` | `30m` | Avoids reloading between requests. Default is 5 minutes. Tune |
 | `OLLAMA_CONTEXT_LENGTH` | `8192` | `8192` | Explicit. Default is 4096 |
 | `OLLAMA_NO_CLOUD` | `1` | `1` | Keeps everything local |
@@ -119,10 +122,11 @@ Notes:
   `launchctl setenv` does not survive a reboot.
 - On Linux, set them with a systemd override so they survive upgrades.
 - On Firmino, the Ollama command line also talks to `OLLAMA_HOST`, so run
-  `export OLLAMA_HOST=<FIRMINO_LAN_IP>:11434` in your shell before using `ollama pull`
+  `export OLLAMA_HOST=<FIRMINO_TAILSCALE_IP>:11434` in your shell before using `ollama pull`
   or `ollama ps` there.
-- A fixed LAN address matters even more for this setting: if the address
-  changes, Ollama cannot start. Keep the DHCP reservation.
+- A stable address matters for this setting: if the address changes, Ollama
+  cannot start. A Tailscale address is stable for a machine. A LAN address
+  needs a DHCP reservation.
 
 ## 4. Illustrative example
 
@@ -142,9 +146,9 @@ machines:
     max_concurrent: 1
 
   - name: firmino
-    address: "http://FIRMINO_LAN_ADDRESS:11434"
+    address: "http://FIRMINO_TAILSCALE_ADDRESS:11434"
     roles: [heavy]
-    default_model: "qwen2.5:14b"
+    default_model: "qwen3:30b-a3b-instruct-2507-q4_K_M"
     max_concurrent: 1
 
 routing:
@@ -176,7 +180,7 @@ storage:          # V2
 - Not checked today: that a profile's `machine` names a real machine. A typo
   fails only when a request uses that profile. V7 adds this check.
 
-Planned keys, not built: `router.shutdown_grace` (V6) and `aliases` (V7). See
+Also built: `router.shutdown_grace` (V6, default `10s`) and `aliases` (V7). See
 [V6-OPERABILITY.md](V6-OPERABILITY.md) and [V7-ALIASES.md](V7-ALIASES.md).
 
 ## 6. Rules for changes

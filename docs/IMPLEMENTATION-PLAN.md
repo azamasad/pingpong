@@ -1,6 +1,6 @@
 # Implementation Plan
 
-Status: draft v1. Written for whoever builds this (including an AI coding
+Status: v2. V1 to V7 are built and live. Written for whoever builds this (including an AI coding
 agent). Read the [constitution](../CONSTITUTION.md) and [PRD](PRD.md) first.
 This document says what to build, in what order, and how to know each step is
 done. It does not contain code.
@@ -43,8 +43,9 @@ This is the short version of what V1 must do.
 
 ## 1. Ground rules
 
-- **Build V1 only** until the owner says otherwise. V2 and later are specified
-  so V1 does not block them, not so they get built early.
+- **Build only what the owner has approved.** V1 to V7 are built. Later items
+  in the roadmap are specified or proposed so they do not get blocked, not so
+  they get built early.
 - **Smallest thing that works.** No frameworks, brokers or abstractions that
   the docs do not call for.
 - **Respect the RAM budget** (50 MB working budget for the router on Mane).
@@ -164,18 +165,20 @@ Owner hardware acceptance: [TESTING.md](TESTING.md) §4 after merge.
 | V5 | Named profiles, `GET /api/profiles`, page selector (D-068) | Done |
 
 Hardware acceptance for all of them is the owner's: [PRODUCTION.md](PRODUCTION.md)
-section 3 and [TESTING.md](TESTING.md) section 4.
+section 4 and [TESTING.md](TESTING.md) section 4.
 
-## 5b. V6 and V7 (planned, not started)
+## 5b. V6 and V7 (done, merged to `main`)
 
 | Version | Spec | Milestones |
 |---|---|---|
 | V6 operability | [V6-OPERABILITY.md](V6-OPERABILITY.md) (D-069) | M11a, M11b, M12, M13, M14, M15 |
 | V7 model aliases | [V7-ALIASES.md](V7-ALIASES.md) (D-070) | M16 to M20 |
 
-Start V6 only when the owner says so. Fold in the findings of the real-machine
-trial first, since V6's `doctor --chat` exists to check what that trial
-reveals about real Ollama.
+All built (M11a to M14, M16 to M19). M15 and M20 were the owner's checks on the
+real machines, and are done in effect: `doctor --chat` passes on both machines
+(see [PRODUCTION.md](PRODUCTION.md)). The Stress tab, bench scripts and the
+per-request log line were added afterwards (D-075 to D-077) and are not
+numbered milestones.
 
 ## 6. Things to decide early in implementation
 
@@ -185,14 +188,14 @@ Record each in [DECISIONS.md](DECISIONS.md).
 |---|---|
 | Config file format | Any simple, human-editable format. Keep setting names as in CONFIGURATION |
 | Which Ollama endpoints | Check the installed version's API. Note it in [API.md](API.md) section 6 |
-| Default models | Already chosen: `llama3.1:8b`, `llama3.2:3b` and `qwen2.5:14b` (D-038). Put them in the example config. Do not hard-code them |
+| Default models | Chosen: `llama3.1:8b` and `llama3.2:3b` on Mane (D-038), and on Firmino `qwen3:30b-a3b-instruct-2507-q4_K_M` (D-073, replacing `qwen2.5:14b`). Put them in the example config. Do not hard-code them |
 | Flag and pin controls in the page | Keep minimal: a fast toggle and two optional selectors |
 
 ## 7. Guardrails (do not do these)
 
 - Do not add RAG, vector search or document features.
 - Do not add logins, users, or accounts.
-- Do not add a queue, profiles, notifications or automatic task classification.
+- Do not add notifications or automatic task classification. (The queue and profiles are built, V3 and V5.)
 - Do not put any UI or router on Firmino.
 - Do not route by reading prompts.
 - Do not substitute for pinned requests.
