@@ -432,9 +432,13 @@ func (s *Service) execute(id string) {
 			j.OutputThinking = think.String()
 			j.UpdatedAt = s.clk.Now().UTC()
 			_ = s.store.UpdateJob(ctx, j)
-			s.emit(ctx, id, "done", map[string]any{
+			doneEv := map[string]any{
 				"machine": res.Machine, "model": res.Model, "mode": res.Mode,
-			})
+			}
+			if stats := streamStats(ch); len(stats) > 0 {
+				doneEv["stats"] = stats
+			}
+			s.emit(ctx, id, "done", doneEv)
 			return
 		}
 	}

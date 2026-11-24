@@ -25,4 +25,5 @@ button:disabled { opacity: 0.5; }
 .job-actions { display: flex; flex-wrap: wrap; gap: 0.35rem; margin-bottom: 0.5rem; }
 #job-out { white-space: pre-wrap; font-size: 0.85rem; max-height: 12rem; overflow: auto; background: #fff; padding: 0.5rem; }
 .job-history { font-size: 0.75rem; color: #666; padding-left: 1rem; }
+#stress-out { white-space: pre-wrap; background: #f6f6f6; padding: 0.75rem; min-height: 8rem; border-radius: 4px; }
 @media (max-width: 480px) { body { margin: 0.5rem; } }
