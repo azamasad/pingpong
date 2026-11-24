@@ -90,6 +90,12 @@ function applyStreamEvent(ev, answerRef) {
     if (ev.elapsed_ms) t0 = Date.now() - ev.elapsed_ms;
   } else if (ev.type === 'done') {
     $('state').textContent = 'Done';
+    if (ev.stats && ev.stats.output_tokens_per_s) {
+      const st = ev.stats;
+      $('provenance').textContent += ` · ${st.output_tokens_per_s.toFixed(1)} tok/s out` +
+        (st.prompt_tokens_per_s ? `, ${st.prompt_tokens_per_s.toFixed(0)} tok/s in` : '') +
+        (st.load_ms ? `, load ${(st.load_ms / 1000).toFixed(1)} s` : '');
+    }
     if (ev.context_warning) {
       $('warn').textContent = 'Context window may be full; part of the prompt could be cut.';
       $('warn').classList.remove('hidden');
