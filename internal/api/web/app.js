@@ -315,6 +315,7 @@ $('machine').onchange = $('model').onchange = () => {
 };
 
 let statusTimer = null;
+let stressTimer = null;
 
 async function refreshStatus() {
   try {
@@ -326,20 +327,89 @@ async function refreshStatus() {
 }
 
 function showTab(which) {
-  const chat = which === 'chat';
-  $('panel-chat').classList.toggle('hidden', !chat);
-  $('panel-status').classList.toggle('hidden', chat);
-  $('tab-chat').classList.toggle('active', chat);
-  $('tab-status').classList.toggle('active', !chat);
+  for (const name of ['chat', 'status', 'stress']) {
+    $('panel-' + name).classList.toggle('hidden', name !== which);
+    $('tab-' + name).classList.toggle('active', name === which);
+  }
   if (statusTimer) {
     clearInterval(statusTimer);
     statusTimer = null;
   }
-  if (!chat) {
+  if (which === 'status') {
     refreshStatus();
     statusTimer = setInterval(refreshStatus, 5000);
   }
+  if (stressTimer) {
+    clearTimeout(stressTimer);
+    stressTimer = null;
+  }
+  if (which === 'stress') refreshStress();
 }
+
+function fmtTps(n) {
+  return n ? n.toFixed(2) : '—';
+}
+
+function renderStress(s) {
+  const lines = [];
+  lines.push(s.running ? `Running until ${s.until || '?'}` : 'Idle');
+  if (s.target) lines.push(`Target: ${s.target}`);
+  if (s.queued) lines.push(`Still in queue: ${s.queued}`);
+  if (s.last_err) lines.push(`Last error: ${s.last_err}`);
+  const machines = s.machines || {};
+  const names = Object.keys(machines).sort();
+  if (!names.length) lines.push('No finished jobs yet.');
+  names.forEach((name) => {
+    const m = machines[name];
+    lines.push(
+      `${name}: ${m.done} done, ${m.failed} failed, ` +
+      `output ${fmtTps(m.output_tps_median)} tok/s ` +
+      `(min ${fmtTps(m.output_tps_min)}, max ${fmtTps(m.output_tps_max)}), ` +
+      `prompt ${fmtTps(m.prompt_tps_median)} tok/s, ` +
+      `load ${m.load_ms_median || 0} ms, total ${m.total_ms_median || 0} ms`
+    );
+  });
+  $('stress-out').textContent = lines.join('\n');
+  $('stress-state').textContent = s.running ? 'running' : '';
+}
+
+async function refreshStress() {
+  try {
+    const s = await fetch('/api/stress').then((r) => r.json());
+    renderStress(s);
+    if (stressTimer) clearTimeout(stressTimer);
+    if (s.running && !$('panel-stress').classList.contains('hidden')) {
+      stressTimer = setTimeout(refreshStress, 3000);
+    }
+  } catch (e) {
+    $('stress-out').textContent = e.message;
+  }
+}
+
+$('stress-start').onclick = async () => {
+  $('stress-state').textContent = 'Starting…';
+  const res = await fetch('/api/stress', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      target: $('stress-target').value,
+      seconds: Number($('stress-seconds').value),
+    }),
+  });
+  const body = await res.json();
+  if (!res.ok) {
+    $('stress-state').textContent = body.error?.message || 'Could not start';
+    return;
+  }
+  renderStress(body);
+  refreshStress();
+};
+
+$('stress-stop').onclick = async () => {
+  const res = await fetch('/api/stress', { method: 'DELETE' });
+  renderStress(await res.json());
+};
 
 $('tab-chat').onclick = () => showTab('chat');
 $('tab-status').onclick = () => showTab('status');
+$('tab-stress').onclick = () => showTab('stress');
