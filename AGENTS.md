@@ -22,23 +22,25 @@ unclear or conflicting, stop and ask the owner, then fix the docs.
 
 ## Current state
 
-**V1 to V5 are built and merged to `main`.** V3 lanes are D-066, V4 role choice is D-067, V5 presets are D-068.
+**V1 to V7 are built and merged to `main`, and the router runs on the real machines** (Mane and Firmino). V3 lanes are D-066, V4 role choice is D-067, V5 presets are D-068, V6 operability is D-069, V7 aliases are D-070. After go-live the owner added test tooling: a Stress tab (D-075), a per-request log line with speeds (D-076) and `deploy/bench/` scripts (D-077).
 
-**V6 and V7 are specified but not built.** See [docs/V6-OPERABILITY.md](docs/V6-OPERABILITY.md) (D-069) and [docs/V7-ALIASES.md](docs/V7-ALIASES.md) (D-070). Do not code them until the owner says so.
+Anything beyond that (V8 threads, V9 OpenAI-compatible API, V10 notifications, a login layer) is **not approved**. Propose it in [docs/ROADMAP.md](docs/ROADMAP.md) and wait.
 
 | Milestone | Status |
 |---|---|
 | M0–M8a, M9a | Done (`main`) |
 | V2 (store, runner, API, retries, recovery, job UI) | Done |
 | V3 lanes and batches, V4 role choice, V5 profiles | Done |
+| V6 (M11a to M14), V7 (M16 to M19) | Done |
+| Go-live on real machines (M8b, M9b, M10 in effect) | Done. `doctor --chat` passes on both |
+| Stress tab, speed log line, bench scripts | Done |
 | Automated tests | `docs/TESTING.md` §2 in CI, plus a smoke run of the real binary against stand-in Ollama servers |
-| M8b, M9b, M10 | **Owner** on real machines. Not yet done |
-| V6 (M11a to M15), V7 (M16 to M20) | Specified. Not started |
+| Owner's open checks | Off-tailnet test of the page, Tailscale ACL for Firmino's port 11434, reboot and power-cut checks (see [docs/ROADMAP.md](docs/ROADMAP.md) "Now") |
 
-The real Ollama stream format has never been checked against the router
-(D-052). Until the owner has run the real-machine checks in
-[docs/PRODUCTION.md](docs/PRODUCTION.md), treat any assumption about real
-Ollama as unverified.
+The real Ollama stream format has been verified on both machines (D-052 closed,
+D-078). Still unverified: the exact shape of mid-stream errors from a real
+failure. Real numbers: [docs/HARDWARE-AND-MODELS.md](docs/HARDWARE-AND-MODELS.md)
+section 8. Firmino's default model is a mixture-of-experts 30B (D-073).
 
 Run: `make test && make build`. Enable jobs with `storage.data_dir` in config (`deploy/config.example.yaml`).
 
@@ -55,22 +57,24 @@ Run: `make test && make build`. Enable jobs with `storage.data_dir` in config (`
   Do not build it.
 - **Keep deferred items deferred.** Notifications, conversation threads, an
   OpenAI-compatible API, high availability and RAG are out of scope until the
-  roadmap says otherwise. V6 and V7 are specified but are built only when the
-  owner says so.
+  roadmap says otherwise.
 - **Routing is rule-based.** Never route by reading or classifying prompt
   content.
 - **Pinned means pinned.** Never substitute a different model or machine for a
   pinned request.
 - **Wait, do not reroute.** A request waits for its intended machine.
 - **No UI or router on workers.** The only web page lives on Mane.
-- **Mane-to-worker traffic stays on the LAN.**
-- **Never log prompts or outputs.**
+- **Mane-to-worker traffic stays private**: the LAN, or Tailscale when the machines are on different subnets, as they are now (D-072). Never the public internet.
+- **Never log prompts or outputs.** Speed and outcome metadata is allowed (D-076). New log fields must be added to the whitelist in `internal/logx`.
 - **No secrets or real addresses in the repository.** It is public. No keys,
   tokens, LAN or Tailscale addresses, login links, or real config files. Commit
   placeholders only.
-- **You cannot reach the real machines.** Phase 0 setup is done by the owner.
-  Build and test against a fake Ollama, and give the owner checklists for
-  anything that must happen on real hardware.
+- **You cannot reach the real machines.** Setup and benchmarks are run by the
+  owner. Build and test against a fake Ollama, and give the owner checklists or
+  scripts (`deploy/bench/`) for anything that must happen on real hardware.
+  Measured numbers in the docs came from the owner; do not invent new ones.
+- **Mane must not run the Ollama desktop app** (D-074). Do not tell the owner
+  to install it.
 
 ## Working agreement
 

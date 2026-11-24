@@ -1,6 +1,6 @@
 # UI Specification
 
-Status: draft v2 (V2 job UI implemented).
+Status: v3. V1 to V7 UI implemented, plus the Status and Stress tabs.
 
 A tiny, built-in web page served by the router on Mane. One page, no
 logins, used by one person.
@@ -42,7 +42,7 @@ logins, used by one person.
 | Machine status refresh | Refresh machine status every few seconds while the page is open |
 | Stop button | Shown while a request is waiting or running. Pressing it cancels the request (the worker stops) |
 | Waiting | Shows "Waiting for Firmino" (or the machine name) and the position if more than one |
-| Mode label | Each answer shows a small label such as "Firmino, qwen2.5:14b, auto" |
+| Mode label | Each answer shows a small label such as "Firmino, qwen3:30b-a3b-instruct-2507-q4_K_M, auto". When the request finishes, speeds are appended: output tokens/s, prompt tokens/s and model load time, when Ollama reports them |
 | Thinking text | If a reasoning model streams `thinking` events, show them collapsed and separate from the answer, or hide them. Never mix them into the answer |
 | Errors | Plain language, built from the error codes in [API.md](API.md), for example "That model is not installed" or "Firmino is down" |
 | Machine status | A small indicator per machine: reachable, busy, down |
@@ -62,12 +62,21 @@ logins, used by one person.
 | Cancel and delete | Cancel an active request. Delete a saved one |
 | Status filter | Filter the history by status |
 
+## 3a. Tabs (V6 and test tooling)
+
+The page has three tabs: **Chat** (everything above), **Status** and **Stress**.
+
+| Tab | Description |
+|---|---|
+| Status | Machines (reachable, models, in flight), job counts by status and lane, oldest waiting job age, router memory and uptime. Reads `GET /api/status`. Never shows prompts or outputs |
+| Stress | Pick a target (mane, firmino, both) and a duration (1 to 7200 seconds), then Start or Stop. Shows remaining time and, per machine, done and failed counts and median, minimum and maximum speeds. The run is on the server and survives closing the page. Reads `/api/stress` |
+
 ## 4. Not included
 
 - Logins and user management.
 - Settings pages and themes.
 - Model installation or deletion from the page.
-- Charts and dashboards.
+- Charts and dashboards (the Status and Stress tabs show numbers only).
 - Notifications (deferred).
 - RAG or document features.
 
@@ -79,6 +88,5 @@ from the terminal arrives with the queue (see [ROADMAP.md](ROADMAP.md)).
 
 ## 6. Open questions
 
-- Whether to show raw token speed (nice to have, not required).
 - Whether the page should remember the last settings across reloads (for
   example in the browser's local storage).

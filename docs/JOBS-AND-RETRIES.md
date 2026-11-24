@@ -1,7 +1,7 @@
 # Jobs and Retries
 
-Status: draft v2. Describes behaviour in V1 and the durable-session design
-targeted for V2. The queue, planned in V3, builds on this.
+Status: v3. Describes V1 behaviour and the durable sessions, queue and
+graceful restart that are built and running (V2, V3, V6).
 
 Related: [API.md](API.md) section 4, [CONFIGURATION.md](CONFIGURATION.md),
 [TESTING.md](TESTING.md) section 2.5.
@@ -131,12 +131,11 @@ When the router starts, it reads saved requests:
 | `running` | The attempt was interrupted by the restart. Record it as a failed attempt, move to `retrying`, and try again at once. The retry window continues from the original first failure time (or starts now if this is the first failure) |
 | `done`, `failed`, `cancelled` | Left as they are |
 
-Planned (V6): a clean shutdown stops running jobs on purpose and marks them
+Built (V6): a clean shutdown stops running jobs on purpose and marks them
 `retrying` with `error_code` `ROUTER_RESTARTING`, instead of relying on this
-recovery after the process dies. See [V6-OPERABILITY.md](V6-OPERABILITY.md)
-section 4. Today the code moves `running` to `retrying` with an immediate retry,
-but does not yet start the retry window as the table above says. V6 M12 fixes
-that.
+recovery after the process dies. The interrupted attempt counts toward the
+retry window like any other failure (D-071), and the job resumes right after
+the restart. See [V6-OPERABILITY.md](V6-OPERABILITY.md) section 4.
 
 ### Cancel
 
@@ -190,3 +189,11 @@ pingpong batch get --url http://127.0.0.1:8787 --id <batch-id>
 - Whether `POST /api/chat` stays a separate path in V2 (see API.md).
 - Whether finished requests should also be groupable into conversation
   threads (deferred).
+
+### What is logged
+
+Each finished attempt writes one metadata line to the router log: `job_done`,
+`job_retrying`, `job_failed` or `job_cancelled`, with the machine, model, lane,
+`error_code` and, for `job_done`, the speeds and token counts. It never
+contains the prompt or the output. See [OPERATIONS.md](OPERATIONS.md) section 10.
+A job's `done` event also carries these speeds as `stats`.

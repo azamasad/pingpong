@@ -1,6 +1,6 @@
 # V6: Operability
 
-Status: **built (M11a–M14).** M15 (owner checks on real Mane/Firmino) remains.
+Status: **built (M11a–M14) and live.** M15 (owner checks on the real machines) is done: `doctor --chat` passes on both. Open: reboot and power-cut checks.
 
 Related: [ROADMAP.md](ROADMAP.md) phase 6, [OPERATIONS.md](OPERATIONS.md),
 [TESTING.md](TESTING.md), decision D-069.
@@ -100,9 +100,8 @@ On `SIGTERM` or `SIGINT` the router:
    the interrupted attempt counts as one failed attempt under the documented
    rule in [JOBS-AND-RETRIES.md](JOBS-AND-RETRIES.md). The owner confirmed that
    a planned restart is part of the 3 hours (D-071). The retry window runs
-   from the original first failure, or starts now if there was none. The
-   recovery code does not yet start that window, so M12 includes aligning
-   the code with the document.
+   from the original first failure, or starts now if there was none. M12 aligned the
+   recovery code with this rule.
 3. For **live `POST /api/chat` streams**: sends an in-band `error` event with
    `ROUTER_RESTARTING` and closes. These are connection-tied by design (D-064).
 4. Closes the SQLite store cleanly (checkpoint the write-ahead log).

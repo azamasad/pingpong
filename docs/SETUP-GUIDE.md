@@ -1,10 +1,12 @@
 # Setup Guide (Phase 0)
 
-Status: draft v1. A step-by-step checklist for the owner to prepare Mane and
-Firmino. This is done on the real machines, before or alongside development.
-A coding agent cannot do these steps.
+Status: v2. A step-by-step checklist to prepare Mane and Firmino, corrected
+after the real go-live (the changes are listed in section 7). It is done on the
+real machines. A coding agent cannot do these steps.
 
-Placeholders in angle brackets (such as `<MANE_LAN_IP>`) are values you fill in.
+Placeholders in angle brackets (such as `<FIRMINO_TAILSCALE_IP>`) are values you
+fill in. In a shell, do not type the angle brackets, and do not paste
+placeholders literally: `<` and `>` are redirection characters.
 **Never commit real addresses to this public repository.** Commands were checked
 against the vendors' documentation when written. If a command fails, check the
 installed version's help output, because tools change.
@@ -16,18 +18,18 @@ Related: [OPERATIONS.md](OPERATIONS.md), [NETWORK-AND-SECURITY.md](NETWORK-AND-S
 
 | Decision | Detail |
 |---|---|
-| Starting models | Mane: `llama3.1:8b` and `llama3.2:3b`. Firmino: `qwen2.5:14b`. All non-thinking models (see D-038) |
+| Starting models | Mane: `llama3.1:8b` and `llama3.2:3b`. Firmino: `qwen3:30b-a3b-instruct-2507-q4_K_M` (D-073). All non-thinking models (see D-038) |
 | Context window | Set explicitly to 8192 tokens on both, because Ollama's default of 4096 silently limits long prompts (D-042) |
 | Mane unattended restart | FileVault off and automatic login on, so it recovers by itself after a power failure (D-039) |
-| Exposure | Mane's router listens on localhost only, and Tailscale Serve publishes it to the tailnet. Firmino's Ollama listens on its LAN address only, accepts Mane only by firewall, and the Tailscale ACL blocks it from the tailnet (D-040, D-054) |
+| Exposure | Mane's router listens on localhost only, and Tailscale Serve publishes it to the tailnet. Firmino's Ollama listens on its Tailscale address, because the machines are on different subnets, and the Tailscale ACL should allow only Mane to reach it (D-072, supersedes D-054) |
 | Ollama cloud features | Off, so everything stays local (D-043) |
 
 ## 1. Before you start
 
 - [ ] Both machines on Ethernet.
-- [ ] Note both machines' LAN addresses (keep them in your own notes, not the repo).
-- [ ] In your router, reserve a fixed address (DHCP reservation) for each machine.
-- [ ] Both machines are signed in to the same Tailscale account (Firmino already is).
+- [ ] Check whether they can reach each other directly: from Mane, `ping` Firmino's LAN address. If it says "Destination Unreachable" or "prohibited", the machines are on different subnets and the gateway blocks traffic between them. Use Tailscale addresses between them (this was the case here).
+- [ ] Note Firmino's Tailscale address with `tailscale ip -4` on Firmino (keep it in your own notes, not the repo).
+- [ ] Both machines are signed in to the same Tailscale account.
 - [ ] In the Tailscale admin console, enable MagicDNS and HTTPS certificates
       (needed for Tailscale Serve). Give Mane a clear name such as `mane`.
 
@@ -62,17 +64,19 @@ Related: [OPERATIONS.md](OPERATIONS.md), [NETWORK-AND-SECURITY.md](NETWORK-AND-S
 
 ### 2.4 Install Ollama
 
-- [ ] Install: `curl -fsSL https://ollama.com/install.sh | sh` (this also
-      installs the systemd service named `ollama`).
-- [ ] Set its settings with `sudo systemctl edit ollama.service`, adding under
-      `[Service]`:
+- [ ] Install: `curl -fsSL https://ollama.com/install.sh | sh`. This creates the
+      `ollama` user and the systemd service `ollama.service`, which runs as
+      that user. If you ran `ollama serve` by hand earlier, stop it first, or the
+      port will be busy.
+- [ ] Set its settings in `/etc/systemd/system/ollama.service.d/override.conf`
+      (`sudo systemctl edit ollama.service` opens it), adding under `[Service]`:
 
 | Setting | Value | Reason |
 |---|---|---|
-| `OLLAMA_HOST` | `<FIRMINO_LAN_IP>:11434` | Its LAN address only, not `0.0.0.0`, so it does not listen on the tailnet address. The firewall then restricts the LAN to Mane |
+| `OLLAMA_HOST` | `<FIRMINO_TAILSCALE_IP>:11434` | Its Tailscale address, so Mane can reach it. Not `0.0.0.0`, which would also listen on the LAN (D-072) |
 | `OLLAMA_NUM_PARALLEL` | `1` | One request at a time, matching the router's gate |
 | `OLLAMA_MAX_LOADED_MODELS` | `1` | Memory control |
-| `OLLAMA_KEEP_ALIVE` | `30m` | Avoids reloading the 14B between requests (tune) |
+| `OLLAMA_KEEP_ALIVE` | `30m` | Avoids reloading the model between requests (tune) |
 | `OLLAMA_CONTEXT_LENGTH` | `8192` | Explicit context window |
 | `OLLAMA_NO_CLOUD` | `1` | Local only |
 
@@ -81,8 +85,11 @@ Each is written as a line of the form `Environment="NAME=value"`.
 - [ ] Apply: `sudo systemctl daemon-reload && sudo systemctl restart ollama`.
 - [ ] Confirm it runs: `systemctl status ollama`.
 - [ ] For the `ollama` command on Firmino itself, run
-      `export OLLAMA_HOST=<FIRMINO_LAN_IP>:11434` first (add it to your shell
+      `export OLLAMA_HOST=<FIRMINO_TAILSCALE_IP>:11434` first (add it to your shell
       profile), because the server no longer listens on localhost.
+- [ ] Models are stored for the service user in
+      `/usr/share/ollama/.ollama/models`. Models pulled earlier as root are
+      elsewhere and will not show up. Pull them again with the service running.
 - [ ] Note the version (`ollama --version`).
 
 ### 2.5 Firewall (do this carefully)
@@ -92,29 +99,29 @@ lock yourself out.
 
 - [ ] `sudo ufw default deny incoming`
 - [ ] `sudo ufw default allow outgoing`
-- [ ] `sudo ufw allow from <MANE_LAN_IP> to any port 11434 proto tcp` (Mane only)
+- [ ] Do not open port 11434 on the LAN. Ollama does not listen there.
 - [ ] `sudo ufw enable`, then `sudo ufw status verbose`.
 
 No rule is needed for Tailscale SSH, because Tailscale handles it itself.
 
 **Important:** on Linux, Tailscale accepts all traffic arriving on `tailscale0`
 before `ufw` is consulted, so `ufw` cannot block your MacBook Air from Firmino
-over the tailnet. That is why Ollama is bound to the LAN address in 2.4, and why
-the ACL in section 4 matters. `ufw` here protects against other devices on your
-home LAN.
+over the tailnet. Because Ollama has to listen on the tailnet address (2.4), the
+ACL in section 4 is the only thing that keeps other tailnet devices off the
+port. `ufw` here protects the LAN side.
 
 ### 2.6 Models
 
-- [ ] `ollama pull qwen2.5:14b` (about 9 GB).
+- [ ] `ollama pull qwen3:30b-a3b-instruct-2507-q4_K_M` (about 18 GB). Use this
+      exact tag: the plain `qwen3:30b` tag is the thinking variant.
 - [ ] Run it once and check `ollama ps`: the processor column should say
       `100% CPU`.
 
 ### 2.7 Checks
 
-- [ ] From Mane: `curl http://<FIRMINO_LAN_IP>:11434/api/tags` lists the model.
-- [ ] From the MacBook Air (not Mane), try both Firmino's LAN address (if the Air
-      is on the same Wi-Fi) and Firmino's tailnet address on port 11434: both
-      must be **refused or time out**.
+- [ ] From Mane: `curl http://<FIRMINO_TAILSCALE_IP>:11434/api/tags` lists the model.
+- [ ] After the ACL in section 4 is applied, from the MacBook Air (not Mane), try
+      Firmino's tailnet address on port 11434. It must be **refused or time out**.
 - [ ] Reboot Firmino. Confirm Ollama is back without any action.
 - [ ] Optional: unplug power briefly and confirm it stays up on battery.
 
@@ -144,8 +151,11 @@ home LAN.
 ### 3.3 Install Ollama
 
 - [ ] Install the command-line version with Homebrew: `brew install ollama`.
-      Do not also install the Ollama desktop app. It would start its own server
-      at login and conflict.
+      **Do not also install the Ollama desktop app.** It starts its own server at
+      login and holds port 11434, so the launch agent below stays stuck at
+      "spawn scheduled" and its settings are silently never applied. If the
+      app is installed, quit it, remove it from Login Items (or delete it), then
+      run `launchctl kickstart -k gui/$(id -u)/<label>`.
 - [ ] Create a user service so Ollama starts at login with the right settings.
       Create a launch agent file (for example in `~/Library/LaunchAgents/`) that
       runs `ollama serve` at load, keeps it alive, and sets these environment
@@ -200,13 +210,15 @@ home LAN.
       (the default allows everything). Follow its safe order, and keep an SSH
       session to Firmino open while you do it.
 - [ ] Check from the MacBook Air that the page loads, and from a device **not**
-      on your tailnet that it does not.
+      on your tailnet (a phone with Tailscale off) that it does not. Also check
+      that `tailscale serve status` says "(tailnet only)". Not yet done by the owner.
 - [ ] Check from the MacBook Air that `http://<Firmino tailnet address>:11434` is
-      refused or times out.
+      refused or times out (after the ACL is applied).
 - [ ] Reboot Mane and confirm `tailscale serve status` still shows the router,
       with no manual step.
 - [ ] **macOS Local Network permission.** Recent macOS versions can block programs
-      from reaching devices on your home LAN until you allow them. After a
+      from reaching devices on your home LAN until you allow them. This did not
+      affect the Tailscale path used here, but check it if you ever use LAN addresses. After a
       reboot, with the router started by its launch agent (not from Terminal),
       send a request to Firmino through the page. If it fails with
       `MACHINE_DOWN` while the same request works from Terminal, this is the
@@ -216,8 +228,10 @@ home LAN.
 
 ## 5. Measure real speeds
 
-Do this for each model on its machine, and record the results in
-[HARDWARE-AND-MODELS.md](HARDWARE-AND-MODELS.md) section 8.
+The easy way is through the router, using the scripts in `deploy/bench/` on
+Mane ([OPERATIONS.md](OPERATIONS.md) section 9), and record the results in
+[HARDWARE-AND-MODELS.md](HARDWARE-AND-MODELS.md) section 8. The manual way,
+directly on each machine:
 
 1. Run the model with timing output on (`ollama run <model> --verbose`). It prints
    prompt processing speed and generation speed after each reply.
@@ -235,7 +249,7 @@ Then tune the router's settings:
 
 | Setting | How to tune |
 |---|---|
-| `first_token_timeout` | Must exceed the slowest long prompt on Firmino: (largest prompt in tokens) divided by (measured prompt tokens per second), plus load time, plus margin. The default of 30 minutes assumes 5 tokens per second or better at 8,192 tokens |
+| `first_token_timeout` | Must exceed the slowest long prompt on Firmino: (largest prompt in tokens) divided by (measured prompt tokens per second), plus load time, plus margin. The default of 30 minutes assumes 5 tokens per second or better at 8,192 tokens. Measured on the 30B model: about 30 to 35 tokens per second, so 8,192 tokens take about 4 to 5 minutes |
 | `max_run_time` | Longer than the slowest full answer you expect, so a stuck request is cleared without cutting off real work |
 | `idle_token_timeout` | At least several times the slowest gap between tokens |
 | `OLLAMA_KEEP_ALIVE` | Long enough to avoid reloads in normal use |
@@ -244,9 +258,24 @@ Then tune the router's settings:
 ## 6. Done when
 
 - [ ] Both machines survive a reboot and a short power cut without help.
-- [ ] Firmino's Ollama answers Mane and nobody else (checked from the Air over both the LAN and the tailnet).
-- [ ] Traffic from Mane to Firmino stays on the LAN: while a request runs, `lsof -i -nP | grep <FIRMINO_LAN_IP>` on Mane and `ss -tnp | grep 11434` on Firmino show the LAN address, not a Tailscale address.
+- [ ] Firmino's Ollama answers Mane and nobody else (checked from the Air over the tailnet, after the ACL is applied).
+- [ ] Mane to Firmino traffic uses the Tailscale address: while a request runs, `lsof -i -nP | grep <FIRMINO_TAILSCALE_IP>` on Mane shows the connection.
+- [ ] `pingpong doctor --chat` passes for both machines.
 - [ ] Mane's Ollama is local only.
 - [ ] The MacBook Air reaches Mane over Tailscale.
 - [ ] Models are installed and the measurements are recorded.
 - [ ] No real addresses have been written into the repository.
+
+## 7. What changed after the real go-live
+
+Differences from the first version of this guide, all learned on the real
+machines:
+
+| Was | Now | Why |
+|---|---|---|
+| Ollama on Firmino bound to its LAN address, Mane connects over the LAN | Bound to its Tailscale address, Mane connects over Tailscale | The machines are on different subnets and the gateway blocks traffic between them (D-072) |
+| `ufw` rule to allow Mane's LAN address | No LAN rule. The ACL restricts the port | Tailscale traffic skips `ufw` |
+| Firmino model `qwen2.5:14b` | `qwen3:30b-a3b-instruct-2507-q4_K_M` | A mixture-of-experts model is about 5.6 times faster on this CPU (D-073) |
+| "Buy matched memory modules" | Not possible | 8 GB of Firmino's memory is soldered |
+| Install steps assumed a fresh Ollama | Install script, `ollama` user, models directory, override file | Models pulled as root were invisible to the service |
+| Ollama desktop app "may conflict" | Must not be present on Mane | It silently blocked the launch agent (D-074) |

@@ -1,9 +1,9 @@
 # Hardware and Models
 
-Status: draft v2. Speed figures come from third-party community benchmarks on
-similar hardware (sources in section 5). They are expectations, not
-measurements of your machines. Measure after setup (section 8) and update
-this document.
+Status: v3. Measured on the real machines (section 8). Section 5 keeps the
+earlier community-benchmark expectations next to what was measured, so you can
+see how far off they were. Re-measure after any hardware or model change, using
+the scripts in `deploy/bench/` ([OPERATIONS.md](OPERATIONS.md) section 9).
 
 ## 1. Machines
 
@@ -15,7 +15,7 @@ this document.
 | Chip | Apple M4 |
 | Memory | 16 GB unified (shared by CPU and GPU) |
 | Storage | 256 GB SSD |
-| Network | Ethernet, same LAN as Firmino |
+| Network | Ethernet. On a different subnet from Firmino, so traffic between them goes over Tailscale (D-072) |
 | Inference | Apple GPU (Metal), fast |
 | Role | Brain, tiny web page, fast worker (models up to 8B) |
 
@@ -34,38 +34,41 @@ Notes:
 | Machine | Lenovo ThinkBook 15 G3 ACL (model 21A4) |
 | OS | Ubuntu 24.04 LTS |
 | CPU | AMD Ryzen 3 5300U, 4 cores / 8 threads |
-| Memory | 40 GB DDR4-3200 (one 32 GB module plus one 8 GB module) |
+| Memory | 40 GB DDR4-3200: 8 GB soldered to the board plus one 32 GB SODIMM |
 | Storage | 512 GB NVMe. Ubuntu root about 178 GB (about 28% used at time of writing). Plus leftover Windows partitions (about 290 GB NTFS in total) |
 | GPU | Integrated Radeon only. Not used for inference |
-| Network | Gigabit Ethernet (`eno1`). LAN address is kept out of this public repo |
+| Network | Gigabit Ethernet (`eno1`), on a different subnet from Mane. Reached from Mane over Tailscale. Addresses are kept out of this public repo |
 | Role | Heavy worker. No router, no UI |
 
 Notes:
 
 - Inference runs on the CPU. Generation is limited by memory bandwidth, and
   reading long prompts is limited by the four cores.
-- **Mismatched memory modules.** With a 32 GB and an 8 GB module, only the
-  first part of memory can run in dual-channel mode. The rest is likely
-  single-channel and slower. Where the model lands in memory can change speed
-  from run to run. Measure first. If speed is disappointing, matched modules
-  are a possible hardware upgrade, and community figures suggest roughly a
-  1.6 to 1.9 times difference between single and dual channel.
+- **Soldered 8 GB plus a 32 GB module.** The board has 8 GB soldered and one
+  SODIMM slot, so memory runs in "flex" mode: roughly the first 16 GB is
+  dual-channel and the rest is single-channel and slower. Where a model lands
+  in memory can change speed from run to run. **There is no matched-module
+  upgrade**: the 8 GB is soldered and cannot be replaced, so do not buy
+  anything for this. The practical answer is a model that reads few bytes per
+  token, which is why Firmino runs a mixture-of-experts model (D-073).
 - It is a laptop. Lid, sleep, power and thermals need attention (see
   [SETUP-GUIDE.md](SETUP-GUIDE.md)).
 - It has a pending reboot and package updates at the time of writing.
 
 ## 2. Starting models
 
-Chosen for simplicity: **non-thinking models**, all with widely used Ollama
-tags and published benchmarks. Thinking models (such as the Qwen3 family) emit
-a long reasoning phase before the answer, which is painfully slow on
-Firmino's CPU. They can still be used later by pinning (see D-038).
+Chosen for simplicity: **non-thinking models**. Thinking models emit a long
+reasoning phase before the answer, which is painfully slow on Firmino's CPU.
+They can still be used later by pinning (see D-038). Note that the plain
+`qwen3:30b` tag is the thinking variant. The tag used here, `instruct-2507`,
+is the non-thinking one.
 
 | Machine | Model tag | Size on disk (approx.) | Purpose | Reached by |
 |---|---|---|---|---|
 | Mane | `llama3.1:8b` | 4.9 GB | Default for the `fast` flag | `fast` |
 | Mane | `llama3.2:3b` | 2.0 GB | Simple, quick tasks | Pinning |
-| Firmino | `qwen2.5:14b` | 9 GB | Default for auto. Long-running work | Auto |
+| Firmino | `qwen3:30b-a3b-instruct-2507-q4_K_M` | about 18 GB | Default for auto. Long-running work (D-073) | Auto |
+| Firmino | `qwen2.5:14b` | 9 GB | Optional. Kept only as a slower dense comparison. Safe to remove with `ollama rm` | Pinning |
 
 Notes:
 
@@ -74,9 +77,16 @@ Notes:
   record it in [DECISIONS.md](DECISIONS.md).
 - The owner may change any of these. They are configuration, not code
   ([CONFIGURATION.md](CONFIGURATION.md)).
-- Alternatives worth trying later: `phi4` (14B, non-thinking) on Firmino,
-  `qwen3:8b` or `qwen3:14b` (thinking, pin only), and the newer Gemma 4 models.
-  Mind the 8B cap on Mane.
+- **Why a mixture-of-experts model on Firmino.** CPU generation speed is about
+  memory bandwidth divided by the bytes read per token. A dense 14B reads about
+  9 GB per token. The 30B mixture-of-experts model has 30B parameters in total
+  but uses only about 3.3B per token, so it reads far less and is about five
+  times faster than the dense 14B here, while being a bigger and better model.
+  A dense 32B would be about 1 token/s and a 70B does not fit.
+- Second candidate if this model disappoints: `gpt-oss:20b` (about 13 GB,
+  also mixture-of-experts). Community reports say it is slower than Qwen3 on
+  CPU. Not tested.
+- Alternatives for Mane: keep to 8B or smaller.
 
 ## 3. Memory budgets
 
@@ -99,8 +109,9 @@ context must stay under the GPU limit (about 11.3 GiB), so they stay on the GPU.
 | Item | Approx. |
 |---|---|
 | Ubuntu and services | 1 to 2 GB |
-| 14B model (4-bit) | about 9 GB |
-| Headroom | plenty for context, a second model, or a larger model later |
+| 30B mixture-of-experts model (4-bit) | about 18 GB |
+| Context cache at 8K | a few GB at most |
+| Headroom | room for one more model on disk, but Firmino loads one model at a time (`OLLAMA_MAX_LOADED_MODELS=1`) |
 
 ## 4. Context window
 
@@ -117,30 +128,33 @@ window is set explicitly on both machines, to **8192 tokens** to start
 | Conversations | The whole history is resent each turn, so long chats grow slower and eventually hit the limit |
 | Timeouts | The first-token timeout must exceed the time to read the largest allowed prompt (see section 5) |
 
-## 5. Performance expectations
+## 5. Performance: expected and measured
 
-Sources are community benchmarks published in 2026, not first-party tests. They
-are consistent with the usual rule that generation speed is about memory
-bandwidth divided by model size.
+Expectations came from community benchmarks published in 2026. They follow
+the usual rule that generation speed is about memory bandwidth divided by the
+bytes read per token. Measured numbers are from the real machines
+(section 8).
 
-| Machine | Model | Generation | Prompt processing | Basis |
+| Machine | Model | Expected generation | Measured generation | Measured prompt reading |
 |---|---|---|---|---|
-| Mane (M4, 16 GB) | 8B, 4-bit | about 21 tokens/s | hundreds to about 1,000 tokens/s | Reported for Llama 3.1 8B with Ollama and llama.cpp |
-| Mane | 3B, 4-bit | about 45 tokens/s | fast | Reported for Llama 3.2 3B |
-| Firmino (Ryzen 3 5300U) | 14B, 4-bit | about 2 to 4 tokens/s | slow, perhaps 5 to 15 tokens/s | Reported 3 to 5 tokens/s for a 14B on a faster 8-core desktop CPU with dual-channel memory. Lower expected here: 4 cores, a low-power laptop chip, mismatched memory |
+| Mane (M4, 16 GB) | `llama3.1:8b` | about 21 tokens/s | **21.3 tokens/s** | 488 tokens/s warm |
+| Firmino (Ryzen 3 5300U) | `qwen2.5:14b` (dense) | 2 to 4 tokens/s | **2.1 tokens/s** | 11 to 12 tokens/s |
+| Firmino | `qwen3:30b-a3b-instruct-2507-q4_K_M` (mixture-of-experts) | not expected | **11.9 tokens/s** | 29 tokens/s short, 35 tokens/s on a long prompt |
 
 What this means:
 
-- **Generation on Firmino is slow but workable**, as you expected. A 500-token
-  answer takes a few minutes.
-- **Reading a long prompt on Firmino is the bigger wait.** A prompt of several
-  thousand tokens can take many minutes before the first word appears. This
-  is why the first-token timeout is generous and why interactive long-context
-  work is better on Mane.
-- With an 8K context limit, the worst case is about 8,000 tokens. At 8 tokens/s
-  that is about 17 minutes, and at 5 tokens/s about 27 minutes, inside the
-  30-minute first-token timeout (the default). If you measure slower than
-  5 tokens/s, raise the timeout or lower the context limit.
+- The community figures for Mane and for the dense 14B were accurate. The
+  dense 14B sat at the low end of the range, as expected for 4 cores and mixed
+  memory.
+- **The mixture-of-experts model is about 5.6 times faster than the dense 14B
+  on the same machine**, and about 2.5 times faster at reading prompts. A
+  500-token answer takes under a minute instead of four.
+- Reading a long prompt is still the bigger wait on Firmino. A 1,700-token
+  prompt took about 48 seconds in total on the 30B and about 133 seconds on the
+  14B.
+- With an 8K context limit, the worst case is about 8,000 tokens. At the
+  measured 29 to 35 tokens/s reading speed that is about 4 to 5 minutes, far
+  inside the 30-minute first-token timeout. The timeout could be lowered later.
 
 ## 6. Disk plan
 
@@ -161,23 +175,35 @@ minor share of disk.
 
 Another location can be set with `OLLAMA_MODELS` if needed.
 
-## 8. Measurements (to fill in after setup)
+## 8. Measurements
 
-Follow [SETUP-GUIDE.md](SETUP-GUIDE.md) section 5, then replace the
-expectations in section 5 with real numbers.
+Measured through the router on the real machines, with `num_predict` 128 and
+context 8192. Each figure is **one run, not an average**. Treat differences
+under about 10 percent as noise. A dash means not measured.
 
-| Machine | Model | Cold load time | First-token delay (short prompt) | First-token delay (8K prompt) | Prompt tokens/s | Generation tokens/s | Memory in use |
-|---|---|---|---|---|---|---|---|
-| Mane | `llama3.1:8b` | | | | | | |
-| Mane | `llama3.2:3b` | | | | | | |
-| Firmino | `qwen2.5:14b` | | | | | | |
+| Machine | Model | Cold load | Prompt tokens/s | Generation tokens/s | Long prompt (about 1,700 tokens) total |
+|---|---|---|---|---|---|
+| Mane | `llama3.1:8b` | 4.4 s | 126 first run, 488 warm | 20.5 first run, 21.3 later | not measured |
+| Mane | `llama3.2:3b` | not measured | not measured | not measured | not measured |
+| Firmino | `qwen2.5:14b` | 12.6 s | 11.2 short, 12.4 long | 2.11 | 133 s |
+| Firmino | `qwen3:30b-a3b-instruct-2507-q4_K_M` | 25.9 s | 28.7 short, 34.8 long | 11.88 | 48.5 s |
 
-Also record:
+Other facts measured:
 
-- The router's memory use on Mane (idle and under load) against the 50 MB
-  working budget.
-- Firmino's temperature during a long generation.
-- Whether limiting Firmino to 4 threads helps.
+- Mane ran the 8B on 100 percent GPU with context 8192, and kept the model
+  loaded for the 30-minute keep-alive.
+- The router used about 24 MB of resident memory after 24 jobs, against the
+  50 MB working budget.
+- Output speeds for the long-prompt runs come from short outputs, so they are
+  rougher than the short-prompt figures.
+- Not measured yet: Firmino's temperature during a long generation, memory in
+  use per model, and whether limiting Firmino to 4 threads helps.
+
+To repeat or extend these, use `deploy/bench/quick.sh` for speed and
+`deploy/bench/quality.py` for a blind quality and speed comparison, or the
+Stress tab for a long soak. See [OPERATIONS.md](OPERATIONS.md) section 9.
+Note that `pingpong doctor --chat` reports speeds from a 2-token reply and is
+not a benchmark (D-077).
 
 ## 9. Future machines
 
@@ -186,6 +212,7 @@ role (see [ARCHITECTURE.md](ARCHITECTURE.md)) and described here when added.
 
 ## 10. Open questions
 
-- Real measured speeds (section 8).
 - Whether to reclaim the Windows partitions on Firmino.
-- Whether matched memory modules in Firmino are worth buying, after measuring.
+- Whether `gpt-oss:20b` is worth a comparison against the current Firmino
+  model.
+- Whether to remove `qwen2.5:14b` from Firmino to free disk.

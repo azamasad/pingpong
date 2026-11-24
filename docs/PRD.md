@@ -1,13 +1,13 @@
 # Product Requirements Document
 
-Status: draft v2. Date: 2026-11-23.
+Status: v3. Date: 2026-11-24. V1 to V7 are built and live. Requirements below are unchanged except where marked by a decision number.
 
 Precedence if documents disagree: [constitution](../CONSTITUTION.md), then this
 PRD, then the other documents.
 
 ## 1. Summary
 
-Two always-on machines on a home LAN, **Mane** (Mac mini M4) and **Firmino**
+Two always-on machines on a home network, **Mane** (Mac mini M4) and **Firmino**
 (Ubuntu laptop), each run local LLMs through Ollama. Pingpong makes them one
 service: the owner sends a request to Mane from a MacBook Air, and Mane decides
 which machine and model should handle it.
@@ -34,7 +34,7 @@ See also the constitution.
 - Notifications (deferred).
 - Automatic prompt classification (deferred).
 - Profiles such as "fast / balanced / deep" (shipped in V5, D-068).
-- Model aliases (planned for V7, D-070).
+- Model aliases (shipped in V7, D-070).
 - An OpenAI-compatible API (deferred).
 
 ## 4. User and context
@@ -48,7 +48,7 @@ Slower is acceptable for long-running work.
 | ID | Use case |
 |---|---|
 | UC1 | Ask a quick question and get a fast answer from a small model on Mane. |
-| UC2 | Send a long or heavy task to the 14B model on Firmino and wait. |
+| UC2 | Send a long or heavy task to the large model on Firmino and wait. |
 | UC3 | Pin a specific model or machine for a particular task. |
 | UC4 | See which model and machine produced an answer. |
 | UC5 | See that a request is waiting, running, failed or done. |
@@ -133,7 +133,7 @@ Interfaces are specified in [API.md](API.md), settings in
 |---|---|
 | N1 | The router and web page use at most about 50 MB of RAM on Mane (working budget). |
 | N2 | Mane runs models of 8B parameters or smaller. |
-| N3 | Mane-to-Firmino traffic stays on the LAN. |
+| N3 | Mane-to-Firmino traffic stays private: the LAN, or Tailscale when the machines are on different subnets (D-072). Never the public internet. |
 | N4 | The service is reachable only via Tailscale. No public exposure. |
 | N5 | No logins. Tailscale is the access control. |
 | N6 | No UI or extra services on Firmino beyond model serving and basic health. |
@@ -154,7 +154,7 @@ Interfaces are specified in [API.md](API.md), settings in
 | Machine | Models |
 |---|---|
 | Mane | `llama3.1:8b` (default for the fast flag) and `llama3.2:3b` (reached by pinning). |
-| Firmino | `qwen2.5:14b` (default for auto). Larger models added later if needed. |
+| Firmino | `qwen3:30b-a3b-instruct-2507-q4_K_M`, a mixture-of-experts model (default for auto, D-073). Replaced the original `qwen2.5:14b`. |
 
 These are non-thinking models, chosen for simplicity and published benchmarks. They are configuration and can be changed. See [HARDWARE-AND-MODELS.md](HARDWARE-AND-MODELS.md) and D-038.
 
@@ -165,7 +165,7 @@ The manual check list is in [TESTING.md](TESTING.md) section 4.
 **V1**
 
 - From the MacBook Air over Tailscale, a request with no flags is answered by
-  Firmino's 14B model, and the response states so.
+  Firmino's default model, and the response states so.
 - With the fast flag, the request is answered by Mane's 8B model.
 - A request pinned to the 3B model on Mane is answered by that model.
 - A pinned request for a model that is not installed anywhere fails with a clear
@@ -177,8 +177,8 @@ The manual check list is in [TESTING.md](TESTING.md) section 4.
 - With Firmino switched off, an auto request returns a clear error.
 - Closing the browser during a request stops the work on the worker.
 - Mane's router and page stay within the RAM budget under normal use.
-- Mane-to-Firmino traffic is confirmed to use the LAN.
-- Firmino's inference port is not reachable from the MacBook Air directly.
+- Mane-to-Firmino traffic is confirmed to use the private path (Tailscale or LAN).
+- Firmino's inference port is not reachable from the MacBook Air directly (needs the Tailscale ACL, not yet applied).
 - Logs contain no prompts or outputs.
 - A long quiet wait on Firmino (many minutes) does not drop the connection, and the page shows elapsed time.
 - A prompt that fills the context window shows a warning.
@@ -206,7 +206,7 @@ Recorded here so they are not forgotten. See [ROADMAP.md](ROADMAP.md).
 | Automatic classification of tasks | Only if rules prove insufficient. |
 | More machines (for example Mac Studio, DGX Spark) | Via the roles registry (V4). |
 | Several machines with the same role | Shipped as V4 (D-067). |
-| Model aliases (short names such as "small") | Planned as V7 (D-070). See [V7-ALIASES.md](V7-ALIASES.md). |
+| Model aliases (short names such as "small") | Shipped as V7 (D-070). See [V7-ALIASES.md](V7-ALIASES.md). |
 | Conversation threads stored on Mane | V2 stores individual requests. Threads are optional later. |
 | OpenAI-compatible endpoint | Would let other tools use Pingpong. Later, if wanted. |
 | High availability | Out of scope while both machines are assumed up. |
@@ -228,9 +228,9 @@ A simple view of "is this working":
 |---|---|
 | Both machines are always on | Stated by the owner. No failover is designed. |
 | Firmino is a laptop | Needs lid, sleep, power and thermal settings checked. See [OPERATIONS.md](OPERATIONS.md). |
-| 14B on CPU is slow, especially on long prompts | Accepted. Speed is not the priority. |
+| CPU inference is slow, especially on long prompts | Accepted. Speed is not the priority. Mitigated by a mixture-of-experts 30B model on Firmino (about 12 tokens/s, D-073). |
 | Mane is a single point of failure | Accepted for now. |
-| Speed figures in these docs are rough estimates | Measure after setup. |
+| Speed figures are single-run measurements | Measured once on the real machines. Treat small differences as noise and re-measure with `deploy/bench/`. |
 | V1 retry behaviour | The retry loop needs requests to outlive the client, so it arrives with V2. In V1, an unavailable machine returns an error immediately. See D-014. |
 | No authentication on the router | Mitigated by Tailscale and Host and Origin checks. |
 | Public repository | No real addresses or secrets may be committed. |

@@ -1,6 +1,6 @@
 # API
 
-Status: draft v1. This is the contract between clients (the tiny web page, the
+Status: v2, V1 to V7 built (examples use illustrative values, for example the model names). This is the contract between clients (the tiny web page, the
 terminal) and the router on Mane. It is a specification, not an
 implementation. Field names are stable. Small details may be refined during
 implementation, but changes must be recorded here.
@@ -316,16 +316,41 @@ Terminal: `pingpong batch submit` and `pingpong batch get` (see [JOBS-AND-RETRIE
 The request field `profile` is described in section 2.1. An explicit `fast`,
 `model` or `machine` always wins over the preset.
 
-### 4.3 Planned: V6 and V7 (not built)
+### 4.3 V6 and V7 (built)
 
 | Method and path | Version | Purpose |
 |---|---|---|
-| `GET /api/status` | V6 | Machines, queue counts, recent failures (no content), storage. See [V6-OPERABILITY.md](V6-OPERABILITY.md) |
+| `GET /api/status` | V6 | Machines, job counts by status and lane, oldest waiting job age, router memory and uptime, storage. Never contains prompts or outputs. See [V6-OPERABILITY.md](V6-OPERABILITY.md) |
 | `GET /api/aliases` | V7 | Configured aliases and where each model is installed. See [V7-ALIASES.md](V7-ALIASES.md) |
 
-Also planned: error code `ROUTER_RESTARTING` (503, retryable, V6) and an
-optional `alias` field on the `route` event and job detail (V7). None of these
-exist yet, and clients must not depend on them.
+Error code `ROUTER_RESTARTING` (503, retryable) is returned, and recorded on a
+job, when the router is shutting down on purpose. A job that was running is
+marked retrying with this code and counts toward the 3-hour window (D-071). An
+optional `alias` field appears on the `route` event and job detail (V7).
+
+Terminal: `pingpong doctor [--chat] [--json]` and `pingpong backup`.
+
+### 4.4 Stress test (test tooling)
+
+Needs `storage.data_dir`, because it submits batch-lane jobs.
+
+| Method and path | Purpose |
+|---|---|
+| `POST /api/stress` | Start. Body `{"target":"mane"\|"firmino"\|"both","seconds":1..7200}`. Answers `409 CONFLICT` if a run is already going |
+| `GET /api/stress` | State: `running`, `target`, `started_at`, `until`, `remaining_seconds`, `queued`, `last_err`, and per machine `done`, `failed`, `output_tps_median`/`min`/`max`, `prompt_tps_median`, `load_ms_median`, `total_ms_median` |
+| `DELETE /api/stress` | Stop and cancel the jobs it created |
+
+Each tick it keeps two short batch jobs open per machine (a one-paragraph
+prompt, `num_predict` 128). It runs inside the router, so closing the browser
+does not stop it. Shutdown stops it.
+
+### 4.5 Speed stats on a finished request
+
+The `done` event of `/api/chat` and of a job carries `stats`: `total_ms`,
+`load_ms`, `prompt_tokens`, `output_tokens`, `prompt_tokens_per_s`,
+`output_tokens_per_s` (a job's `done` event has these only when Ollama's final
+chunk provided them). `/api/chat` also adds `queue_wait_ms`. The page shows the
+speeds beside the route line.
 
 ## 5. Security notes for the API
 
@@ -340,10 +365,12 @@ exist yet, and clients must not depend on them.
   defence for a service with no login.
 - Request body size is limited (configurable). See CONFIGURATION.
 - Prompts are never written to logs (see [ARCHITECTURE.md](ARCHITECTURE.md)).
+  One log line per finished request or job records speeds and outcome only
+  ([OPERATIONS.md](OPERATIONS.md) section 10).
 
 ## 6. Compatibility with Ollama
 
-Verified against Ollama's published API reference (November 2026). Re-check
+Verified against Ollama's published API reference (November 2026), and the stream checked against the real Ollama versions on both machines. Re-check
 against the installed version when building, because the API evolves. The
 reference is at `docs.ollama.com/api`.
 
@@ -376,8 +403,11 @@ Other points from the reference:
 | Context window | Default 4096 tokens. Set explicitly (see [HARDWARE-AND-MODELS.md](HARDWARE-AND-MODELS.md) section 4) |
 | Options | Per-request `options` accept Modelfile parameters such as `temperature`, `num_ctx` and `num_thread` |
 
-Still to confirm by trying it against the real installed version (the
-reference does not make these explicit):
+Verified on the real machines: the normal stream and final statistics chunk
+parse correctly (`pingpong doctor --chat` passes on Mane and Firmino).
+
+Still not captured from a real failure (the reference does not make these
+explicit):
 
 - The exact shape and HTTP status of an error for a missing model.
 - Whether an error mid-stream arrives as an `error` line or as a closed

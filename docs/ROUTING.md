@@ -24,13 +24,13 @@ for the test cases.
 
 | Mode | How to select | Where it goes |
 |---|---|---|
-| **Auto** | No flags | The machine with the `heavy` role (Firmino), its default model (`qwen2.5:14b`) |
+| **Auto** | No flags | The machine with the `heavy` role (Firmino), its default model (`qwen3:30b-a3b-instruct-2507-q4_K_M` at present) |
 | **Fast** | `fast` flag | The machine with the `fast` role (Mane), its default model (`llama3.1:8b`) |
 | **Pinned model** | Name a model | The machine that has that model |
 | **Pinned machine** | Name a machine | That machine, with its default model |
 | **Pinned model and machine** | Name both | Exactly that pair |
 
-Profiles (named presets such as "fast / balanced / deep") are deferred.
+Profiles (V5) and aliases (V7) are applied before these rules and only fill in or rename flags. See CONFIGURATION and V7-ALIASES.
 
 If several machines share a role, V4 picks one at decision time and then
 stays with it (no mid-task reroute):
@@ -165,11 +165,11 @@ Each response includes:
 
 | Request | Result |
 |---|---|
-| No flags | Firmino, `qwen2.5:14b`, `auto` |
+| No flags | Firmino, its default model, `auto` |
 | `fast` | Mane, `llama3.1:8b`, `fast` |
 | Pin model `llama3.2:3b` | Mane, that model, `pinned_model` |
 | Pin machine `firmino` | Firmino, default model, `pinned_machine` |
-| Pin machine `firmino` and model `qwen2.5:14b` | Firmino, that model, `pinned_model_and_machine` |
+| Pin machine `firmino` and a model installed there | Firmino, that model, `pinned_model_and_machine` |
 | `fast` and pin machine `firmino` | Firmino. The pin wins |
 | Pin model `70b-example` (installed nowhere, all lists known) | Error `MODEL_NOT_INSTALLED` |
 | Pin a model that only Firmino could have, but Firmino has never been reached | Error `MODELS_UNKNOWN` (retryable) |
