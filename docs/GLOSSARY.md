@@ -34,7 +34,7 @@
 | **Stage (planned, V7.2)** | A job that belongs to a parent job: a check (review or revise) or a reduce. It starts only after its parent is done |
 | **Chunk (planned, V7.6)** | One piece of an uploaded text file, cut on paragraph boundaries, run as one job. Not RAG |
 | **Reduce (planned, V7.6)** | An optional last job that combines all chunk results into one answer |
-| **Export (planned, V7.4)** | Downloading a batch as CSV or Markdown |
+| **Export (V7.4)** | Downloading a batch or job list as CSV or Markdown |
 | **Thread (planned, V7.5)** | A saved conversation bound to one machine and model. Each turn is a job |
 | **Schedule (planned, V7.7)** | A saved daily or weekly rule that submits a job or batch, created from the page |
 | **Stress run** | A server-side soak, started from the Stress tab, that keeps short batch jobs flowing to Mane, Firmino or both for up to 2 hours |

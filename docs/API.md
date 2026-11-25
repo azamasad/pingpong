@@ -336,6 +336,17 @@ Needs `storage.data_dir`. Template names are `[a-z0-9_-]{1,64}`. A blank is `{{n
 
 Errors: `TEMPLATE_VARS_MISSING` (400, body lists `missing` names), `TEMPLATE_NOT_FOUND` (404 when using an unknown template name).
 
+### 4.3c V7.4 results export (built)
+
+Needs `storage.data_dir`. Streams one row at a time. Query `format=csv` or `format=md`. Optional `include_thinking=1`, `partial=1`, `raw=1` (CSV only, turns off the formula guard), `bom=1` (CSV UTF-8 BOM). Missing batch or batch with no jobs: `NOT_FOUND`. Bad `format`: `BAD_REQUEST`.
+
+| Method and path | Purpose |
+|---|---|
+| `GET /api/batches/{id}/export?format=csv\|md[&...]` | Download one batch. Filename `pingpong-batch-<first 8 of id>-<YYYYMMDD>.<ext>` |
+| `GET /api/jobs/export?ids=a,b,c&format=...` | Download up to 200 jobs by id (unknown ids skipped; count in `X-Pingpong-Skipped`). Filename `pingpong-jobs-<YYYYMMDD>.<ext>` |
+
+Response `Content-Type` is `text/csv; charset=utf-8` or `text/markdown; charset=utf-8`, with `Content-Disposition: attachment` and `Cache-Control: no-store`. CSV columns: `index`, `status`, `machine`, `model`, `lane`, `stage`, `prompt`, `output`, `output_tokens`, `output_tokens_per_s`, `error_code`, `finished_at`, and `thinking` when requested. Text cells that would inject spreadsheet formulas are prefixed with `'` unless `raw=1`. Completion is logged as `export_done` (counts only, no content).
+
 ### 4.3 V6 and V7 (built)
 
 | Method and path | Version | Purpose |
@@ -358,7 +369,6 @@ file as each version is built. All need `storage.data_dir` unless noted.
 
 | Method and path | Version | Purpose |
 |---|---|---|
-| `GET /api/batches/{id}/export`, `GET /api/jobs/export` | V7.4 | CSV or Markdown download |
 | `POST/GET /api/threads`, `GET/PATCH/DELETE /api/threads/{id}`, `POST /api/threads/{id}/messages` | V7.5 | Saved conversations |
 | `POST /api/batches/from-file` | V7.6 | Upload a text file, chunk it, run as a batch, optional reduce |
 | `GET/POST /api/schedules`, `GET/PATCH/DELETE /api/schedules/{id}`, `POST /api/schedules/{id}/run`, `GET /api/schedules/{id}/runs` | V7.7 | Scheduled jobs |

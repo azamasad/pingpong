@@ -208,6 +208,8 @@ See [V6-OPERABILITY.md](V6-OPERABILITY.md) section 10.
 
 Answer checking (V7.2, M22): default pairing (Mane draft, Firmino review), fixed review prompt contents, `/api/chat` rejects `check`, `CONTEXT_TOO_LARGE` on oversize review jobs, batch items with `check`, restart recovery via `check_pending`, cancel and delete cascade, `checks` on batch view. See `internal/api/check_test.go` and build spec section 3 acceptance.
 
+Results export (V7.4, M24): CSV RFC 4180 with CRLF and formula guard (`internal/export`, `internal/api/export_test.go`), Markdown fences, batch and jobs export endpoints, `X-Pingpong-Skipped`, split/check `stage` and `index` columns, `export_done` log without content, RSS gate in `export_memory_linux_test.go`. Build spec section 5 acceptance.
+
 Aliases: config validation, resolution order after profiles and before routing,
 explicit `machine` wins over the alias's machine, `GET /api/aliases`, and the
 doctor check. Listed in [V7-ALIASES.md](V7-ALIASES.md) section 8.

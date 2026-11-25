@@ -757,6 +757,28 @@ $('batch-submit').onclick = async () => {
   }
 };
 
+function batchExportURL(format) {
+  if (!selectedBatchId) return '';
+  const q = new URLSearchParams({ format });
+  if ($('batch-export-thinking').checked) q.set('include_thinking', '1');
+  if ($('batch-export-partial').checked) q.set('partial', '1');
+  return `/api/batches/${selectedBatchId}/export?${q}`;
+}
+
+function startBatchDownload(format) {
+  const url = batchExportURL(format);
+  if (!url) return;
+  const a = document.createElement('a');
+  a.href = url;
+  a.rel = 'noopener';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+}
+
+$('batch-export-csv').onclick = () => startBatchDownload('csv');
+$('batch-export-md').onclick = () => startBatchDownload('md');
+
 $('batch-cancel').onclick = async () => {
   if (!selectedBatchId) return;
   if (!window.confirm('Cancel every active job in this batch?')) return;

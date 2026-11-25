@@ -220,7 +220,7 @@ Recorded here so they are not forgotten. See [ROADMAP.md](ROADMAP.md).
 | Split a batch across both machines | V7.1 on V7 branch. Not on `main` yet |
 | Answer checking by a second model (explicit mode) | V7.2 on V7 branch. Not on `main` yet |
 | Prompt templates | V7.3 on V7 branch. Not on `main` yet |
-| Results export, CSV and Markdown | Planned as V7.4. Not built |
+| Results export, CSV and Markdown | V7.4 on V7 branch. Not on `main` yet |
 | File input, text and Markdown (chunked batch, not RAG). PDF later | Planned as V7.6. Not built |
 | Scheduled jobs, set up from the page | Planned as V7.7. Not built |
 | OpenAI-compatible endpoint | Planned as V7.8 (opt-in, `/v1`) |
