@@ -15,6 +15,7 @@ var allowed = map[string]struct{}{
 	"outcome": {}, "lane": {}, "load_ms": {}, "queue_wait_ms": {},
 	"prompt_tokens": {}, "output_tokens": {},
 	"prompt_tokens_per_s": {}, "output_tokens_per_s": {},
+	"batch_id": {}, "stage": {}, "items": {},
 }
 
 // Event writes one whitelist JSON log line (no prompts or model output).

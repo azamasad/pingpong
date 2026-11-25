@@ -190,7 +190,7 @@ and threads are stored in the database, never in the config file.
 
 | Key | Version | Default | Meaning |
 |---|---|---|---|
-| `batches.max_items` | V7.1 | `1000` | Most items in one batch. Replaces the fixed 100 in the code. Falls back to 500 if the memory gate fails |
+| `batches.max_items` | V7.1 | `500` | Most items in one batch (default 500 after D-118 memory gate; may set `1000` after Mane RSS check) |
 | `templates.max_bytes` | V7.3 | `16384` | Largest template body |
 | `templates.max_count` | V7.3 | `200` | Most templates |
 | `threads.max_turns` | V7.5 | `200` | Most turns in one thread |
