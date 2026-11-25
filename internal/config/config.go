@@ -30,8 +30,13 @@ type Config struct {
 	Threads   ThreadsConfig      `yaml:"threads"`
 	Files     FilesConfig        `yaml:"files"`
 	Schedules SchedulesConfig    `yaml:"schedules"`
+	OpenAI    OpenAIConfig       `yaml:"openai"`
 	Profiles  map[string]Profile `yaml:"profiles"`
 	Aliases   map[string]Alias   `yaml:"aliases"`
+}
+
+type OpenAIConfig struct {
+	Enabled bool `yaml:"enabled"`
 }
 
 type BatchesConfig struct {

@@ -23,7 +23,7 @@ import (
 //go:embed web/*
 var webFS embed.FS
 
-const Version = "7.7.0"
+const Version = "7.8.0"
 
 type Server struct {
 	Cfg          *config.Config
@@ -97,6 +97,8 @@ func (s *Server) routes() {
 	s.Mux.HandleFunc("GET /api/stress", s.handleStressGet)
 	s.Mux.HandleFunc("POST /api/stress", s.handleStressStart)
 	s.Mux.HandleFunc("DELETE /api/stress", s.handleStressStop)
+	s.Mux.HandleFunc("GET /v1/models", s.handleOpenAIModels)
+	s.Mux.HandleFunc("POST /v1/chat/completions", s.handleOpenAIChatCompletions)
 }
 
 func (s *Server) Handler() http.Handler {
@@ -115,7 +117,7 @@ func (s *Server) Handler() http.Handler {
 		}
 		rec := &statusRecorder{ResponseWriter: w, status: http.StatusOK}
 		s.Mux.ServeHTTP(rec, r)
-		if rec.swallowed && !rec.wrote && strings.HasPrefix(r.URL.Path, "/api/") {
+		if rec.swallowed && !rec.wrote && (strings.HasPrefix(r.URL.Path, "/api/") || strings.HasPrefix(r.URL.Path, "/v1/")) {
 			writeErr(w, apperrors.New("NOT_FOUND", "not found"))
 		}
 	})
