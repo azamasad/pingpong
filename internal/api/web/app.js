@@ -7,6 +7,9 @@ let jobsOn = false;
 let activeJobId = null;
 let selectedJobId = null;
 let eventSource = null;
+let templateTimer = null;
+let selectedTemplateName = null;
+let templateUseVars = [];
 
 async function refreshMeta() {
   try {
@@ -249,6 +252,7 @@ async function refreshHealth() {
     $('jobs-panel').classList.toggle('hidden', !jobsOn);
     $('lane-wrap').classList.toggle('hidden', !jobsOn);
     $('tab-batches').classList.toggle('hidden', !jobsOn);
+    $('tab-templates').classList.toggle('hidden', !jobsOn);
     $('check-wrap').classList.toggle('hidden', !jobsOn);
     $('check-machine-wrap').classList.toggle('hidden', !jobsOn);
     $('check-model-wrap').classList.toggle('hidden', !jobsOn);
@@ -498,8 +502,118 @@ async function openBatchView(id) {
   } catch (_) {}
 }
 
+async function refreshTemplatesList() {
+  try {
+    const list = await fetch('/api/templates').then((r) => r.json());
+    const ul = $('templates-list');
+    ul.innerHTML = '';
+    (list || []).forEach((t) => {
+      const li = document.createElement('li');
+      li.textContent = `${t.name} (${t.bytes} B, ${(t.vars || []).join(', ') || 'no blanks'})`;
+      const use = document.createElement('button');
+      use.type = 'button';
+      use.textContent = 'Use';
+      use.onclick = () => openTemplateUse(t);
+      const edit = document.createElement('button');
+      edit.type = 'button';
+      edit.textContent = 'Edit';
+      edit.onclick = () => openTemplateEdit(t.name);
+      li.appendChild(use);
+      li.appendChild(edit);
+      ul.appendChild(li);
+    });
+  } catch (_) {}
+}
+
+async function openTemplateEdit(name) {
+  selectedTemplateName = name || null;
+  $('template-editor').classList.remove('hidden');
+  $('template-use').classList.add('hidden');
+  $('template-delete').classList.toggle('hidden', !name);
+  $('template-name').disabled = !!name;
+  $('template-editor-title').textContent = name ? `Edit ${name}` : 'New template';
+  $('template-editor-state').classList.add('hidden');
+  if (name) {
+    const t = await fetch(`/api/templates/${encodeURIComponent(name)}`).then((r) => r.json());
+    $('template-name').value = t.name;
+    $('template-body').value = t.body || '';
+    $('template-defaults').value = t.defaults ? JSON.stringify(t.defaults) : '';
+  } else {
+    $('template-name').value = '';
+    $('template-body').value = '';
+    $('template-defaults').value = '';
+  }
+}
+
+async function fillTemplateUseSelectors() {
+  const profiles = await fetch('/api/profiles').then((r) => r.json()).catch(() => []);
+  const ps = $('template-use-profile');
+  ps.innerHTML = '<option value="">—</option>';
+  (profiles || []).forEach((p) => {
+    const o = document.createElement('option');
+    o.value = p.name;
+    o.textContent = p.name;
+    ps.appendChild(o);
+  });
+  const machines = await fetch('/api/machines').then((r) => r.json());
+  const models = await fetch('/api/models').then((r) => r.json());
+  const ms = $('template-use-machine');
+  const md = $('template-use-model');
+  ms.innerHTML = '<option value="">—</option>';
+  md.innerHTML = '<option value="">—</option>';
+  (machines || []).forEach((m) => {
+    const o = document.createElement('option');
+    o.value = m.name;
+    o.textContent = m.name;
+    ms.appendChild(o);
+  });
+  (models || []).forEach((m) => {
+    const o = document.createElement('option');
+    o.value = m.name;
+    o.textContent = m.name;
+    md.appendChild(o);
+  });
+}
+
+async function openTemplateUse(t) {
+  selectedTemplateName = t.name;
+  $('template-editor').classList.add('hidden');
+  $('template-use').classList.remove('hidden');
+  $('template-use-name').textContent = t.name;
+  templateUseVars = t.vars || [];
+  const full = await fetch(`/api/templates/${encodeURIComponent(t.name)}`).then((r) => r.json());
+  templateUseVars = full.vars || templateUseVars;
+  const box = $('template-vars');
+  box.innerHTML = '';
+  templateUseVars.forEach((v) => {
+    const lab = document.createElement('label');
+    lab.textContent = v + ' ';
+    const inp = document.createElement('input');
+    inp.type = 'text';
+    inp.id = `template-var-${v}`;
+    lab.appendChild(inp);
+    box.appendChild(lab);
+  });
+  $('template-batch-rows').classList.add('hidden');
+  $('template-use-state').textContent = '';
+  await fillTemplateUseSelectors();
+}
+
+function templateUseBody(batchMode) {
+  const vars = {};
+  templateUseVars.forEach((v) => {
+    vars[v] = $(`template-var-${v}`).value;
+  });
+  const body = { template: selectedTemplateName, vars, lane: batchMode ? 'batch' : undefined };
+  if ($('template-use-profile').value) body.profile = $('template-use-profile').value;
+  if ($('template-use-fast').checked) body.fast = true;
+  if ($('template-use-model').value) body.model = $('template-use-model').value;
+  if ($('template-use-machine').value) body.machine = $('template-use-machine').value;
+  return body;
+}
+
 function showTab(which) {
-  for (const name of ['chat', 'status', 'stress', 'batches']) {
+  for (const name of ['chat', 'status', 'stress', 'batches', 'templates']) {
     $('panel-' + name).classList.toggle('hidden', name !== which);
     $('tab-' + name).classList.toggle('active', name === which);
   }
@@ -526,6 +640,14 @@ function showTab(which) {
       refreshBatchesList();
       if (selectedBatchId) openBatchView(selectedBatchId);
     }, 4000);
+  }
+  if (templateTimer) {
+    clearInterval(templateTimer);
+    templateTimer = null;
+  }
+  if (which === 'templates') {
+    refreshTemplatesList();
+    templateTimer = setInterval(refreshTemplatesList, 8000);
   }
 }
 
@@ -643,7 +765,112 @@ $('batch-cancel').onclick = async () => {
   refreshBatchesList();
 };
 
+$('template-new').onclick = () => openTemplateEdit(null);
+
+$('template-cancel-edit').onclick = () => {
+  $('template-editor').classList.add('hidden');
+};
+
+$('template-save').onclick = async () => {
+  const name = $('template-name').value.trim();
+  const body = $('template-body').value;
+  let defaults = {};
+  const defRaw = $('template-defaults').value.trim();
+  if (defRaw) {
+    try {
+      defaults = JSON.parse(defRaw);
+    } catch (_) {
+      $('template-editor-state').textContent = 'Defaults must be valid JSON';
+      $('template-editor-state').classList.remove('hidden');
+      return;
+    }
+  }
+  const payload = { body, defaults };
+  const url = selectedTemplateName
+    ? `/api/templates/${encodeURIComponent(selectedTemplateName)}`
+    : '/api/templates';
+  const method = selectedTemplateName ? 'PUT' : 'POST';
+  if (!selectedTemplateName) payload.name = name;
+  const res = await fetch(url, {
+    method,
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  const j = await res.json();
+  if (!res.ok) {
+    $('template-editor-state').textContent = j.error?.message || 'Save failed';
+    $('template-editor-state').classList.remove('hidden');
+    return;
+  }
+  $('template-editor').classList.add('hidden');
+  refreshTemplatesList();
+};
+
+$('template-delete').onclick = async () => {
+  if (!selectedTemplateName) return;
+  if (!window.confirm(`Delete template ${selectedTemplateName}? Past jobs are unchanged.`)) return;
+  await fetch(`/api/templates/${encodeURIComponent(selectedTemplateName)}`, { method: 'DELETE' });
+  $('template-editor').classList.add('hidden');
+  refreshTemplatesList();
+};
+
+$('template-use-back').onclick = () => {
+  $('template-use').classList.add('hidden');
+};
+
+$('template-run-one').onclick = async () => {
+  $('template-batch-rows').classList.add('hidden');
+  $('template-use-state').textContent = 'Submitting…';
+  const res = await fetch('/api/jobs', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(templateUseBody(false)),
+  });
+  const j = await res.json();
+  if (!res.ok) {
+    $('template-use-state').textContent = j.error?.message || 'Failed';
+    return;
+  }
+  const warn = (j.warnings || []).join('; ');
+  $('template-use-state').textContent = `Job ${j.id.slice(0, 8)}…${warn ? ' — ' + warn : ''}`;
+  refreshJobs();
+};
+
+$('template-run-batch').onclick = async () => {
+  $('template-batch-rows').classList.remove('hidden');
+  const lines = $('template-batch-rows').value.split('\n').map((s) => s.trim()).filter(Boolean);
+  if (!lines.length) {
+    $('template-use-state').textContent = 'Add one JSON object per line, then click again';
+    return;
+  }
+  let rows;
+  try {
+    rows = lines.map((l) => JSON.parse(l));
+  } catch (_) {
+    $('template-use-state').textContent = 'Each line must be valid JSON';
+    return;
+  }
+  const body = templateUseBody(true);
+  body.rows = rows;
+  $('template-use-state').textContent = 'Submitting batch…';
+  const res = await fetch('/api/batches', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  const j = await res.json();
+  if (!res.ok) {
+    $('template-use-state').textContent = j.error?.message || 'Failed';
+    return;
+  }
+  const warn = (j.warnings || []).join('; ');
+  $('template-use-state').textContent = `Batch ${j.id.slice(0, 8)}…${warn ? ' — ' + warn : ''}`;
+  showTab('batches');
+  openBatchView(j.id);
+};
+
 $('tab-chat').onclick = () => showTab('chat');
 $('tab-status').onclick = () => showTab('status');
 $('tab-stress').onclick = () => showTab('stress');
 $('tab-batches').onclick = () => showTab('batches');
+$('tab-templates').onclick = () => showTab('templates');

@@ -25,13 +25,19 @@ type Config struct {
 	Health   HealthConfig       `yaml:"health"`
 	Retry    RetryConfig        `yaml:"retry"`
 	Storage  StorageConfig      `yaml:"storage"`
-	Batches  BatchesConfig      `yaml:"batches"`
+	Batches   BatchesConfig   `yaml:"batches"`
+	Templates TemplatesConfig `yaml:"templates"`
 	Profiles map[string]Profile `yaml:"profiles"`
 	Aliases  map[string]Alias   `yaml:"aliases"`
 }
 
 type BatchesConfig struct {
 	MaxItems int `yaml:"max_items"`
+}
+
+type TemplatesConfig struct {
+	MaxBytes int `yaml:"max_bytes"`
+	MaxCount int `yaml:"max_count"`
 }
 
 // Alias maps a short name to a real model and optional machine (V7).
@@ -238,6 +244,12 @@ func (c *Config) applyDefaults() {
 	}
 	if c.Batches.MaxItems < 1 {
 		c.Batches.MaxItems = 1
+	}
+	if c.Templates.MaxBytes == 0 {
+		c.Templates.MaxBytes = 16384
+	}
+	if c.Templates.MaxCount == 0 {
+		c.Templates.MaxCount = 200
 	}
 	if len(c.Profiles) == 0 {
 		c.Profiles = map[string]Profile{

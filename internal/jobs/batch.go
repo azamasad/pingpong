@@ -131,7 +131,7 @@ func (s *Service) prepareBatchJob(bodyJSON, batchID string, pinMachine, pinModel
 }
 
 // SubmitBatch validates every item, inserts the batch row and jobs in one transaction, then starts run loops.
-func (s *Service) SubmitBatch(ctx context.Context, bodies []string, plan *SplitPlan) (*BatchSubmitResult, error) {
+func (s *Service) SubmitBatch(ctx context.Context, bodies []string, plan *SplitPlan, source string) (*BatchSubmitResult, error) {
 	max := s.MaxBatchItems()
 	if len(bodies) == 0 || len(bodies) > max {
 		return nil, &RouteRejectedError{Code: "BAD_REQUEST"}
@@ -185,7 +185,7 @@ func (s *Service) SubmitBatch(ctx context.Context, bodies []string, plan *SplitP
 	}
 	batch := &store.Batch{
 		ID: batchID, CreatedAt: now, Kind: kind,
-		ItemCount: len(bodies), PlanJSON: planJSON,
+		ItemCount: len(bodies), PlanJSON: planJSON, Source: source,
 	}
 	err := s.store.WithTx(ctx, func(tx *sql.Tx) error {
 		if err := s.store.InsertBatchTx(ctx, tx, batch); err != nil {
@@ -206,12 +206,15 @@ func (s *Service) SubmitBatch(ctx context.Context, bodies []string, plan *SplitP
 		ids[i] = j.ID
 		go s.runLoop(j.ID)
 	}
-	source := "plain"
+	logSource := "plain"
 	if plan != nil {
-		source = "split"
+		logSource = "split"
+	}
+	if source != "" {
+		logSource = "template"
 	}
 	logx.Event("info", "batch_submitted", map[string]any{
-		"batch_id": batchID, "items": len(bodies), "source": source,
+		"batch_id": batchID, "items": len(bodies), "source": logSource,
 	})
 	var splitOut map[string]any
 	if plan != nil {

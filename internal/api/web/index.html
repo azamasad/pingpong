@@ -14,6 +14,7 @@
       <button type="button" id="tab-status">Status</button>
       <button type="button" id="tab-stress">Stress</button>
       <button type="button" id="tab-batches" class="hidden">Batches</button>
+      <button type="button" id="tab-templates" class="hidden">Templates</button>
     </nav>
     <p id="machines" class="machines">Loading machines…</p>
   </header>
@@ -158,6 +159,43 @@
         <button type="button" id="batch-cancel">Cancel batch</button>
       </div>
       <ul id="batch-jobs-list"></ul>
+    </div>
+  </section>
+  <section id="panel-templates" class="hidden">
+    <p>Saved prompts with <code>{{blanks}}</code>. Values are plain text only; nothing here is logged.</p>
+    <h2>Templates</h2>
+    <ul id="templates-list"></ul>
+    <div class="actions">
+      <button type="button" id="template-new">New template</button>
+    </div>
+    <div id="template-editor" class="hidden">
+      <h3 id="template-editor-title">Edit template</h3>
+      <label>Name <input type="text" id="template-name" pattern="[a-z0-9_-]+" maxlength="64"></label>
+      <textarea id="template-body" rows="8" placeholder="Summarise {{text}} in {{words}} words."></textarea>
+      <textarea id="template-defaults" rows="3" placeholder='Optional defaults JSON, e.g. {"profile":"fast"}'></textarea>
+      <div class="actions">
+        <button type="button" id="template-save">Save</button>
+        <button type="button" id="template-cancel-edit">Cancel</button>
+        <button type="button" id="template-delete" class="hidden">Delete</button>
+      </div>
+      <p id="template-editor-state" class="warn hidden"></p>
+    </div>
+    <div id="template-use" class="hidden">
+      <h3>Use <span id="template-use-name"></span></h3>
+      <div id="template-vars"></div>
+      <div class="controls">
+        <label>Profile <select id="template-use-profile"><option value="">—</option></select></label>
+        <label><input type="checkbox" id="template-use-fast"> Fast (Mane)</label>
+        <label>Model <select id="template-use-model"><option value="">—</option></select></label>
+        <label>Machine <select id="template-use-machine"><option value="">—</option></select></label>
+      </div>
+      <textarea id="template-batch-rows" rows="4" class="hidden" placeholder='One JSON object per line, e.g. {"text":"chapter one"}'></textarea>
+      <div class="actions">
+        <button type="button" id="template-run-one">Run one job</button>
+        <button type="button" id="template-run-batch">Run as batch</button>
+        <button type="button" id="template-use-back">Back</button>
+      </div>
+      <p id="template-use-state"></p>
     </div>
   </section>
   <script src="app.js"></script>

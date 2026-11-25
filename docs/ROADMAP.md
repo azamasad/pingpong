@@ -36,7 +36,7 @@ Built so far: V1 to V7. Everything numbered V7.x below is planned and not built,
 | 7 | V7: model aliases | Short names for models, defined once |
 | 7.1 | V7.1: split a batch across machines (planned) | Both machines at once, each with its own pinned model, fixed assignment |
 | 7.2 | V7.2: answer checking (planned) | Mane drafts, Firmino reviews or revises, user can override |
-| 7.3 | V7.3: prompt templates (planned) | Saved prompts with blanks |
+| 7.3 | V7.3: prompt templates (**built** on V7 branch) | Saved prompts with blanks |
 | 7.4 | V7.4: results export (planned) | Download batches as CSV or Markdown |
 | 7.5 | V7.5: conversation threads (planned) | Saved conversations with history |
 | 7.6 | V7.6: file input (planned) | Text and Markdown, chunked, run as a batch. Not RAG. PDF later |

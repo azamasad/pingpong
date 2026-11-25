@@ -180,19 +180,20 @@ storage:          # V2
 - Not checked today: that a profile's `machine` names a real machine. A typo
   fails only when a request uses that profile. V7 adds this check.
 
-Also built: `router.shutdown_grace` (V6, default `10s`) and `aliases` (V7). See
-[V6-OPERABILITY.md](V6-OPERABILITY.md) and [V7-ALIASES.md](V7-ALIASES.md).
+Also built: `router.shutdown_grace` (V6, default `10s`), `aliases` (V7),
+`batches.max_items` (V7.1), and `templates.max_bytes` / `templates.max_count`
+(V7.3). See [V6-OPERABILITY.md](V6-OPERABILITY.md) and [V7-ALIASES.md](V7-ALIASES.md).
 
-Planned keys, not built (full contract in
+Further planned keys (full contract in
 [NEXT-FEATURES-BUILD-SPEC.md](NEXT-FEATURES-BUILD-SPEC.md)). All are optional,
-and all except `openai` and `notify` need `storage.data_dir`. Schedules, templates
-and threads are stored in the database, never in the config file.
+and all except `openai` and `notify` need `storage.data_dir`. Schedules,
+templates and threads are stored in the database, never in the config file.
 
 | Key | Version | Default | Meaning |
 |---|---|---|---|
 | `batches.max_items` | V7.1 | `500` | Most items in one batch (default 500 after D-118 memory gate; may set `1000` after Mane RSS check) |
-| `templates.max_bytes` | V7.3 | `16384` | Largest template body |
-| `templates.max_count` | V7.3 | `200` | Most templates |
+| `templates.max_bytes` | V7.3 (built) | `16384` | Largest template body |
+| `templates.max_count` | V7.3 (built) | `200` | Most templates |
 | `threads.max_turns` | V7.5 | `200` | Most turns in one thread |
 | `files.max_bytes` | V7.6 | `2097152` | Largest uploaded text file (the upload endpoint has its own body limit of this plus 64 KB) |
 | `files.chunk_chars` | V7.6 | `6000` | Default chunk size in characters (a request may use 500 to 20000) |

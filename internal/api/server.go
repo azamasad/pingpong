@@ -23,7 +23,7 @@ import (
 //go:embed web/*
 var webFS embed.FS
 
-const Version = "7.1.0"
+const Version = "7.3.0"
 
 type Server struct {
 	Cfg          *config.Config
@@ -73,6 +73,11 @@ func (s *Server) routes() {
 	s.Mux.HandleFunc("POST /api/batches", s.handleBatchCreate)
 	s.Mux.HandleFunc("GET /api/batches/{id}", s.handleBatchGet)
 	s.Mux.HandleFunc("POST /api/batches/{id}/cancel", s.handleBatchCancel)
+	s.Mux.HandleFunc("POST /api/templates", s.handleTemplateCreate)
+	s.Mux.HandleFunc("GET /api/templates", s.handleTemplateList)
+	s.Mux.HandleFunc("GET /api/templates/{name}", s.handleTemplateGet)
+	s.Mux.HandleFunc("PUT /api/templates/{name}", s.handleTemplateUpdate)
+	s.Mux.HandleFunc("DELETE /api/templates/{name}", s.handleTemplateDelete)
 	s.Mux.HandleFunc("GET /api/stress", s.handleStressGet)
 	s.Mux.HandleFunc("POST /api/stress", s.handleStressStart)
 	s.Mux.HandleFunc("DELETE /api/stress", s.handleStressStop)

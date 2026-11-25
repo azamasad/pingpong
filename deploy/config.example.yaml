@@ -76,3 +76,8 @@ health:
 # V7.1 batch limits (optional). Default max_items is 500 (D-118); set 1000 only after RSS check on Mane.
 # batches:
 #   max_items: 500
+
+# V7.3 prompt templates (optional). Defaults: max_bytes 16384, max_count 200.
+# templates:
+#   max_bytes: 16384
+#   max_count: 200
