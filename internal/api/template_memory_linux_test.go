@@ -18,7 +18,7 @@ func TestTemplateBatchRSSGate(t *testing.T) {
 	mS.ChatSteps = done
 	fS.ChatSteps = done
 	ts := newHarnessFromURLs(t, mURL, fURL)
-	defer ts.Close()
+	t.Cleanup(func() { ts.Close() })
 
 	_, _ = http.DefaultClient.Do(mustReq(t, http.MethodPost, ts.URL+"/api/templates",
 		`{"name":"bulk","body":"{{n}}"}`))
@@ -36,6 +36,11 @@ func TestTemplateBatchRSSGate(t *testing.T) {
 	if res.StatusCode != http.StatusAccepted {
 		t.Fatalf("status %d", res.StatusCode)
 	}
+	var created struct {
+		ID string `json:"id"`
+	}
+	_ = decodeJSON(res, &created)
+	t.Cleanup(func() { stopBatchBeforeClose(ts, created.ID) })
 	after, _ := rssKB()
 	deltaMB := float64(after-before) / 1024
 	t.Logf("RSS growth after 200-row template batch: %.1f MB", deltaMB)

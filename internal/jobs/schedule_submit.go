@@ -148,7 +148,7 @@ func (s *Service) batchDerivedState(ctx context.Context, batchID string) string 
 
 // LastSubmittedRunActive reports whether the last submitted run is still in flight.
 func (s *Service) LastSubmittedRunActive(ctx context.Context, scheduleID string) (bool, error) {
-	run, err := s.store.LastScheduleRun(ctx, scheduleID)
+	run, err := s.store.LastSubmittedScheduleRun(ctx, scheduleID)
 	if err != nil {
 		if err == store.ErrNotFound {
 			return false, nil

@@ -27,16 +27,16 @@
 | **Profile** | (V5) A named preset such as `fast`, `balanced` or `deep` that fills `fast`, `model` and `machine` when a request leaves them unset |
 | **Alias** | (V7) A short name for a real model, defined in config. It acts as a pin |
 | **Doctor** | (V6) `pingpong doctor`, a command that checks config, storage and machines. `--chat` also sends a tiny real request. Its speed is a 2-token sample, not a benchmark |
-| **Split (planned, V7.1)** | Running one batch on several machines at once, each with its own pinned model |
-| **Check (planned, V7.2)** | An explicit second step where a user-chosen model reviews or revises an answer |
-| **Template (planned, V7.3)** | A saved prompt with `{{blanks}}` |
-| **Split batch (planned, V7.1)** | A batch whose items are shared across machines by a fixed rule chosen at submit (round robin or weights) |
-| **Stage (planned, V7.2)** | A job that belongs to a parent job: a check (review or revise) or a reduce. It starts only after its parent is done |
-| **Chunk (planned, V7.6)** | One piece of an uploaded text file, cut on paragraph boundaries, run as one job. Not RAG |
-| **Reduce (planned, V7.6)** | An optional last job that combines all chunk results into one answer |
+| **Split (V7.1)** | Running one batch on several machines at once, each with its own pinned model |
+| **Check (V7.2)** | An explicit second step where a user-chosen model reviews or revises an answer |
+| **Template (V7.3)** | A saved prompt with `{{blanks}}` |
+| **Split batch (V7.1)** | A batch whose items are shared across machines by a fixed rule chosen at submit (round robin or weights) |
+| **Stage (V7.2)** | A job that belongs to a parent job: a check (review or revise) or a reduce. It starts only after its parent is done |
+| **Chunk (V7.6)** | One piece of an uploaded text file, cut on paragraph boundaries, run as one job. Not RAG |
+| **Reduce (V7.6)** | An optional last job that combines all chunk results into one answer |
 | **Export (V7.4)** | Downloading a batch or job list as CSV or Markdown |
-| **Thread (planned, V7.5)** | A saved conversation bound to one machine and model. Each turn is a job |
-| **Schedule (planned, V7.7)** | A saved daily or weekly rule that submits a job or batch, created from the page |
+| **Thread (V7.5)** | A saved conversation bound to one machine and model. Each turn is a job |
+| **Schedule (V7.7)** | A saved daily or weekly rule that submits a job or batch, created from the page |
 | **Stress run** | A server-side soak, started from the Stress tab, that keeps short batch jobs flowing to Mane, Firmino or both for up to 2 hours |
 | **Mixture-of-experts (MoE)** | A model with many parameters in total but only a few used per token (the Firmino model has 30B in total and about 3.3B active). Much faster on CPU than a dense model of the same size |
 | **Dense model** | A model that uses all its parameters for every token (for example `qwen2.5:14b`). Slower on CPU |

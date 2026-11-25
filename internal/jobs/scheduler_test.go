@@ -90,3 +90,59 @@ func TestScheduleMissedSkipOnStartup(t *testing.T) {
 		t.Fatalf("runs %+v", runs)
 	}
 }
+
+func TestOverlapSkipSurvivesANewerSkipRow(t *testing.T) {
+	loc := time.Local
+	now := time.Date(2025, 6, 12, 3, 0, 0, 0, loc)
+	svc, st := testScheduleSvc(t, now)
+	ctx := context.Background()
+	created := time.Date(2025, 6, 10, 1, 0, 0, 0, loc)
+	firstDue := time.Date(2025, 6, 10, 2, 0, 0, 0, loc)
+	sch := &store.Schedule{
+		Name: "nightly", RuleJSON: `{"every":"day","at":"02:00"}`,
+		Prompt: "hi", Machine: "firmino", Model: "m2",
+		Missed: "skip", Overlap: "skip", Enabled: true,
+		LastDue:   &firstDue,
+		CreatedAt: created, UpdatedAt: created,
+	}
+	if err := st.InsertSchedule(ctx, sch); err != nil {
+		t.Fatal(err)
+	}
+	job := &store.Job{
+		ID: "job-active", CreatedAt: firstDue, UpdatedAt: firstDue,
+		Status: store.StatusWaiting, RequestJSON: `{"prompt":"hi"}`,
+		Machine: "firmino", Model: "m2", Lane: store.LaneBatch,
+	}
+	if err := st.InsertJob(ctx, job); err != nil {
+		t.Fatal(err)
+	}
+	if err := st.InsertScheduleRun(ctx, &store.ScheduleRun{
+		ScheduleID: sch.ID, Due: firstDue, Started: firstDue,
+		Kind: "job", JobID: job.ID, Status: "submitted",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	// A later skip row must not hide the still-running submitted job.
+	skipDue := time.Date(2025, 6, 11, 2, 0, 0, 0, loc)
+	if err := st.InsertScheduleRun(ctx, &store.ScheduleRun{
+		ScheduleID: sch.ID, Due: skipDue, Started: skipDue,
+		Status: "skipped_overlap",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	next := time.Date(2025, 6, 12, 2, 0, 0, 0, loc)
+	run, err := svc.Scheduler().executeDue(ctx, sch, next, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if run.Status != "skipped_overlap" {
+		t.Fatalf("first overlap status %s", run.Status)
+	}
+	again, err := svc.Scheduler().executeDue(ctx, sch, next.Add(24*time.Hour), false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if again.Status != "skipped_overlap" {
+		t.Fatalf("second overlap status %s, want skipped_overlap while the first job is waiting", again.Status)
+	}
+}

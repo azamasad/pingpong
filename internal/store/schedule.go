@@ -258,9 +258,27 @@ WHERE r.job_id=? ORDER BY r.started DESC LIMIT 1`, jobID).Scan(&name)
 	return name, err
 }
 
+// LastScheduleRun returns the newest run row of any status.
 func (s *Store) LastScheduleRun(ctx context.Context, scheduleID string) (*ScheduleRun, error) {
-	row := s.db.QueryRowContext(ctx, `SELECT id, schedule_id, due, started, kind, job_id, batch_id, status, error_code
-FROM schedule_runs WHERE schedule_id=? ORDER BY due DESC LIMIT 1`, scheduleID)
+	return s.latestScheduleRun(ctx, scheduleID, "")
+}
+
+// LastSubmittedScheduleRun returns the newest run that actually submitted work.
+// Skip and failure rows must not hide an earlier run that is still active.
+func (s *Store) LastSubmittedScheduleRun(ctx context.Context, scheduleID string) (*ScheduleRun, error) {
+	return s.latestScheduleRun(ctx, scheduleID, "submitted")
+}
+
+func (s *Store) latestScheduleRun(ctx context.Context, scheduleID, status string) (*ScheduleRun, error) {
+	q := `SELECT id, schedule_id, due, started, kind, job_id, batch_id, status, error_code
+FROM schedule_runs WHERE schedule_id=?`
+	args := []any{scheduleID}
+	if status != "" {
+		q += ` AND status=?`
+		args = append(args, status)
+	}
+	q += ` ORDER BY due DESC LIMIT 1`
+	row := s.db.QueryRowContext(ctx, q, args...)
 	var r ScheduleRun
 	var due, started string
 	var kind, jobID, batchID, ec sql.NullString
