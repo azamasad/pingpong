@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/azamasad/pingpong/internal/fakeollama"
 )
@@ -45,18 +46,17 @@ func TestBatchMaxItemsRSSGate(t *testing.T) {
 	}
 	_ = decodeJSON(res, &created)
 	after, _ := rssKB()
-	t.Cleanup(func() {
-		if created.ID == "" {
-			return
-		}
-		c, _ := http.NewRequest(http.MethodPost, ts.URL+"/api/batches/"+created.ID+"/cancel", nil)
-		c.Host = "localhost"
-		_, _ = http.DefaultClient.Do(c)
-	})
 	deltaMB := float64(after-before) / 1024
 	t.Logf("RSS growth after %d-item submit: %.1f MB (Mane gate is 10 MB; CI test binary is heavier)", n, deltaMB)
 	// Proxy ceiling similar to TestRSSProxyBudget; owner re-checks on Mane.
 	if deltaMB > 40 {
 		t.Fatalf("RSS grew %.1f MB", deltaMB)
 	}
+	if created.ID != "" {
+		c, _ := http.NewRequest(http.MethodPost, ts.URL+"/api/batches/"+created.ID+"/cancel", nil)
+		c.Host = "localhost"
+		_, _ = http.DefaultClient.Do(c)
+	}
+	time.Sleep(300 * time.Millisecond)
+	ts.Close()
 }
