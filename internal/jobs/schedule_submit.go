@@ -83,44 +83,18 @@ func (s *Service) SubmitScheduleBatch(ctx context.Context, bodies []string, sour
 }
 
 // SubmitScheduleJob submits one pinned batch-lane job for a schedule.
+// A template default check is honoured, the same as a batch item.
 func (s *Service) SubmitScheduleJob(ctx context.Context, bodyJSON, machine, model string) (string, error) {
-	model, machine, _ = s.cfg.ResolveAlias(model, machine)
-	pinned, err := pinBodyJSON(bodyJSON, machine, model)
+	j, err := s.prepareCheckedJob(bodyJSON, "", machine, model)
 	if err != nil {
-		return "", &RouteRejectedError{Code: "BAD_REQUEST"}
+		return "", err
 	}
-	laneBody, err := ensureLaneBatch(pinned)
-	if err != nil {
-		return "", &RouteRejectedError{Code: "BAD_REQUEST"}
-	}
-	res := s.resolve(route.Request{Model: model, Machine: machine})
-	now := s.clk.Now().UTC()
-	id := uuid.NewString()
-	j := &store.Job{
-		ID: id, CreatedAt: now, UpdatedAt: now,
-		RequestJSON: laneBody,
-		Status:      store.StatusWaiting,
-		Lane:        store.LaneBatch,
-		Machine:     machine,
-		Model:       model,
-	}
-	if res.OK {
-		j.Machine, j.Model, j.Mode = res.Machine, res.Model, res.Mode
-	} else if retryableCode(res.Code) {
-		j.Status = store.StatusRetrying
-		j.ErrorCode = res.Code
-		t := now
-		j.FirstFailureAt = &t
-		na := now.Add(s.cfg.Retry.RetryInterval.Duration)
-		j.NextAttemptAt = &na
-	} else {
-		return "", &RouteRejectedError{Code: res.Code}
-	}
+	j.Lane = store.LaneBatch
 	if err := s.store.InsertJob(ctx, j); err != nil {
 		return "", err
 	}
-	go s.runLoop(id)
-	return id, nil
+	go s.runLoop(j.ID)
+	return j.ID, nil
 }
 
 func ensureLaneBatch(body string) (string, error) {
@@ -162,7 +136,8 @@ func (s *Service) batchDerivedState(ctx context.Context, batchID string) string 
 	if total == 0 {
 		return "running"
 	}
-	if store.PendingFromCounts(counts) > 0 {
+	pending, err := s.store.BatchPendingWithChecks(ctx, batchID)
+	if err != nil || pending > 0 {
 		return "running"
 	}
 	if counts[string(store.StatusFailed)] > 0 || counts[string(store.StatusCancelled)] > 0 {
@@ -190,17 +165,31 @@ func (s *Service) LastSubmittedRunActive(ctx context.Context, scheduleID string)
 		}
 		switch j.Status {
 		case store.StatusDone, store.StatusFailed, store.StatusCancelled:
+			if j.CheckPending == 1 {
+				return true, nil
+			}
+			children, err := s.store.ChildrenOf(ctx, j.ID)
+			if err != nil {
+				return false, err
+			}
+			for _, c := range children {
+				switch c.Status {
+				case store.StatusDone, store.StatusFailed, store.StatusCancelled:
+				default:
+					return true, nil
+				}
+			}
 			return false, nil
 		default:
 			return true, nil
 		}
 	}
 	if run.BatchID != "" {
-		counts, err := s.store.BatchCounts(ctx, run.BatchID)
+		n, err := s.store.BatchPendingWithChecks(ctx, run.BatchID)
 		if err != nil {
 			return false, err
 		}
-		return store.PendingFromCounts(counts) > 0, nil
+		return n > 0, nil
 	}
 	return false, nil
 }

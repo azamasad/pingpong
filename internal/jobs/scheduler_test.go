@@ -22,13 +22,13 @@ func testScheduleSvc(t *testing.T, now time.Time) (*Service, *store.Store) {
 		Routing:   config.RoutingConfig{AutoRole: "heavy", FastRole: "fast"},
 		Storage:   config.StorageConfig{DataDir: t.TempDir()},
 		Batches:   config.BatchesConfig{MaxItems: 100},
-		Schedules: config.SchedulesConfig{MaxCount: 50, Grace: config.Duration{time.Hour}},
-		Retry:     config.RetryConfig{RetryInterval: config.Duration{time.Minute}, RetryWindow: config.Duration{3 * time.Hour}},
+		Schedules: config.SchedulesConfig{MaxCount: 50, Grace: config.Duration{Duration: time.Hour}},
+		Retry:     config.RetryConfig{RetryInterval: config.Duration{Duration: time.Minute}, RetryWindow: config.Duration{Duration: 3 * time.Hour}},
 		Timeouts: config.TimeoutConfig{
-			ConnectTimeout: config.Duration{5 * time.Second},
+			ConnectTimeout: config.Duration{Duration: 5 * time.Second},
 		},
 		Health: config.HealthConfig{
-			Interval: config.Duration{time.Second}, Timeout: config.Duration{time.Second},
+			Interval: config.Duration{Duration: time.Second}, Timeout: config.Duration{Duration: time.Second},
 			FailuresToMarkDown: 1,
 		},
 	}

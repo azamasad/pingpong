@@ -69,7 +69,7 @@ func (s *Server) handleTemplateCreate(w http.ResponseWriter, r *http.Request) {
 	t := &store.Template{
 		Name: req.Name, Body: req.Body,
 		DefaultsJSON: jobs.EncodeTemplateDefaults(defs),
-		CreatedAt: now, UpdatedAt: now,
+		CreatedAt:    now, UpdatedAt: now,
 	}
 	if err := st.InsertTemplate(r.Context(), t); err != nil {
 		writeErr(w, apperrors.New("INTERNAL", "create failed"))

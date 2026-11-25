@@ -11,14 +11,14 @@ const batchCols = `id, created_at, kind, item_count, plan_json, source, reduce_j
 
 // Batch is one submitted batch row (V7.1).
 type Batch struct {
-	ID           string
-	CreatedAt    time.Time
-	Kind         string
-	ItemCount    int
-	PlanJSON     string
-	Source       string
-	ReduceJSON   string
-	ReduceJobID  string
+	ID          string
+	CreatedAt   time.Time
+	Kind        string
+	ItemCount   int
+	PlanJSON    string
+	Source      string
+	ReduceJSON  string
+	ReduceJobID string
 }
 
 func (s *Store) InsertBatch(ctx context.Context, b *Batch) error {

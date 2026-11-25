@@ -138,23 +138,23 @@ func (s *Service) maybeCreateReduce(ctx context.Context, batchID string) error {
 		child.ErrorMessage = "reduce prompt does not fit context"
 	}
 	err = s.store.WithTx(ctx, func(tx *sql.Tx) error {
-		if dup, err := s.store.ReduceJobByBatch(ctx, batchID); err == nil && dup != nil {
-			return nil
-		}
-		b, err := s.store.GetBatch(ctx, batchID)
+		claimed, err := tx.ExecContext(ctx, `UPDATE batches SET reduce_job_id=? WHERE id=? AND reduce_json!='' AND (reduce_job_id='' OR reduce_job_id IS NULL)`,
+			childID, batchID)
 		if err != nil {
 			return err
 		}
-		if b.ReduceJobID != "" {
-			return nil
-		}
-		if err := s.store.InsertJobTx(ctx, tx, child); err != nil {
+		n, err := claimed.RowsAffected()
+		if err != nil {
 			return err
 		}
-		_, err = tx.ExecContext(ctx, `UPDATE batches SET reduce_job_id=? WHERE id=? AND (reduce_job_id='' OR reduce_job_id IS NULL)`,
-			childID, batchID)
-		return err
+		if n == 0 {
+			return errSkipStage
+		}
+		return s.store.InsertJobTx(ctx, tx, child)
 	})
+	if errors.Is(err, errSkipStage) {
+		return nil
+	}
 	if err != nil {
 		return err
 	}
@@ -162,11 +162,14 @@ func (s *Service) maybeCreateReduce(ctx context.Context, batchID string) error {
 	if dup != nil && dup.ID != childID {
 		return nil
 	}
+	_ = s.store.UpdateJob(ctx, child)
 	logx.Event("info", "reduce_created", map[string]any{"batch_id": batchID, "items": done})
 	if oversize || (child.Status == store.StatusFailed && child.ErrorCode != "") {
 		logx.Event("warn", "check_failed", map[string]any{
 			"request_id": batchID, "stage": store.StageReduce, "error_code": child.ErrorCode,
 		})
+		s.maybeNotifyJobFailed(child, child.ErrorCode)
+		s.onBatchItemTerminal(ctx, child)
 	} else if child.Status == store.StatusWaiting || child.Status == store.StatusRetrying {
 		go s.runLoop(childID)
 	}

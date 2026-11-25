@@ -34,6 +34,16 @@ func openAIServer(t *testing.T, heavy, fast *fakeollama.Server, aliases map[stri
 	return ts, cfg
 }
 
+func mustDo(t *testing.T, req *http.Request) *http.Response {
+	t.Helper()
+	res, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { res.Body.Close() })
+	return res
+}
+
 func TestOpenAIDisabled404(t *testing.T) {
 	heavy := &fakeollama.Server{Models: []string{"qwen2.5:14b"}}
 	fast := &fakeollama.Server{Models: []string{"llama3.1:8b"}}
@@ -46,7 +56,7 @@ func TestOpenAIDisabled404(t *testing.T) {
 	defer ts.Close()
 	req, _ := http.NewRequest(http.MethodGet, ts.URL+"/v1/models", nil)
 	req.Host = "localhost"
-	res, _ := http.DefaultClient.Do(req)
+	res := mustDo(t, req)
 	if res.StatusCode != 404 {
 		t.Fatalf("status %d", res.StatusCode)
 	}
@@ -58,8 +68,7 @@ func TestOpenAIModelsList(t *testing.T) {
 	ts, _ := openAIServer(t, heavy, fast, map[string]config.Alias{"quick": {Model: "llama3.1:8b"}})
 	req, _ := http.NewRequest(http.MethodGet, ts.URL+"/v1/models", nil)
 	req.Host = "localhost"
-	res, _ := http.DefaultClient.Do(req)
-	defer res.Body.Close()
+	res := mustDo(t, req)
 	if res.StatusCode != 200 {
 		t.Fatalf("status %d", res.StatusCode)
 	}
@@ -86,8 +95,7 @@ func TestOpenAIRejectsTools(t *testing.T) {
 	req.Host = "localhost"
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer sk-dummy")
-	res, _ := http.DefaultClient.Do(req)
-	defer res.Body.Close()
+	res := mustDo(t, req)
 	if res.StatusCode != 400 {
 		t.Fatalf("status %d", res.StatusCode)
 	}
@@ -113,8 +121,7 @@ func TestOpenAINonStreamCompletion(t *testing.T) {
 	req, _ := http.NewRequest(http.MethodPost, ts.URL+"/v1/chat/completions", strings.NewReader(body))
 	req.Host = "localhost"
 	req.Header.Set("Content-Type", "application/json")
-	res, _ := http.DefaultClient.Do(req)
-	defer res.Body.Close()
+	res := mustDo(t, req)
 	if res.StatusCode != 200 {
 		t.Fatalf("status %d", res.StatusCode)
 	}
@@ -148,8 +155,7 @@ func TestOpenAIStreamSSE(t *testing.T) {
 	req, _ := http.NewRequest(http.MethodPost, ts.URL+"/v1/chat/completions", strings.NewReader(body))
 	req.Host = "localhost"
 	req.Header.Set("Content-Type", "application/json")
-	res, _ := http.DefaultClient.Do(req)
-	defer res.Body.Close()
+	res := mustDo(t, req)
 	if res.StatusCode != 200 {
 		t.Fatalf("status %d", res.StatusCode)
 	}
@@ -198,8 +204,7 @@ func TestOpenAIMachineModelPin(t *testing.T) {
 	req, _ := http.NewRequest(http.MethodPost, ts.URL+"/v1/chat/completions", strings.NewReader(body))
 	req.Host = "localhost"
 	req.Header.Set("Content-Type", "application/json")
-	res, _ := http.DefaultClient.Do(req)
-	defer res.Body.Close()
+	res := mustDo(t, req)
 	if res.StatusCode != 200 {
 		t.Fatalf("status %d", res.StatusCode)
 	}
@@ -225,8 +230,7 @@ func TestOpenAITextPartsContent(t *testing.T) {
 	req, _ := http.NewRequest(http.MethodPost, ts.URL+"/v1/chat/completions", strings.NewReader(body))
 	req.Host = "localhost"
 	req.Header.Set("Content-Type", "application/json")
-	res, _ := http.DefaultClient.Do(req)
-	defer res.Body.Close()
+	res := mustDo(t, req)
 	if res.StatusCode != 200 {
 		t.Fatalf("status %d", res.StatusCode)
 	}

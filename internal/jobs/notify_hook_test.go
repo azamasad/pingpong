@@ -37,8 +37,8 @@ func testNotifyService(t *testing.T) (*Service, *store.Store) {
 			Timeout:    config.Duration{Duration: time.Second},
 		},
 		Retry: config.RetryConfig{
-			RetryInterval: config.Duration{time.Millisecond},
-			RetryWindow:   config.Duration{time.Millisecond},
+			RetryInterval: config.Duration{Duration: time.Millisecond},
+			RetryWindow:   config.Duration{Duration: time.Millisecond},
 		},
 	}
 	g := gate.New(map[string]int{"m": 1})
