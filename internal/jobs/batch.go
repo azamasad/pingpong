@@ -127,44 +127,7 @@ func splitTargetIndex(k int, plan SplitPlan) int {
 }
 
 func (s *Service) prepareBatchJob(bodyJSON, batchID string, pinMachine, pinModel string) (*store.Job, error) {
-	if pinMachine != "" && pinModel != "" {
-		var err error
-		bodyJSON, err = pinBodyJSON(bodyJSON, pinMachine, pinModel)
-		if err != nil {
-			return nil, &RouteRejectedError{Code: "BAD_REQUEST"}
-		}
-	}
-	cb, _, err := parseChatBody(bodyJSON)
-	if err != nil {
-		return nil, &RouteRejectedError{Code: "BAD_REQUEST"}
-	}
-	fast, model, machine, err := s.cfg.ApplyProfile(cb.Profile, cb.Fast, cb.Model, cb.Machine)
-	if err != nil {
-		return nil, &RouteRejectedError{Code: "BAD_REQUEST"}
-	}
-	cb.Fast, cb.Model, cb.Machine = fast, model, machine
-	cb.Model, cb.Machine, _ = s.cfg.ResolveAlias(cb.Model, cb.Machine)
-	res := s.resolve(route.Request{Fast: cb.Fast, Model: cb.Model, Machine: cb.Machine})
-	now := s.clk.Now().UTC()
-	id := uuid.NewString()
-	j := &store.Job{
-		ID: id, CreatedAt: now, UpdatedAt: now,
-		RequestJSON: bodyJSON,
-		Status:      store.StatusWaiting,
-		Lane:        store.LaneBatch,
-		BatchID:     batchID,
-	}
-	if res.OK {
-		j.Machine, j.Model, j.Mode = res.Machine, res.Model, res.Mode
-	} else {
-		j.Status = store.StatusRetrying
-		j.ErrorCode = res.Code
-		t := now
-		j.FirstFailureAt = &t
-		na := now.Add(s.cfg.Retry.RetryInterval.Duration)
-		j.NextAttemptAt = &na
-	}
-	return j, nil
+	return s.prepareCheckedJob(bodyJSON, batchID, pinMachine, pinModel)
 }
 
 // SubmitBatch validates every item, inserts the batch row and jobs in one transaction, then starts run loops.

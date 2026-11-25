@@ -119,6 +119,8 @@ func (s *Server) handleBatchGet(w http.ResponseWriter, r *http.Request) {
 	}
 	total, _ := st.CountBatchJobs(r.Context(), id)
 	counts, _ := st.BatchCounts(r.Context(), id)
+	checks, _ := st.CheckBatchCounts(r.Context(), id)
+	pending, _ := st.BatchPendingWithChecks(r.Context(), id)
 	list, err := st.ListBatchJobs(r.Context(), id, offset, limit)
 	if err != nil {
 		writeErr(w, apperrors.New("INTERNAL", "batch failed"))
@@ -126,7 +128,7 @@ func (s *Server) handleBatchGet(w http.ResponseWriter, r *http.Request) {
 	}
 	jobsOut := make([]any, 0, len(list))
 	for _, j := range list {
-		jobsOut = append(jobsOut, jobDetail(j))
+		jobsOut = append(jobsOut, s.Jobs.JobDetail(r.Context(), j))
 	}
 	kind := "batch"
 	createdAt := ""
@@ -138,8 +140,8 @@ func (s *Server) handleBatchGet(w http.ResponseWriter, r *http.Request) {
 	}
 	resp := map[string]any{
 		"id": id, "kind": kind, "created_at": createdAt,
-		"total": total, "pending": store.PendingFromCounts(counts),
-		"counts": counts, "jobs": jobsOut,
+		"total": total, "pending": pending,
+		"counts": counts, "checks": checks, "jobs": jobsOut,
 	}
 	var plan jobs.SplitPlan
 	if batchErr == nil && batch != nil && batch.PlanJSON != "" {
@@ -173,6 +175,9 @@ func batchSplitProgress(jobs []*store.Job, plan *jobs.SplitPlan) any {
 		counts[k] = 0
 	}
 	for _, j := range jobs {
+		if j.Stage != "" && j.Stage != store.StageAnswer {
+			continue
+		}
 		k := key{j.Machine, j.Model}
 		st := string(j.Status)
 		if _, ok := perTarget[k]; !ok {
