@@ -63,6 +63,12 @@ function buildBody() {
   if ($('model').value) body.model = $('model').value;
   if ($('machine').value) body.machine = $('machine').value;
   if (jobsOn && $('batch-lane').checked) body.lane = 'batch';
+  const cm = $('check-mode');
+  if (jobsOn && cm && cm.value) {
+    body.check = { mode: cm.value };
+    if ($('check-machine').value) body.check.machine = $('check-machine').value;
+    if ($('check-model').value) body.check.model = $('check-model').value;
+  }
   return body;
 }
 
@@ -189,7 +195,39 @@ async function openJob(id) {
     if (j.next_attempt_at) bits.push(`next ${j.next_attempt_at}`);
     if (j.error) bits.push(`${j.error.code}: ${j.error.message}`);
     $('job-meta').textContent = bits.filter(Boolean).join(' · ');
-    $('job-out').textContent = j.output_text || '';
+    const hasCheck = j.check && j.stage === 'answer';
+    $('job-draft').classList.toggle('hidden', !hasCheck);
+    $('job-review').classList.toggle('hidden', !hasCheck);
+    $('job-out').classList.toggle('hidden', !!hasCheck);
+    $('check-note').classList.add('hidden');
+    if (hasCheck) {
+      $('job-draft-meta').textContent = `${j.machine} / ${j.model}`;
+      $('job-draft-out').textContent = j.output_text || '';
+      const childId = j.check.child_id;
+      if (childId) {
+        fetch(`/api/jobs/${childId}`).then((r) => r.json()).then((c) => {
+          $('job-review-meta').textContent = `${c.machine} / ${c.model} · ${c.status}`;
+          $('job-review-out').textContent = c.output_text || '';
+          fetch('/api/machines').then((r) => r.json()).then((machines) => {
+            const ansM = machines.find((m) => m.name === j.machine);
+            const revM = machines.find((m) => m.name === c.machine);
+            if (ansM && revM && ansM.models && revM.models) {
+              const ansSz = ansM.models.find((x) => x.name === j.model)?.parameter_size;
+              const revSz = revM.models.find((x) => x.name === c.model)?.parameter_size;
+              if (ansSz && revSz && parseFloat(revSz) < parseFloat(ansSz)) {
+                $('check-note').textContent = 'Reviewer model is smaller than the answer model.';
+                $('check-note').classList.remove('hidden');
+              }
+            }
+          }).catch(() => {});
+        }).catch(() => {});
+      } else {
+        $('job-review-meta').textContent = `check: ${j.check.state}`;
+        $('job-review-out').textContent = '';
+      }
+    } else {
+      $('job-out').textContent = j.output_text || '';
+    }
     const hist = $('job-history');
     hist.innerHTML = '';
     (j.status_history || []).forEach((h) => {
@@ -211,9 +249,13 @@ async function refreshHealth() {
     $('jobs-panel').classList.toggle('hidden', !jobsOn);
     $('lane-wrap').classList.toggle('hidden', !jobsOn);
     $('tab-batches').classList.toggle('hidden', !jobsOn);
+    $('check-wrap').classList.toggle('hidden', !jobsOn);
+    $('check-machine-wrap').classList.toggle('hidden', !jobsOn);
+    $('check-model-wrap').classList.toggle('hidden', !jobsOn);
     if (jobsOn) {
       refreshJobs();
       fillBatchModelSelects();
+      fillCheckSelectors();
     }
   } catch (_) {}
 }
@@ -338,6 +380,32 @@ async function refreshStatus() {
 
 let selectedBatchId = null;
 let batchTimer = null;
+
+async function fillCheckSelectors() {
+  try {
+    const machines = await fetch('/api/machines').then((r) => r.json());
+    const cm = $('check-machine');
+    const md = $('check-model');
+  if (!cm || !md) return;
+    const prevM = cm.value;
+    cm.innerHTML = '<option value="">Default (heavy)</option>';
+    machines.forEach((m) => {
+      const o = document.createElement('option');
+      o.value = m.name;
+      o.textContent = m.name;
+      cm.appendChild(o);
+    });
+    if (prevM) cm.value = prevM;
+    const models = await fetch('/api/models').then((r) => r.json());
+    md.innerHTML = '<option value="">Default</option>';
+    models.forEach((m) => {
+      const o = document.createElement('option');
+      o.value = m.name;
+      o.textContent = m.name;
+      md.appendChild(o);
+    });
+  } catch (_) {}
+}
 
 function fillBatchModelSelects() {
   fetch('/api/models').then((r) => r.json()).then((models) => {
@@ -531,7 +599,12 @@ $('batch-submit').onclick = async () => {
     $('batch-submit-state').textContent = 'Add at least one line';
     return;
   }
-  const items = lines.map((prompt) => ({ prompt, lane: 'batch' }));
+  const items = lines.map((prompt) => {
+    const it = { prompt, lane: 'batch' };
+    const bcm = $('batch-check-mode').value;
+    if (bcm) it.check = { mode: bcm };
+    return it;
+  });
   const body = { items };
   const assign = $('batch-assign').value;
   if (assign) {

@@ -45,6 +45,9 @@ func logJob(j *store.Job, outcome, code string, stats map[string]any) {
 	if j.BatchID != "" {
 		f["batch_id"] = j.BatchID
 	}
+	if j.Stage != "" {
+		f["stage"] = j.Stage
+	}
 	if code != "" {
 		f["error_code"] = code
 	}

@@ -67,6 +67,15 @@ func (s *Server) handleChat(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, apperrors.New("BODY_TOO_LARGE", "body too large"))
 		return
 	}
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal(body, &raw); err != nil {
+		writeErr(w, apperrors.New("BAD_REQUEST", "invalid json"))
+		return
+	}
+	if _, ok := raw["check"]; ok {
+		writeErr(w, apperrors.New("BAD_REQUEST", "check is not allowed on /api/chat"))
+		return
+	}
 	var cb ChatBody
 	if err := json.Unmarshal(body, &cb); err != nil {
 		writeErr(w, apperrors.New("BAD_REQUEST", "invalid json"))
