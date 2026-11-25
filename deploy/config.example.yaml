@@ -19,9 +19,10 @@ machines:
     num_ctx: 8192
 
   - name: firmino
-    address: "http://FIRMINO_LAN_ADDRESS:11434"
+    # Use Firmino's Tailscale address if the machines are on different subnets.
+    address: "http://FIRMINO_TAILSCALE_ADDRESS:11434"
     roles: [heavy]
-    default_model: "qwen2.5:14b"
+    default_model: "qwen3:30b-a3b-instruct-2507-q4_K_M"
     max_concurrent: 1
     num_ctx: 8192
 
@@ -36,7 +37,7 @@ routing:
 #     fast: true
 #   balanced: {}
 #   deep:
-#     model: "qwen2.5:14b"
+#     model: "qwen3:30b-a3b-instruct-2507-q4_K_M"
 
 timeouts:
   connect_timeout: 5s

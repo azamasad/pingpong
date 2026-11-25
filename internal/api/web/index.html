@@ -12,6 +12,7 @@
     <nav class="tabs">
       <button type="button" id="tab-chat" class="active">Chat</button>
       <button type="button" id="tab-status">Status</button>
+      <button type="button" id="tab-stress">Stress</button>
     </nav>
     <p id="machines" class="machines">Loading machines…</p>
   </header>
@@ -65,6 +66,30 @@
   </main>
   <section id="panel-status" class="hidden">
     <pre id="status-out">Loading status…</pre>
+  </section>
+  <section id="panel-stress" class="hidden">
+    <p>Keeps the chosen machines busy with saved jobs. The run stays on Mane if this laptop sleeps. A normal chat still goes ahead of these jobs.</p>
+    <div class="controls">
+      <label>Target
+        <select id="stress-target">
+          <option value="both">Mane and Firmino together</option>
+          <option value="mane">Mane only</option>
+          <option value="firmino">Firmino only</option>
+        </select>
+      </label>
+      <label>Length
+        <select id="stress-seconds">
+          <option value="3600">1 hour</option>
+          <option value="7200">2 hours</option>
+        </select>
+      </label>
+    </div>
+    <div class="actions">
+      <button type="button" id="stress-start">Start</button>
+      <button type="button" id="stress-stop">Stop</button>
+      <span id="stress-state"></span>
+    </div>
+    <pre id="stress-out">Not started.</pre>
   </section>
   <script src="app.js"></script>
 </body>

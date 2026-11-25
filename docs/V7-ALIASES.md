@@ -1,6 +1,6 @@
 # V7: Model aliases
 
-Status: **built (M16–M19).** M20 (owner on real machines) remains.
+Status: **built (M16–M19) and live.** M20 (the owner trying aliases on the real machines) is optional and not ticked.
 
 Related: [ROADMAP.md](ROADMAP.md) phase 7, [ROUTING.md](ROUTING.md),
 [CONFIGURATION.md](CONFIGURATION.md), [API.md](API.md), decision D-070.

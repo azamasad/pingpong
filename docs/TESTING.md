@@ -1,7 +1,8 @@
 # Testing
 
-Status: draft v1. How we know each version works. Acceptance criteria live in
-[PRD.md](PRD.md). This document says how to check them.
+Status: v2. How we know each version works. Acceptance criteria live in
+[PRD.md](PRD.md). This document says how to check them. V1 to V7 are covered by
+automated tests and have been run on the real machines (section 4a).
 
 ## 1. Approach
 
@@ -138,23 +139,23 @@ Done by the owner after setup. Check off against the PRD acceptance criteria.
 
 | # | Step | Expected |
 |---|---|---|
-| 1 | From the MacBook Air, over Tailscale, send a request with no flags | Answered by Firmino's 14B model. The response says so |
+| 1 | From the MacBook Air, over Tailscale, send a request with no flags | Answered by Firmino's default model (the 30B mixture-of-experts model). The response says so |
 | 2 | Send with `fast` | Answered by Mane's 8B model |
 | 3 | Pin the 3B model | Answered by the 3B on Mane |
 | 4 | Pin a model that is not installed | `MODEL_NOT_INSTALLED`. No substitution |
 | 5 | Send two requests to Firmino back to back | The second shows "waiting" and then completes |
 | 6 | Switch Firmino off and send an auto request | Clear error |
 | 7 | Close the browser during a long request | V1: work is stopped. Firmino stops generating |
-| 8 | While a request runs, check connections: `lsof -i -nP` on Mane (filter on Firmino's LAN address) and `ss -tnp` on Firmino | Only LAN addresses, no Tailscale addresses |
+| 8 | While a request runs, check connections: `lsof -i -nP` on Mane (filter on Firmino's Tailscale address) and `ss -tnp` on Firmino | Only the Tailscale path between Mane and Firmino, no public addresses (D-072) |
 | 9 | Check the router's memory on Mane | Within budget |
-| 10 | From the MacBook Air, try port 11434 on Firmino's LAN address and on its tailnet address | Both refused or time out |
+| 10 | After the ACL is applied, from the MacBook Air try port 11434 on Firmino's tailnet address | Refused or times out |
 | 11 | Send a prompt of about 6,000 tokens | `done` reports `prompt_tokens` above 4096 and no context warning (the window is set explicitly). Then send one near 8,192 and confirm the warning appears |
 | 12 | Reboot each machine, and cut power to Mane briefly | Both come back and answer without help |
 | 13 | Open the router address from a device not on your tailnet | It does not load |
 | 14 | Send a request to Firmino with a long prompt and watch the page from the MacBook Air | Tokens appear gradually, not all at once (Tailscale Serve is not buffering). Elapsed time keeps ticking while it waits, and the connection survives several quiet minutes |
 | 15 | Close the browser tab during a long prompt on Firmino, then check Firmino's CPU | CPU use falls once the request is cancelled. If it does not fall quickly, Tailscale Serve is hiding the disconnect: note it, rely on the run-time cap, and report it |
 | 17 | Press the page's Stop button during a long request | Firmino's CPU falls at once (this path does not depend on disconnect detection) |
-| 18 | After a reboot, with the router started by its launch agent, send a request to Firmino | It works (macOS Local Network permission is not blocking it) |
+| 18 | After a reboot, with the router started by its launch agent, send a request to Firmino | It works (macOS Local Network permission is not blocking it, and Ollama.app is not holding port 11434) |
 | 16 | After a reboot of Mane, check that Tailscale Serve is still publishing the router | The page loads without any manual step |
 
 V2 additions: start a long task, close the laptop, return later and read the
@@ -188,21 +189,32 @@ The real binary is also smoke-run against two stand-in Ollama servers (health,
 auto, fast, profile, pin, jobs, batch CLI, host and origin guards, streaming
 timing, memory). That run is manual today. V6's `doctor` replaces most of it.
 
-### 2.7 V6 tests (in progress)
+### 2.7 V6 tests (built)
 
-**M11a `pingpong doctor` (without `--chat`)**
-
-- `internal/doctor`: profile unknown machine, unreachable machine, missing default
+- `internal/doctor`: unknown machine, unreachable machine, missing default
   model, storage warn when jobs off, writable `data_dir`, disk warn and fail
-  thresholds, exit codes.
+  thresholds, exit codes, and the `--chat` check (including its 2-token sample).
 - `internal/ollama`: `Version` against a fake server.
-- `--chat`, shutdown, backup and `/api/status` are not built yet.
+- Graceful shutdown: running jobs are stopped on purpose, marked retrying with
+  `ROUTER_RESTARTING`, and counted toward the retry window.
+- `internal/store`: `pingpong backup` produces a consistent copy.
+- `GET /api/status` returns counts, machines and memory, and never content.
 
-See [V6-OPERABILITY.md](V6-OPERABILITY.md) section 10 for the rest.
+See [V6-OPERABILITY.md](V6-OPERABILITY.md) section 10.
 
-### 2.8 V7 tests (planned)
+### 2.8 V7 tests (built)
 
-Listed in [V7-ALIASES.md](V7-ALIASES.md) section 8.
+Aliases: config validation, resolution order after profiles and before routing,
+explicit `machine` wins over the alias's machine, `GET /api/aliases`, and the
+doctor check. Listed in [V7-ALIASES.md](V7-ALIASES.md) section 8.
+
+### 2.9 Test tooling tests
+
+- Stress run: a 2-second run against a fake Ollama finishes at least one job on
+  Mane, then `DELETE /api/stress` stops it and cancels its jobs.
+- Per-request log: the log whitelist keeps speed and outcome fields and drops
+  anything else, so prompts and outputs cannot leak (`internal/logx`).
+- A finished job's `done` event carries speed `stats`.
 
 ### Fake Ollama scenario format
 
@@ -212,11 +224,29 @@ chunk (with fields as real Ollama would: content or `thinking`, then a final
 chunk with the statistics), send an `error` line, close the connection, or return
 an HTTP status. The scenario can also set the model list returned by the tags
 call. Keep it a plain data file, one per test. Exact error lines Ollama sends
-mid-stream are not yet known; record the real shape in API.md section 6 after the
-real-Ollama check (M2).
+mid-stream are still not captured from a real failure. The normal stream shape
+has been verified by `doctor --chat`.
+
+## 4a. Real-machine results so far
+
+| Check | Result |
+|---|---|
+| `pingpong doctor --chat` | Passes for both machines (real Ollama stream verified, D-052 closed) |
+| Router memory | About 24 MB resident after 24 jobs |
+| Jobs | 24 jobs: 23 done, 1 cancelled, 0 failures |
+| Mane speed | 21.3 tokens/s generation, 488 tokens/s prompt reading (warm) |
+| Firmino speed | 11.9 tokens/s generation on the 30B mixture-of-experts model, 35 tokens/s prompt reading |
+| Page reachable only on the tailnet | `tailscale serve status` says tailnet only, and the owner confirmed from a device off the tailnet that it does not load (D-080) |
+| ACL blocking Firmino's port 11434 | **Not yet applied.** Ready to apply: [NETWORK-AND-SECURITY.md](NETWORK-AND-SECURITY.md) section 4 (D-081) |
+| Soak test with the Stress tab | **Not yet done.** Runbook: [OPERATIONS.md](OPERATIONS.md) section 11 |
+| Reboot and power-cut checks (steps 12 and 16) | **Not yet done.** Runbook: [OPERATIONS.md](OPERATIONS.md) section 12 |
+| `gpt-oss:20b` blind comparison | **Not yet done.** Runbook: [OPERATIONS.md](OPERATIONS.md) section 13 |
+
+Speed figures are single runs. See [HARDWARE-AND-MODELS.md](HARDWARE-AND-MODELS.md)
+section 8 and [OPERATIONS.md](OPERATIONS.md) section 9 to repeat them.
 
 ## 5. What not to test here
 
-- Model quality. Choosing models is separate.
+- Model quality in automated tests. Compare models by hand with `deploy/bench/quality.py` (it is a tool, not a test).
 - RAG. Out of scope.
 - Public exposure. It must not exist, so the check is that it does not.

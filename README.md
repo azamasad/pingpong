@@ -6,17 +6,18 @@ local LLM requests run across a few always-on machines on a home network.
 You send a request to Mane. Mane either handles it itself (fast, small models)
 or hands it to **Firmino** (slower, larger models, long-running work).
 
-> Status: **V1 to V5 built, tested against a fake Ollama and merged.** V6 and
-> V7 are specified, not built. Not yet run on the real machines. Docs in
-> `docs/`. Router binary `cmd/pingpong`.
-> Go-live on your machines: [docs/PRODUCTION.md](docs/PRODUCTION.md).
+> Status: **V1 to V7 built, merged and running on the real machines** (Mane and
+> Firmino), plus a Stress tab and speed logging for tuning. Docs in `docs/`.
+> Router binary `cmd/pingpong`. The live setup and what is still open:
+> [docs/PRODUCTION.md](docs/PRODUCTION.md) and the "Now" table in
+> [docs/ROADMAP.md](docs/ROADMAP.md).
 
 ## The machines
 
 | Name | Hardware | Role |
 |---|---|---|
 | **Mane** | Mac mini M4, 16 GB unified memory, 256 GB SSD | The brain (router and tiny web page). Fast worker, models up to 8B (`llama3.1:8b`, `llama3.2:3b`) |
-| **Firmino** | Lenovo ThinkBook 15 G3 (Ryzen 3 5300U, 40 GB RAM, 512 GB NVMe), Ubuntu 24.04 | Heavy worker. Starts with a 14B model (`qwen2.5:14b`). Long-running work |
+| **Firmino** | Lenovo ThinkBook 15 G3 (Ryzen 3 5300U, 8 GB soldered + 32 GB module = 40 GB RAM, 512 GB NVMe), Ubuntu 24.04 | Heavy worker. Runs a 30B mixture-of-experts model (`qwen3:30b-a3b-instruct-2507-q4_K_M`, about 12 tokens/s). Long-running work |
 | **MacBook Air** | Client | Where you send requests from |
 
 More machines can be added later. They are always controlled through Mane.
@@ -24,7 +25,7 @@ More machines can be added later. They are always controlled through Mane.
 ## How it works, in one minute
 
 1. Your MacBook Air reaches **Mane** over Tailscale.
-2. Mane talks to **Firmino** over the home LAN. Nothing goes over the internet.
+2. Mane talks to **Firmino** over Tailscale (the two are on different subnets). Nothing goes over the public internet.
 3. By default (**auto**), a request goes to Firmino.
 4. Add the **fast** flag and it goes to Mane instead.
 5. **Pin** a model or machine and it goes exactly there, with no switching.
@@ -43,8 +44,9 @@ More machines can be added later. They are always controlled through Mane.
 | V3 | A simple queue for batch work |
 | V4 | More machines, by role |
 | V5 | Named profiles: fast, balanced, deep |
-| V6 (planned) | `doctor`, graceful shutdown, backup, status view. [Spec](docs/V6-OPERABILITY.md) |
-| V7 (planned) | Model aliases. [Spec](docs/V7-ALIASES.md) |
+| V6 | `doctor`, graceful shutdown, backup, status view. [Spec](docs/V6-OPERABILITY.md) |
+| V7 | Model aliases. [Spec](docs/V7-ALIASES.md) |
+| Test tooling | Stress tab (soak both machines), speed shown on the page and in the log, `deploy/bench/` scripts. See [docs/OPERATIONS.md](docs/OPERATIONS.md) sections 9 and 10 |
 
 See [docs/ROADMAP.md](docs/ROADMAP.md).
 
@@ -80,25 +82,27 @@ then the PRD, then the rest.
 | 8 | [docs/UI-SPEC.md](docs/UI-SPEC.md) | The tiny built-in web page |
 | 9 | [docs/HARDWARE-AND-MODELS.md](docs/HARDWARE-AND-MODELS.md) | The machines, memory budgets, starting models |
 | 10 | [docs/NETWORK-AND-SECURITY.md](docs/NETWORK-AND-SECURITY.md) | Access paths, firewall, privacy |
-| 11 | [docs/SETUP-GUIDE.md](docs/SETUP-GUIDE.md) | Step-by-step machine setup (Phase 0) |
-| 12 | [docs/OPERATIONS.md](docs/OPERATIONS.md) | Keeping the machines healthy |
-| | [docs/PRODUCTION.md](docs/PRODUCTION.md) | V1 go-live on Mane and Firmino |
+| 11 | [docs/SETUP-GUIDE.md](docs/SETUP-GUIDE.md) | Step-by-step machine setup (Phase 0), corrected after go-live |
+| 12 | [docs/OPERATIONS.md](docs/OPERATIONS.md) | Keeping the machines healthy, troubleshooting, measuring, reading the log |
+| | [docs/PRODUCTION.md](docs/PRODUCTION.md) | The live setup, how to verify it, and lessons from going live |
 | 13 | [docs/IMPLEMENTATION-PLAN.md](docs/IMPLEMENTATION-PLAN.md) | Build order, milestones, guardrails |
 | 14 | [docs/TESTING.md](docs/TESTING.md) | How to verify each version |
 | 15 | [docs/ROADMAP.md](docs/ROADMAP.md) | Phases, and what is deferred |
-| | [docs/V6-OPERABILITY.md](docs/V6-OPERABILITY.md) | V6 spec (planned) |
-| | [docs/V7-ALIASES.md](docs/V7-ALIASES.md) | V7 spec (planned) |
+| | [docs/V6-OPERABILITY.md](docs/V6-OPERABILITY.md) | V6 spec (built) |
+| | [docs/V7-ALIASES.md](docs/V7-ALIASES.md) | V7 spec (built) |
 | 16 | [docs/DECISIONS.md](docs/DECISIONS.md) | Log of decisions and the reasons behind them |
 | 17 | [docs/GLOSSARY.md](docs/GLOSSARY.md) | Terms used in these documents |
 | | [AGENTS.md](AGENTS.md) | Rules for AI coding assistants working in this repo |
 
 ## Conventions
 
-- **V1 to V7** tag when a feature arrives. Do not build later versions early.
-  V6 and V7 are specified but not built.
+- **V1 to V7** tag when a feature arrives. All are built. Do not build later
+  roadmap items (V8 and beyond) until the owner says so.
 - **Proposed** means a suggestion pending the owner's confirmation. Nothing is
   currently pending.
-- Figures for speed and size are estimates until measured.
+- Speed figures are single-run measurements from the real machines (see
+  [docs/HARDWARE-AND-MODELS.md](docs/HARDWARE-AND-MODELS.md)). Re-measure after
+  changes.
 - This repository is public: no real addresses, keys or login links.
 
 ## Out of scope
