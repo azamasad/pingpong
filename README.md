@@ -46,6 +46,7 @@ More machines can be added later. They are always controlled through Mane.
 | V5 | Named profiles: fast, balanced, deep |
 | V6 | `doctor`, graceful shutdown, backup, status view. [Spec](docs/V6-OPERABILITY.md) |
 | V7 | Model aliases. [Spec](docs/V7-ALIASES.md) |
+| V7.1 to V7.7 (planned, not built) | Threads, batch split across machines, answer checking, templates, export, file input, scheduled jobs. [PRDs](docs/NEXT-FEATURES-PRDS.md) |
 | Test tooling | Stress tab (soak both machines), speed shown on the page and in the log, `deploy/bench/` scripts. See [docs/OPERATIONS.md](docs/OPERATIONS.md) sections 9 and 10 |
 
 See [docs/ROADMAP.md](docs/ROADMAP.md).
@@ -90,6 +91,7 @@ then the PRD, then the rest.
 | 15 | [docs/ROADMAP.md](docs/ROADMAP.md) | Phases, and what is deferred |
 | | [docs/V6-OPERABILITY.md](docs/V6-OPERABILITY.md) | V6 spec (built) |
 | | [docs/V7-ALIASES.md](docs/V7-ALIASES.md) | V7 spec (built) |
+| | [docs/NEXT-FEATURES-PRDS.md](docs/NEXT-FEATURES-PRDS.md) | PRDs for V7.1 to V7.7 (planned, not built) |
 | 16 | [docs/DECISIONS.md](docs/DECISIONS.md) | Log of decisions and the reasons behind them |
 | 17 | [docs/GLOSSARY.md](docs/GLOSSARY.md) | Terms used in these documents |
 | | [AGENTS.md](AGENTS.md) | Rules for AI coding assistants working in this repo |
@@ -97,7 +99,7 @@ then the PRD, then the rest.
 ## Conventions
 
 - **V1 to V7** tag when a feature arrives. All are built. Do not build later
-  roadmap items (V8 and beyond) until the owner says so.
+  roadmap items (V7.1 and beyond) until the owner says so.
 - **Proposed** means a suggestion pending the owner's confirmation. Nothing is
   currently pending.
 - Speed figures are single-run measurements from the real machines (see
@@ -107,10 +109,10 @@ then the PRD, then the rest.
 
 ## Out of scope
 
-- RAG (retrieval over documents). It is being explored separately. If it ever
+- RAG (retrieval over documents). Chunking a file to run as a batch is planned (V7.6) and is not RAG. RAG is being explored separately. If it ever
   needs a local model, it can call Mane like any other client.
 - High availability. Both machines are assumed to be up.
-- Notifications. Deferred (proposed as V10, see the roadmap).
+- Notifications. Deferred (proposed as V7.9, see the roadmap).
 
 ## License
 

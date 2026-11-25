@@ -183,6 +183,12 @@ storage:          # V2
 Also built: `router.shutdown_grace` (V6, default `10s`) and `aliases` (V7). See
 [V6-OPERABILITY.md](V6-OPERABILITY.md) and [V7-ALIASES.md](V7-ALIASES.md).
 
+Planned keys, not built (see [NEXT-FEATURES-PRDS.md](NEXT-FEATURES-PRDS.md)):
+`batches.max_items` (V7.1), `templates.max_bytes` and `templates.max_count`
+(V7.3), `threads.max_turns` (V7.5), `files.max_bytes` and `files.chunk_chars` (V7.6), and
+`schedules.max_count` and `schedules.grace` (V7.7). Schedules themselves are
+created from the page and stored in the database, not in the config file.
+
 ## 6. Rules for changes
 
 - Adding a setting means documenting it here with a default.
