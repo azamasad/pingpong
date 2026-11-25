@@ -206,6 +206,8 @@ See [V6-OPERABILITY.md](V6-OPERABILITY.md) section 10.
 
 ### 2.8 V7 tests (built)
 
+Answer checking (V7.2, M22): default pairing (Mane draft, Firmino review), fixed review prompt contents, `/api/chat` rejects `check`, `CONTEXT_TOO_LARGE` on oversize review jobs, batch items with `check`, restart recovery via `check_pending`, cancel and delete cascade, `checks` on batch view. See `internal/api/check_test.go` and build spec section 3 acceptance.
+
 Aliases: config validation, resolution order after profiles and before routing,
 explicit `machine` wins over the alias's machine, `GET /api/aliases`, and the
 doctor check. Listed in [V7-ALIASES.md](V7-ALIASES.md) section 8.

@@ -102,6 +102,13 @@ func (s *Service) Submit(ctx context.Context, bodyJSON string) (string, error) {
 }
 
 func (s *Service) submit(ctx context.Context, bodyJSON, batchID string) (string, error) {
+	spec, err := parseCheck(bodyJSON)
+	if err != nil {
+		return "", &RouteRejectedError{Code: "BAD_REQUEST"}
+	}
+	if err := validateCheck(spec); err != nil {
+		return "", err
+	}
 	cb, _, err := parseChatBody(bodyJSON)
 	if err != nil {
 		if err.Error() == "BAD_REQUEST" {
@@ -109,14 +116,24 @@ func (s *Service) submit(ctx context.Context, bodyJSON, batchID string) (string,
 		}
 		return "", err
 	}
+	applyStage1DefaultFast(&cb, spec != nil)
 	fast, model, machine, err := s.cfg.ApplyProfile(cb.Profile, cb.Fast, cb.Model, cb.Machine)
 	if err != nil {
 		return "", &RouteRejectedError{Code: "BAD_REQUEST"}
 	}
 	cb.Fast, cb.Model, cb.Machine = fast, model, machine
+	if spec != nil && cb.Fast && !strings.Contains(bodyJSON, `"fast"`) {
+		bodyJSON = ensureFastFlag(bodyJSON)
+	}
 	cb.Model, cb.Machine, _ = s.cfg.ResolveAlias(cb.Model, cb.Machine)
 	routeReq := route.Request{Fast: cb.Fast, Model: cb.Model, Machine: cb.Machine}
 	res := s.resolve(routeReq)
+	if spec != nil {
+		res2 := s.resolveCheckStage2(*spec)
+		if !res2.OK && !retryableCode(res2.Code) {
+			return "", &RouteRejectedError{Code: res2.Code}
+		}
+	}
 	if !res.OK && !retryableCode(res.Code) {
 		return "", &RouteRejectedError{Code: res.Code}
 	}
@@ -138,6 +155,10 @@ func (s *Service) submit(ctx context.Context, bodyJSON, batchID string) (string,
 		Status:      store.StatusWaiting,
 		Lane:        lane,
 		BatchID:     batchID,
+	}
+	if spec != nil {
+		j.Stage = store.StageAnswer
+		j.CheckPending = 1
 	}
 	if batchID != "" {
 		j.Lane = store.LaneBatch
@@ -221,6 +242,10 @@ func (s *Service) execute(id string) {
 		j.UpdatedAt = s.clk.Now().UTC()
 		_ = s.store.UpdateJob(ctx, j)
 		return
+	}
+	checkSpec, _ := parseCheck(j.RequestJSON)
+	if j.Stage == store.StageAnswer {
+		applyStage1DefaultFast(&cb, checkSpec != nil)
 	}
 	fast, model, machine, err := s.cfg.ApplyProfile(cb.Profile, cb.Fast, cb.Model, cb.Machine)
 	if err != nil {
@@ -385,7 +410,7 @@ func (s *Service) execute(id string) {
 				j.OutputThinking = think.String()
 				j.UpdatedAt = s.clk.Now().UTC()
 				_ = s.store.UpdateJob(ctx, j)
-				logJob(j, "done", "", nil)
+				s.afterJobDone(ctx, j, nil)
 				s.emit(ctx, id, "done", map[string]any{"machine": res.Machine, "model": res.Model, "mode": res.Mode})
 			}
 			return
@@ -424,11 +449,29 @@ func (s *Service) execute(id string) {
 			if len(stats) > 0 {
 				doneEv["stats"] = stats
 			}
-			logJob(j, "done", "", stats)
+			s.afterJobDone(ctx, j, stats)
 			s.emit(ctx, id, "done", doneEv)
 			return
 		}
 	}
+}
+
+func (s *Service) afterJobDone(ctx context.Context, j *store.Job, stats map[string]any) {
+	if stats != nil {
+		pt, ot := 0, 0
+		if v, ok := stats["prompt_tokens"].(int); ok {
+			pt = v
+		}
+		if v, ok := stats["output_tokens"].(int); ok {
+			ot = v
+		}
+		if pt > 0 || ot > 0 {
+			j.PromptTokens, j.OutputTokens = pt, ot
+			_ = s.store.SaveTokenStats(ctx, j.ID, pt, ot)
+		}
+	}
+	logJob(j, "done", "", stats)
+	s.onAnswerFinished(ctx, j, stats)
 }
 
 func connectErr(err error) bool {
@@ -453,6 +496,7 @@ func (s *Service) markRetry(j *store.Job, code, msg string, now time.Time) {
 		j.ErrorMessage = msg
 		j.UpdatedAt = now
 		_ = s.store.UpdateJob(ctx, j)
+		s.clearCheckOnTerminal(ctx, j)
 		logJob(j, "failed", code, nil)
 		s.emit(ctx, j.ID, "error", map[string]any{"code": code, "message": msg, "retryable": false})
 		return
@@ -493,11 +537,40 @@ func (s *Service) Cancel(ctx context.Context, id string) error {
 	if c, ok := s.cancels[id]; ok {
 		c()
 	}
+	if j.ParentID != "" {
+		if c, ok := s.cancels[j.ParentID]; ok {
+			c()
+		}
+	}
+	children, _ := s.store.ChildrenOf(ctx, id)
+	for _, c := range children {
+		if cc, ok := s.cancels[c.ID]; ok {
+			cc()
+		}
+	}
 	s.mu.Unlock()
 	if j.Status != store.StatusCancelled {
 		j.Status = store.StatusCancelled
 		j.UpdatedAt = s.clk.Now().UTC()
-		return s.store.UpdateJob(ctx, j)
+		_ = s.store.UpdateJob(ctx, j)
+		s.clearCheckOnTerminal(ctx, j)
+	}
+	if j.ParentID != "" {
+		pj, err := s.store.GetJob(ctx, j.ParentID)
+		if err == nil && pj.Status != store.StatusCancelled && pj.Status != store.StatusDone && pj.Status != store.StatusFailed {
+			pj.Status = store.StatusCancelled
+			pj.UpdatedAt = s.clk.Now().UTC()
+			_ = s.store.UpdateJob(ctx, pj)
+			s.clearCheckOnTerminal(ctx, pj)
+		}
+	}
+	for _, c := range children {
+		if c.Status == store.StatusCancelled || c.Status == store.StatusDone || c.Status == store.StatusFailed {
+			continue
+		}
+		c.Status = store.StatusCancelled
+		c.UpdatedAt = s.clk.Now().UTC()
+		_ = s.store.UpdateJob(ctx, c)
 	}
 	return nil
 }
@@ -513,6 +586,7 @@ func (s *Service) finishStopped(j *store.Job) {
 	j.UpdatedAt = s.clk.Now().UTC()
 	ctx := context.Background()
 	_ = s.store.UpdateJob(ctx, j)
+	s.clearCheckOnTerminal(ctx, j)
 	logJob(j, "cancelled", "", nil)
 	s.emit(ctx, j.ID, "status", map[string]any{"state": "cancelled"})
 }
@@ -529,6 +603,7 @@ func (s *Service) BeginShutdown() {
 
 func (s *Service) Start(ctx context.Context) {
 	go s.retentionLoop(ctx)
+	s.recoverPendingChecks(ctx)
 	jobs, _ := s.store.ActiveJobs(ctx)
 	for _, j := range jobs {
 		if j.Status == store.StatusRunning {

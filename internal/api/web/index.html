@@ -24,6 +24,15 @@
       <label id="lane-wrap" class="hidden"><input type="checkbox" id="batch-lane"> Batch lane</label>
       <label>Model <select id="model"><option value="">—</option></select></label>
       <label>Machine <select id="machine"><option value="">—</option></select></label>
+      <label id="check-wrap" class="hidden">Check with
+        <select id="check-mode">
+          <option value="">Off</option>
+          <option value="review">Review</option>
+          <option value="revise">Revise</option>
+        </select>
+      </label>
+      <label id="check-machine-wrap" class="hidden">Reviewer machine <select id="check-machine"><option value="">Firmino (heavy)</option></select></label>
+      <label id="check-model-wrap" class="hidden">Reviewer model <select id="check-model"><option value="">Default</option></select></label>
     </div>
   <textarea id="prompt" rows="5" placeholder="Message…"></textarea>
   <div class="actions">
@@ -59,6 +68,17 @@
         <button type="button" id="job-reattach">Watch / reattach</button>
         <button type="button" id="job-cancel">Cancel</button>
         <button type="button" id="job-delete">Delete</button>
+      </div>
+      <p id="check-note" class="warn hidden"></p>
+      <div id="job-draft" class="job-stage hidden">
+        <h3>Draft</h3>
+        <p id="job-draft-meta" class="job-meta"></p>
+        <pre id="job-draft-out"></pre>
+      </div>
+      <div id="job-review" class="job-stage hidden">
+        <h3>Review</h3>
+        <p id="job-review-meta" class="job-meta"></p>
+        <pre id="job-review-out"></pre>
       </div>
       <pre id="job-out"></pre>
       <ul id="job-history" class="job-history"></ul>
@@ -118,6 +138,13 @@
       <label>Model <select class="batch-model" data-machine="firmino"><option value="">—</option></select></label>
       <label>Weight <input type="number" class="batch-weight" data-machine="firmino" min="1" max="100" value="1"></label>
     </div>
+    <label>Check with
+      <select id="batch-check-mode">
+        <option value="">Off</option>
+        <option value="review">Review</option>
+        <option value="revise">Revise</option>
+      </select>
+    </label>
     <div class="actions">
       <button type="button" id="batch-submit">Submit batch</button>
       <span id="batch-submit-state"></span>
