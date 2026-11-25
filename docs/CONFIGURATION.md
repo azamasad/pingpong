@@ -198,10 +198,10 @@ and threads are stored in the database, never in the config file.
 | `files.chunk_chars` | V7.6 | `6000` | Default chunk size in characters (a request may use 500 to 20000) |
 | `schedules.max_count` | V7.7 | `50` | Most schedules |
 | `schedules.grace` | V7.7 | `1h` | How late a missed run may still run once (`missed: run_once`) |
-| `openai.enabled` | V7.8 draft | `false` | Turns on `/v1/models` and `/v1/chat/completions` |
-| `notify.webhook_url` | V7.9 draft | empty (off) | One outbound URL. Real value only in the real config file, never committed or logged |
-| `notify.events` | V7.9 draft | `[batch_done, schedule_failed, job_failed]` | Which events send a message |
-| `notify.timeout` | V7.9 draft | `10s` | Per message |
+| `openai.enabled` | V7.8 | `false` | Turns on `/v1/models` and `/v1/chat/completions` |
+| `notify.webhook_url` | V7.9 | empty (off) | One outbound URL. Real value only in the real config file, never committed or logged |
+| `notify.events` | V7.9 | `[batch_done, schedule_failed, job_failed]` | Which events send a message |
+| `notify.timeout` | V7.9 | `10s` | Per message |
 
 Validation to add with each key: integers above 0, `files.chunk_chars` within
 500 to 20000, `schedules.grace` a positive duration, `notify.webhook_url` an

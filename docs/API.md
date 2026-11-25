@@ -17,7 +17,7 @@ Related: [ROUTING.md](ROUTING.md), [JOBS-AND-RETRIES.md](JOBS-AND-RETRIES.md),
 - Streaming by default for generation.
 - The router is stateless about conversations in V1: the client sends the
   full message history every time.
-- Not an OpenAI-compatible API. That is deferred (drafted as V7.8, see PRD section 10).
+- Not an OpenAI-compatible API. That is deferred (planned as V7.8, see PRD section 10).
 
 Base URL: `https://<mane-tailnet-name>`, served by Tailscale Serve, which
 forwards to the router on localhost (see [SETUP-GUIDE.md](SETUP-GUIDE.md)
@@ -339,6 +339,7 @@ file as each version is built. All need `storage.data_dir` unless noted.
 | Method and path | Version | Purpose |
 |---|---|---|
 | `POST /api/batches` with `split` | V7.1 | Split a batch over explicit machine and model targets. Also lifts the 100-item cap (`batches.max_items`) |
+| `POST /api/batches/{id}/cancel` | V7.1 | Cancel every active job of a batch and its stage children. Returns `{"cancelled":N}` |
 | `GET /api/batches` | V7.1 | Recent batches (id, kind, created, counts) for the Batches tab |
 | `GET /api/batches/{id}?limit&offset` | V7.1 | Adds `total`, `counts`, `kind`, per-target `split` progress, paging. Old fields unchanged |
 | `check` on `POST /api/jobs` and batch items | V7.2 | Review or revise by a second model. Job detail gains `stage`, `parent_id`, `children`, `check` |
@@ -348,7 +349,7 @@ file as each version is built. All need `storage.data_dir` unless noted.
 | `POST/GET /api/threads`, `GET/PATCH/DELETE /api/threads/{id}`, `POST /api/threads/{id}/messages` | V7.5 | Saved conversations |
 | `POST /api/batches/from-file` | V7.6 | Upload a text file, chunk it, run as a batch, optional reduce |
 | `GET/POST /api/schedules`, `GET/PATCH/DELETE /api/schedules/{id}`, `POST /api/schedules/{id}/run`, `GET /api/schedules/{id}/runs` | V7.7 | Scheduled jobs |
-| `GET /v1/models`, `POST /v1/chat/completions` | V7.8 draft | OpenAI-compatible, opt-in. Needs `openai.enabled`. Works without `storage.data_dir` |
+| `GET /v1/models`, `POST /v1/chat/completions` | V7.8 | OpenAI-compatible, opt-in. Needs `openai.enabled`. Works without `storage.data_dir` |
 
 New error codes: `CONTEXT_TOO_LARGE` (a job error, no HTTP status),
 `THREAD_TOO_LONG` (409), `THREAD_BUSY` (409), `TEMPLATE_VARS_MISSING` (400),

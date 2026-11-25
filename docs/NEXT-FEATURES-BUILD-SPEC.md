@@ -4,7 +4,7 @@ Status: **specified, not built.** Written so a coding agent can build each
 version without guessing. Product intent and stories are in
 [NEXT-FEATURES-PRDS.md](NEXT-FEATURES-PRDS.md). This file is the single source
 for payloads, storage, config, errors, limits, UI and acceptance of the planned
-versions (D-106 to D-115). Where this file and the PRDs file differ, this file
+versions (D-106 to D-117). Where this file and the PRDs file differ, this file
 wins, because it is the later and more precise one. Constitution first, always.
 
 When a version is built, move its contract into [API.md](API.md),
@@ -22,11 +22,11 @@ mark it built here, and keep the acceptance list as the test list.
 | 5 | V7.5 threads | none | `thread_id` and `turn` on jobs, retention exemption, Threads tab |
 | 6 | V7.6 file input | V7.1, V7.2 (stage hook), V7.3 (substitution) | Upload endpoint |
 | 7 | V7.7 schedules | V7.1, V7.3 | Scheduler timer, Schedules tab |
-| 8 | V7.8 OpenAI endpoint (draft) | none | needs owner answer Q1 |
-| 9 | V7.9 notifications (draft) | V7.1, V7.7 | needs owner answers Q2, Q3 |
+| 8 | V7.8 OpenAI endpoint | none | Opt-in `/v1` |
+| 9 | V7.9 notifications | V7.1, V7.7 | One webhook |
 
 Build in this order, one at a time, one pull request per version. Do not start
-V7.8 or V7.9 before the owner answers the questions in section 12.
+V7.8 or V7.9 before V7.7 is merged.
 
 Every version ends with this checklist (the "common done" list). Each section
 below adds its own acceptance items on top.
@@ -171,6 +171,8 @@ A script-free checklist today (TESTING.md section 2.6 says the smoke run is manu
 
 `pending` is waiting plus running plus retrying (as today). Per-target `waiting` includes `retrying`. `split` is null for a batch without a plan. `jobs` are in submission order. `next_offset` is the next offset or null. Old fields (`id`, `pending`, `jobs`) keep their meaning.
 
+**Cancel.** `POST /api/batches/{id}/cancel` cancels every `waiting`, `running` and `retrying` job of the batch (a running one is cancelled upstream, as for a single job), including stage children (V7.2 checks, V7.6 reduce). It also clears `check_pending` and any pending reduce, so no later stage is created. Answers `200 {"cancelled":N}` where N is the number of jobs cancelled. Finished jobs are untouched, so repeating it returns `{"cancelled":0}`. Unknown batch id (no jobs and no row) is `NOT_FOUND`. Works for batches made before V7.1 (by `batch_id`). Needs `storage.data_dir`. Host and Origin checks apply (it is a `POST`). The Batches tab shows a **Cancel batch** button with a confirm. CLI: `pingpong batch cancel --id <batch-id>`. The batch view then shows its jobs as `cancelled` and `pending` 0.
+
 **Batch list.** `GET /api/batches?limit=50&before=<created_at>` returns `[{"id","kind","created_at","total","counts":{...}}]`, newest first, from the `batches` table (batches made before V7.1 and Stress runs are not listed). It needs `storage.data_dir`, like the others.
 
 **CLI.** `pingpong batch submit --file items.json --split mane:MODEL,firmino:MODEL [--assign weights --weights 3,2]`. Split on the first `:` only (models contain `:`). `--weights` needs `--assign weights` and one weight per target.
@@ -188,13 +190,14 @@ A script-free checklist today (TESTING.md section 2.6 says the smoke run is manu
 - [ ] A bad item, a repeated machine, a missing model or `weight` with `round_robin` creates nothing.
 - [ ] Item 1001 (or `max_items` + 1) is `BAD_REQUEST`. A batch of 1000 submits within the memory gate.
 - [ ] Interactive jobs still go first on each machine (D-066). `max_concurrent` honoured.
+- [ ] Cancel batch: waiting, running (upstream stopped, assert on the fake) and retrying jobs end `cancelled`, finished jobs are untouched, a second call returns 0, unknown id is `NOT_FOUND`, an old batch without a row works, and with V7.2 and V7.6 no stage is created afterwards (and an existing stage child is cancelled).
 - [ ] Per-target counts in `GET /api/batches/{id}` match the jobs. Paging works. A pre-V7.1 batch (no row) still loads.
 - [ ] Restart with a half-finished split batch resumes without moving items.
 - [ ] The split plan is stored in `batches.plan_json` and survives restart.
 
-**Smoke.** Submit a 6-item split batch, `curl` the batch view, check both fake servers received 3 calls each.
+**Smoke.** Submit a 6-item split batch, `curl` the batch view, check both fake servers received 3 calls each. Submit another and `POST /api/batches/{id}/cancel`.
 
-**Owner on real machines.** Run a 10-item split with the 8B and the 30B and check the Batches tab shows both progressing. Check Mane's RSS with the batch queued.
+**Owner on real machines.** Run a 10-item split with the 8B and the 30B and check the Batches tab shows both progressing, then cancel a queued batch with the button. Check Mane's RSS with the batch queued.
 
 ---
 
@@ -539,9 +542,9 @@ Missing batch `NOT_FOUND`. Bad `format` `BAD_REQUEST`. Needs `storage.data_dir`.
 
 ---
 
-## 9. V7.8: OpenAI-compatible endpoint (draft)
+## 9. V7.8: OpenAI-compatible endpoint
 
-**Draft.** Written from the roadmap line. Build only after the owner answers Q1 (section 12). Opt-in: `openai.enabled` (default `false`). When off the paths return `404 NOT_FOUND`.
+Approved by the owner (D-116). Opt-in: `openai.enabled` (default `false`). When off the paths return `404 NOT_FOUND`.
 
 **Endpoints.**
 
@@ -566,9 +569,9 @@ Missing batch `NOT_FOUND`. Bad `format` `BAD_REQUEST`. Needs `storage.data_dir`.
 
 ---
 
-## 10. V7.9: notifications (draft)
+## 10. V7.9: notifications
 
-**Draft.** Needs the owner's answers Q2 and Q3 (section 12) and the constitution wording, because notifications are a non-goal today. Do not build before.
+Approved by the owner (D-116). The constitution was changed for it (P8 and the non-goal, D-117), so nothing blocks the build.
 
 **Config** (the URL is private and lives only in the real config file, never committed, never logged, never shown in the page):
 
@@ -597,16 +600,16 @@ No prompts, outputs, file text or template text in any message. The schedule nam
 
 ## 11. Not built, on purpose
 
-Batch cancel in one call (pending Q4), `when_free` split (needs a P10 sentence, D-105), PDF (D-098), a login layer, notification providers other than a webhook, search across threads, template versions, calendar schedules and cron syntax, schedules in the config file, export of the whole history.
+`when_free` split (needs a P10 sentence, D-105), PDF (D-098), a login layer, notification providers other than a webhook, search across threads, template versions, calendar schedules and cron syntax, schedules in the config file, export of the whole history.
 
-## 12. Questions for the owner
+## 12. Owner decisions (answered, D-116)
 
-Recommended answers are in bold. The build of V7.1 to V7.7 does not wait for these.
-
-| # | Question | Recommended answer |
+| # | Question | Answer |
 |---|---|---|
-| Q1 | V7.8: build as drafted (opt-in `openai.enabled`, `machine/model` naming, key ignored, connection-tied, no tools)? | **Yes.** Smallest version that lets other tools use it |
-| Q2 | V7.9: build as a single outbound webhook (ntfy style), and may that URL be a public service such as ntfy.sh with a long random topic, since only a short sentence without content is sent? | **Yes, webhook only.** Public ntfy topic is acceptable because no content leaves Mane. Self-hosting a receiver on Mane would cost memory (P4) |
-| Q3 | Constitution wording for V7.9. Replace the non-goal "Notifications (deferred)" with: "Notifications other than one optional short message per finished batch, failed schedule run or failed job, sent to one webhook the owner configures. It never contains prompts or outputs." Also add to P8 (private by default) "Outbound calls are limited to that webhook." | **Approve this wording**, so V7.9 can start |
-| Q4 | Add `POST /api/batches/{id}/cancel` to V7.1 (cancel every active job in a batch)? Without it a mistaken 1000-item batch needs 1000 cancels | **Yes**, a small endpoint that cancels the active jobs and their stage children |
-| Q5 | `batches.max_items` default 1000 (the PRD) against 100 today. Keep 1000 if the memory gate in section 1.8 passes, else 500? | **1000, falling back to 500 by the measurement rule** |
+| Q1 | Build V7.8 as specified (opt-in `openai.enabled`, `machine/model` naming, key ignored, connection-tied, no tools) | Yes |
+| Q2 | Build V7.9 as one outbound webhook, public service such as ntfy.sh with a long random topic acceptable | Yes |
+| Q3 | Constitution wording for notifications (P8 and the non-goal) | Approved and applied to CONSTITUTION.md |
+| Q4 | Add `POST /api/batches/{id}/cancel` to V7.1 | Yes, specified in section 2 |
+| Q5 | `batches.max_items` default 1000, fall back to 500 if the memory gate in 1.8 fails | Yes |
+
+No open questions remain for V7.1 to V7.9.

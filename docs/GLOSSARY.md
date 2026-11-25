@@ -53,4 +53,4 @@
 | **RAG** | Retrieval over documents (search, embeddings, an index). Out of scope here. Chunking a file to run as a batch is allowed and is not RAG |
 | **NDJSON** | Newline-delimited JSON. One JSON object per line. Used for streaming |
 | **V1 to V7** | Release stages. All are built and running. See [ROADMAP.md](ROADMAP.md) |
-| **V7.1 to V7.9** | Planned minor versions, built in order one at a time. V7.8 and V7.9 are drafts. See [NEXT-FEATURES-BUILD-SPEC.md](NEXT-FEATURES-BUILD-SPEC.md) |
+| **V7.1 to V7.9** | Planned minor versions, built in order one at a time. See [NEXT-FEATURES-BUILD-SPEC.md](NEXT-FEATURES-BUILD-SPEC.md) |

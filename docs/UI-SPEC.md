@@ -91,7 +91,7 @@ The Chat tab gains a "Check with" selector (V7.2).
 - Settings pages and themes.
 - Model installation or deletion from the page.
 - Charts and dashboards (the Status and Stress tabs show numbers only).
-- Notifications (deferred, drafted as V7.9).
+- Notifications in the page (V7.9 sends one optional webhook message, nothing is shown in the page).
 - RAG. (Text file chunking arrives with V7.6 in the Batches tab.)
 
 ## 5. Terminal access

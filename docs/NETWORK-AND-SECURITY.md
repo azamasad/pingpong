@@ -258,7 +258,7 @@ public repository.
   after they are downloaded.
 - In V2, saved requests (including prompts) live on Mane's disk for 90 days. Planned V7.x versions also keep templates and schedules until deleted, and threads for 90 days after the last message. An exported file or a backup copy holds prompts and outputs: keep it private.
 - Planned V7.7: schedules are created from a page with no login, so any device on the tailnet can create one (D-102). The Tailscale ACL (D-081) and keeping only your own devices on the tailnet are the control.
-- Planned V7.9 (draft): the only outbound call from Mane to anything but Firmino and Ollama would be one webhook with a short message and no content. The webhook URL is private and lives only in the real config. Needs the owner's approval.
+- Planned V7.9: the only outbound call from Mane to anything but the workers' Ollama is one optional webhook with a short message and no content (constitution P8, D-117). The owner accepts a public notification service such as ntfy.sh with a long random topic. The webhook URL is private and lives only in the real config.
 - **FileVault is off on Mane**, so that it can restart unattended after a power
   failure (FileVault asks for a password at startup). The result is that anyone
   with physical access to the Mac could read its disk, including saved prompts.

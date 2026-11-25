@@ -31,11 +31,11 @@ See also the constitution.
 - High availability and failover.
 - Splitting one model across machines.
 - Multiple users, logins, billing.
-- Notifications (deferred; V7.9 is a draft that needs an owner decision and a constitution change).
+- Notifications, other than the optional V7.9 webhook message with no content.
 - Automatic prompt classification (deferred).
 - Profiles such as "fast / balanced / deep" (shipped in V5, D-068).
 - Model aliases (shipped in V7, D-070).
-- An OpenAI-compatible API (deferred, drafted as V7.8, waits for the owner).
+- An OpenAI-compatible API (planned as V7.8, opt-in).
 - Conversation threads, batch split across machines, answer checking, prompt
   templates, results export, file input and scheduled jobs: planned as
   V7.1 to V7.7, not built. See [NEXT-FEATURES-PRDS.md](NEXT-FEATURES-PRDS.md) and
@@ -211,7 +211,7 @@ Recorded here so they are not forgotten. See [ROADMAP.md](ROADMAP.md).
 |---|---|
 | Full queue (priority lanes, batch submit from the terminal) | Shipped as V3 (D-066). Builds on V2's saved-request store. Keep it simple, with no heavy infrastructure. |
 | Profiles ("fast / balanced / deep") | Shipped as V5 (D-068). |
-| Notifications when a task finishes | Drafted as V7.9 (one optional webhook, no content). Needs the owner and a constitution change |
+| Notifications when a task finishes | Planned as V7.9 (one optional webhook, no content). Constitution amended (D-117) |
 | Automatic classification of tasks | Only if rules prove insufficient. |
 | More machines (for example Mac Studio, DGX Spark) | Via the roles registry (V4). |
 | Several machines with the same role | Shipped as V4 (D-067). |
@@ -223,7 +223,7 @@ Recorded here so they are not forgotten. See [ROADMAP.md](ROADMAP.md).
 | Results export, CSV and Markdown | Planned as V7.4. Not built |
 | File input, text and Markdown (chunked batch, not RAG). PDF later | Planned as V7.6. Not built |
 | Scheduled jobs, set up from the page | Planned as V7.7. Not built |
-| OpenAI-compatible endpoint | Drafted as V7.8 (opt-in, `/v1`). Waits for the owner |
+| OpenAI-compatible endpoint | Planned as V7.8 (opt-in, `/v1`) |
 | High availability | Out of scope while both machines are assumed up. |
 
 ## 11. Success measures

@@ -1,6 +1,6 @@
 # Implementation Plan
 
-Status: v3. V1 to V7 are built and live. V7.1 to V7.9 are specified (section 5c). Written for whoever builds this (including an AI coding
+Status: v3. V1 to V7 are built and live. V7.1 to V7.9 are specified and approved (section 5c). Written for whoever builds this (including an AI coding
 agent). Read the [constitution](../CONSTITUTION.md) and [PRD](PRD.md) first.
 This document says what to build, in what order, and how to know each step is
 done. It does not contain code.
@@ -45,7 +45,7 @@ This is the short version of what V1 must do.
 
 - **Build only what the owner has approved.** V1 to V7 are built. V7.1 to V7.7
   are approved and specified, built one at a time in the order of section 5c.
-  V7.8 and V7.9 are drafts that wait for the owner's answers. Anything else in
+  V7.8 and V7.9 are approved too and are built after V7.7. Anything else in
   the roadmap is not to be built early.
 - **Smallest thing that works.** No frameworks, brokers or abstractions that
   the docs do not call for.
@@ -183,8 +183,9 @@ numbered milestones.
 
 ## 5c. Ready for build: V7.1 to V7.9
 
-Verdict of the readiness review (D-106): **V7.1 to V7.7 are ready to build.
-V7.8 and V7.9 are drafts that wait for the owner's answers** (build spec section 12).
+Verdict of the readiness review (D-106): **V7.1 to V7.9 are ready to build.
+The owner answered every open question (D-116) and the constitution was amended
+for notifications (D-117). Nothing waits on the owner.**
 The contract for all of them is [NEXT-FEATURES-BUILD-SPEC.md](NEXT-FEATURES-BUILD-SPEC.md).
 Intent and scope: [NEXT-FEATURES-PRDS.md](NEXT-FEATURES-PRDS.md). Tests: [TESTING.md](TESTING.md) section 2.10.
 
@@ -204,8 +205,8 @@ Intent and scope: [NEXT-FEATURES-PRDS.md](NEXT-FEATURES-PRDS.md). Tests: [TESTIN
 | M25 | V7.5 threads | none | Section 6 |
 | M26 | V7.6 file input and reduce | M21, M22, M23 | Section 7 |
 | M27 | V7.7 schedules | M21, M23 | Section 8 |
-| M28 | V7.8 OpenAI endpoint (draft) | owner answer Q1 | Section 9 |
-| M29 | V7.9 notifications (draft) | M21, M27, owner answers Q2 and Q3 | Section 10 |
+| M28 | V7.8 OpenAI endpoint | M27 merged | Section 9 |
+| M29 | V7.9 notifications | M21, M27 | Section 10 |
 
 **Per-milestone done (the common list, build spec section 0).** Lint, tests and
 build pass. Smoke run of the real binary against two stand-in Ollama servers.
@@ -220,7 +221,7 @@ used exactly, a down machine means wait and retry on it (3 hours, every 2
 minutes), never reroute. Routing is rule-based and never reads content, and
 the router never parses a model's answer to decide anything. No new service,
 broker, framework or dependency without a written reason (P1, P2), and none is
-expected for V7.1 to V7.7. Budget 50 MB (P4). No real addresses, keys or
+expected for V7.1 to V7.9. Budget 50 MB (P4). No real addresses, keys or
 webhook URLs in the repository (P17). Machine setup and real-hardware checks
 stay with the owner.
 
@@ -242,7 +243,7 @@ Record each in [DECISIONS.md](DECISIONS.md).
 
 - Do not add RAG, embeddings, vector search or document retrieval. Chunking a text file to run as a batch (V7.6) is allowed: the constitution non-goal was reworded for it (D-101).
 - Do not add logins, users, or accounts.
-- Do not add notifications (V7.9 is a draft that waits for the owner and a constitution change), an OpenAI endpoint (V7.8 draft, waits for the owner), or automatic task classification. (The queue and profiles are built, V3 and V5.)
+- Do not add notifications beyond the V7.9 webhook (one optional message, no content), an OpenAI endpoint beyond V7.8, or automatic task classification. (The queue and profiles are built, V3 and V5.)
 - Do not put any UI or router on Firmino.
 - Do not route by reading prompts.
 - Do not substitute for pinned requests.
