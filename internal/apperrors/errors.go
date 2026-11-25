@@ -17,6 +17,8 @@ var status = map[string]int{
 	"ORIGIN_NOT_ALLOWED":  403,
 	"NOT_FOUND":           404,
 	"BODY_TOO_LARGE":      413,
+	"FILE_TOO_LARGE":      413,
+	"FILE_TYPE_UNSUPPORTED": 415,
 	"MACHINE_UNKNOWN":     404,
 	"MODEL_NOT_INSTALLED": 404,
 	"MODEL_AMBIGUOUS":     409,

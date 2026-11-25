@@ -472,6 +472,7 @@ func (s *Service) afterJobDone(ctx context.Context, j *store.Job, stats map[stri
 	}
 	logJob(j, "done", "", stats)
 	s.onAnswerFinished(ctx, j, stats)
+	s.onBatchItemTerminal(ctx, j)
 }
 
 func connectErr(err error) bool {
@@ -498,6 +499,7 @@ func (s *Service) markRetry(j *store.Job, code, msg string, now time.Time) {
 		_ = s.store.UpdateJob(ctx, j)
 		s.clearCheckOnTerminal(ctx, j)
 		logJob(j, "failed", code, nil)
+		s.onBatchItemTerminal(ctx, j)
 		s.emit(ctx, j.ID, "error", map[string]any{"code": code, "message": msg, "retryable": false})
 		return
 	}
@@ -588,6 +590,7 @@ func (s *Service) finishStopped(j *store.Job) {
 	_ = s.store.UpdateJob(ctx, j)
 	s.clearCheckOnTerminal(ctx, j)
 	logJob(j, "cancelled", "", nil)
+	s.onBatchItemTerminal(ctx, j)
 	s.emit(ctx, j.ID, "status", map[string]any{"state": "cancelled"})
 }
 
@@ -604,6 +607,7 @@ func (s *Service) BeginShutdown() {
 func (s *Service) Start(ctx context.Context) {
 	go s.retentionLoop(ctx)
 	s.recoverPendingChecks(ctx)
+	s.recoverPendingReduces(ctx)
 	jobs, _ := s.store.ActiveJobs(ctx)
 	for _, j := range jobs {
 		if j.Status == store.StatusRunning {

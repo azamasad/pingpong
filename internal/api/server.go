@@ -72,6 +72,7 @@ func (s *Server) routes() {
 	s.Mux.HandleFunc("DELETE /api/jobs/{id}", s.handleJobDelete)
 	s.Mux.HandleFunc("GET /api/batches", s.handleBatchList)
 	s.Mux.HandleFunc("POST /api/batches", s.handleBatchCreate)
+	s.Mux.HandleFunc("POST /api/batches/from-file", s.handleBatchFromFile)
 	s.Mux.HandleFunc("GET /api/batches/{id}/export", s.handleBatchExport)
 	s.Mux.HandleFunc("GET /api/batches/{id}", s.handleBatchGet)
 	s.Mux.HandleFunc("POST /api/batches/{id}/cancel", s.handleBatchCancel)

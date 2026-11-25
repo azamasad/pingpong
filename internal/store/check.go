@@ -7,6 +7,7 @@ import (
 
 const (
 	StageAnswer = "answer"
+	StageReduce = "reduce"
 )
 
 func (s *Store) ClearCheckPending(ctx context.Context, id string) error {

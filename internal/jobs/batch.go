@@ -254,5 +254,6 @@ func (s *Service) CancelBatch(ctx context.Context, batchID string) (int, error) 
 			n++
 		}
 	}
+	_ = s.store.ClearBatchPendingReduce(ctx, batchID)
 	return n, nil
 }

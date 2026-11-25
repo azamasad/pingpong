@@ -77,6 +77,11 @@ health:
 # batches:
 #   max_items: 500
 
+# V7.6 file upload (optional). Defaults: max_bytes 2097152, chunk_chars 6000.
+# files:
+#   max_bytes: 2097152
+#   chunk_chars: 6000
+
 # V7.3 prompt templates (optional). Defaults: max_bytes 16384, max_count 200.
 
 # V7.5 conversation threads (optional). Default max_turns is 200.

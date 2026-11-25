@@ -119,8 +119,30 @@
     <h2>Recent batches</h2>
     <ul id="batches-list"></ul>
     <h2>New batch</h2>
+    <div class="actions">
+      <label><input type="radio" name="batch-mode" id="batch-mode-lines" value="lines" checked> Line prompts</label>
+      <label><input type="radio" name="batch-mode" id="batch-mode-file" value="file"> From file</label>
+    </div>
+    <div id="batch-lines-mode">
     <p class="hint">One prompt per line (batch lane). Pick split only when each machine should take a share.</p>
     <textarea id="batch-prompts" rows="6" placeholder="Line one&#10;Line two"></textarea>
+    </div>
+    <div id="batch-file-mode" class="hidden">
+      <p class="hint">Text or Markdown only. Instruction must include <code>{{chunk}}</code>.</p>
+      <label>File <input type="file" id="batch-file" accept=".txt,.md,.markdown,text/plain"></label>
+      <label>Instruction <textarea id="batch-file-instruction" rows="3" placeholder="Summarise each part: {{chunk}}"></textarea></label>
+      <label>Chunk size (chars) <input type="number" id="batch-chunk-chars" min="500" max="20000" value="6000"></label>
+      <fieldset>
+        <legend>Reduce (optional)</legend>
+        <label>Instruction <textarea id="batch-reduce-instruction" rows="2" placeholder="Combine: {{results}}"></textarea></label>
+        <label>Machine <select id="batch-reduce-machine"><option value="">—</option></select></label>
+        <label>Model <select id="batch-reduce-model"><option value="">—</option></select></label>
+      </fieldset>
+      <div class="actions">
+        <button type="button" id="batch-file-preview">Preview chunks</button>
+        <span id="batch-file-preview-state"></span>
+      </div>
+    </div>
     <div class="controls">
       <label>Assign
         <select id="batch-assign">
@@ -149,6 +171,7 @@
     </label>
     <div class="actions">
       <button type="button" id="batch-submit">Submit batch</button>
+      <button type="button" id="batch-file-start" class="hidden">Start from file</button>
       <span id="batch-submit-state"></span>
     </div>
     <div id="batch-detail" class="batch-detail hidden">

@@ -207,6 +207,23 @@ func (s *Server) handleBatchGet(w http.ResponseWriter, r *http.Request) {
 		"total": total, "pending": pending,
 		"counts": counts, "checks": checks, "jobs": jobsOut,
 	}
+	if batchErr == nil && batch != nil {
+		if batch.ReduceJSON != "" {
+			reduce := map[string]any{"job_id": nil, "status": "pending"}
+			if batch.ReduceJobID != "" {
+				if rj, err := st.GetJob(r.Context(), batch.ReduceJobID); err == nil {
+					reduce["job_id"] = rj.ID
+					reduce["status"] = string(rj.Status)
+				}
+			} else if rj, err := st.ReduceJobByBatch(r.Context(), id); err == nil {
+				reduce["job_id"] = rj.ID
+				reduce["status"] = string(rj.Status)
+			} else if terminal, _, anyDone, _ := st.BatchChunkJobsTerminal(r.Context(), id); terminal && !anyDone {
+				reduce["status"] = "skipped"
+			}
+			resp["reduce"] = reduce
+		}
+	}
 	var plan jobs.SplitPlan
 	if batchErr == nil && batch != nil && batch.PlanJSON != "" {
 		_ = json.Unmarshal([]byte(batch.PlanJSON), &plan)

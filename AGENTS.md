@@ -40,7 +40,8 @@ unclear or conflicting, stop and ask the owner, then fix the docs.
 | M23 V7.3 prompt templates | Done (V7 branch) |
 | M24 V7.4 results export | Done (V7 branch) |
 | M25 V7.5 conversation threads | Done (V7 branch) |
-| V7.6 to V7.9 (M26 to M29) | Specified, ready to build. Not started |
+| M26 V7.6 file input and reduce | Done (V7 branch) |
+| V7.7 to V7.9 (M27 to M29) | Specified, ready to build. Not started |
 | Go-live on real machines (M8b, M9b, M10 in effect) | Done. `doctor --chat` passes on both |
 | Stress tab, speed log line, bench scripts | Done |
 | Automated tests | `docs/TESTING.md` §2 in CI, plus a smoke run of the real binary against stand-in Ollama servers |
