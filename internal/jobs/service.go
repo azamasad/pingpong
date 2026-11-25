@@ -101,22 +101,6 @@ func (s *Service) Submit(ctx context.Context, bodyJSON string) (string, error) {
 	return s.submit(ctx, bodyJSON, "")
 }
 
-func (s *Service) SubmitBatch(ctx context.Context, bodies []string) (string, []string, error) {
-	if len(bodies) == 0 {
-		return "", nil, &RouteRejectedError{Code: "BAD_REQUEST"}
-	}
-	batchID := uuid.NewString()
-	ids := make([]string, 0, len(bodies))
-	for _, body := range bodies {
-		id, err := s.submit(ctx, body, batchID)
-		if err != nil {
-			return batchID, ids, err
-		}
-		ids = append(ids, id)
-	}
-	return batchID, ids, nil
-}
-
 func (s *Service) submit(ctx context.Context, bodyJSON, batchID string) (string, error) {
 	cb, _, err := parseChatBody(bodyJSON)
 	if err != nil {

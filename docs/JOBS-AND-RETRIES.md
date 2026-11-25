@@ -180,7 +180,7 @@ Terminal:
 ```bash
 pingpong batch submit --url http://127.0.0.1:8787 --file items.json
 pingpong batch get --url http://127.0.0.1:8787 --id <batch-id>
-# V7.1 (planned): pingpong batch cancel --url http://127.0.0.1:8787 --id <batch-id>
+pingpong batch cancel --url http://127.0.0.1:8787 --id <batch-id>
 ```
 
 `items.json` is `{"items":[{"prompt":"..."}, ...]}`. Fetch with `GET /api/batches/{id}`.

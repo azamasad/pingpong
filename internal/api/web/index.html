@@ -13,6 +13,7 @@
       <button type="button" id="tab-chat" class="active">Chat</button>
       <button type="button" id="tab-status">Status</button>
       <button type="button" id="tab-stress">Stress</button>
+      <button type="button" id="tab-batches" class="hidden">Batches</button>
     </nav>
     <p id="machines" class="machines">Loading machines…</p>
   </header>
@@ -90,6 +91,47 @@
       <span id="stress-state"></span>
     </div>
     <pre id="stress-out">Not started.</pre>
+  </section>
+  <section id="panel-batches" class="hidden">
+    <p>Run many saved jobs at once. Split spreads items across machines with fixed routing at submit time.</p>
+    <h2>Recent batches</h2>
+    <ul id="batches-list"></ul>
+    <h2>New batch</h2>
+    <p class="hint">One prompt per line (batch lane). Pick split only when each machine should take a share.</p>
+    <textarea id="batch-prompts" rows="6" placeholder="Line one&#10;Line two"></textarea>
+    <div class="controls">
+      <label>Assign
+        <select id="batch-assign">
+          <option value="">No split</option>
+          <option value="round_robin">Round robin</option>
+          <option value="weights">Weights</option>
+        </select>
+      </label>
+    </div>
+    <div class="batch-target" data-machine="mane">
+      <strong>Mane</strong>
+      <label>Model <select class="batch-model" data-machine="mane"><option value="">—</option></select></label>
+      <label>Weight <input type="number" class="batch-weight" data-machine="mane" min="1" max="100" value="1"></label>
+    </div>
+    <div class="batch-target" data-machine="firmino">
+      <strong>Firmino</strong>
+      <label>Model <select class="batch-model" data-machine="firmino"><option value="">—</option></select></label>
+      <label>Weight <input type="number" class="batch-weight" data-machine="firmino" min="1" max="100" value="1"></label>
+    </div>
+    <div class="actions">
+      <button type="button" id="batch-submit">Submit batch</button>
+      <span id="batch-submit-state"></span>
+    </div>
+    <div id="batch-detail" class="batch-detail hidden">
+      <h2>Batch <span id="batch-view-id"></span></h2>
+      <p id="batch-view-meta"></p>
+      <div id="batch-overall-bar" class="progress"><div></div></div>
+      <div id="batch-target-bars"></div>
+      <div class="actions">
+        <button type="button" id="batch-cancel">Cancel batch</button>
+      </div>
+      <ul id="batch-jobs-list"></ul>
+    </div>
   </section>
   <script src="app.js"></script>
 </body>

@@ -210,7 +210,11 @@ async function refreshHealth() {
     jobsOn = !!h.jobs;
     $('jobs-panel').classList.toggle('hidden', !jobsOn);
     $('lane-wrap').classList.toggle('hidden', !jobsOn);
-    if (jobsOn) refreshJobs();
+    $('tab-batches').classList.toggle('hidden', !jobsOn);
+    if (jobsOn) {
+      refreshJobs();
+      fillBatchModelSelects();
+    }
   } catch (_) {}
 }
 
@@ -332,8 +336,102 @@ async function refreshStatus() {
   }
 }
 
+let selectedBatchId = null;
+let batchTimer = null;
+
+function fillBatchModelSelects() {
+  fetch('/api/models').then((r) => r.json()).then((models) => {
+    document.querySelectorAll('.batch-model').forEach((sel) => {
+      const prev = sel.value;
+      sel.innerHTML = '<option value="">—</option>';
+      models.forEach((m) => {
+        const o = document.createElement('option');
+        o.value = m.name;
+        o.textContent = m.name;
+        sel.appendChild(o);
+      });
+      if (prev) sel.value = prev;
+    });
+  }).catch(() => {});
+}
+
+async function refreshBatchesList() {
+  if (!jobsOn) return;
+  try {
+    const list = await fetch('/api/batches?limit=30').then((r) => r.json());
+    const ul = $('batches-list');
+    ul.innerHTML = '';
+    list.forEach((b) => {
+      const li = document.createElement('li');
+      const done = (b.counts && b.counts.done) || 0;
+      const failed = (b.counts && b.counts.failed) || 0;
+      li.textContent = `${b.kind} · ${done}/${b.total} done` +
+        (failed ? `, ${failed} failed` : '') +
+        ` · ${new Date(b.created_at).toLocaleString()}`;
+      li.onclick = () => openBatchView(b.id);
+      ul.appendChild(li);
+    });
+  } catch (_) {}
+}
+
+function progressPct(counts) {
+  const total = (counts.done || 0) + (counts.failed || 0) +
+    (counts.cancelled || 0) + (counts.waiting || 0) + (counts.running || 0) + (counts.retrying || 0);
+  if (!total) return 0;
+  return Math.round(((counts.done || 0) / total) * 100);
+}
+
+function renderBatchView(b) {
+  $('batch-detail').classList.remove('hidden');
+  $('batch-view-id').textContent = b.id.slice(0, 8) + '…';
+  $('batch-view-meta').textContent = `${b.kind} · ${b.pending} pending · ${b.total} items`;
+  const overall = $('batch-overall-bar').firstElementChild;
+  overall.style.width = `${progressPct(b.counts || {})}%`;
+  const tb = $('batch-target-bars');
+  tb.innerHTML = '';
+  if (b.split && b.split.targets) {
+    b.split.targets.forEach((t) => {
+      const wrap = document.createElement('div');
+      wrap.className = 'target-bar';
+      const done = t.done || 0;
+      const total = t.total || 0;
+      wrap.textContent = `${t.machine}: ${done}/${total} done`;
+      const bar = document.createElement('div');
+      bar.className = 'progress';
+      const fill = document.createElement('div');
+      const denom = total || 1;
+      fill.style.width = `${Math.round((done / denom) * 100)}%`;
+      bar.appendChild(fill);
+      wrap.appendChild(bar);
+      tb.appendChild(wrap);
+    });
+  }
+  const jl = $('batch-jobs-list');
+  jl.innerHTML = '';
+  (b.jobs || []).forEach((j) => {
+    const li = document.createElement('li');
+    li.textContent = `${j.status} · ${j.machine || '?'} · ${j.prompt_preview || j.id}`;
+    li.onclick = () => {
+      selectedJobId = j.id;
+      showTab('chat');
+      openJob(j.id);
+    };
+    jl.appendChild(li);
+  });
+  const active = (b.pending || 0) > 0;
+  $('batch-cancel').style.display = active ? 'inline-block' : 'none';
+}
+
+async function openBatchView(id) {
+  selectedBatchId = id;
+  try {
+    const b = await fetch(`/api/batches/${id}?limit=200`).then((r) => r.json());
+    renderBatchView(b);
+  } catch (_) {}
+}
+
 function showTab(which) {
-  for (const name of ['chat', 'status', 'stress']) {
+  for (const name of ['chat', 'status', 'stress', 'batches']) {
     $('panel-' + name).classList.toggle('hidden', name !== which);
     $('tab-' + name).classList.toggle('active', name === which);
   }
@@ -350,6 +448,17 @@ function showTab(which) {
     stressTimer = null;
   }
   if (which === 'stress') refreshStress();
+  if (batchTimer) {
+    clearInterval(batchTimer);
+    batchTimer = null;
+  }
+  if (which === 'batches') {
+    refreshBatchesList();
+    batchTimer = setInterval(() => {
+      refreshBatchesList();
+      if (selectedBatchId) openBatchView(selectedBatchId);
+    }, 4000);
+  }
 }
 
 function fmtTps(n) {
@@ -416,6 +525,52 @@ $('stress-stop').onclick = async () => {
   renderStress(await res.json());
 };
 
+$('batch-submit').onclick = async () => {
+  const lines = $('batch-prompts').value.split('\n').map((s) => s.trim()).filter(Boolean);
+  if (!lines.length) {
+    $('batch-submit-state').textContent = 'Add at least one line';
+    return;
+  }
+  const items = lines.map((prompt) => ({ prompt, lane: 'batch' }));
+  const body = { items };
+  const assign = $('batch-assign').value;
+  if (assign) {
+    const targets = [];
+    document.querySelectorAll('.batch-target').forEach((row) => {
+      const machine = row.dataset.machine;
+      const model = row.querySelector('.batch-model').value;
+      const weight = Number(row.querySelector('.batch-weight').value) || 1;
+      if (model) targets.push({ machine, model, weight });
+    });
+    body.split = { assign, targets };
+  }
+  $('batch-submit-state').textContent = 'Submitting…';
+  try {
+    const res = await fetch('/api/batches', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    const j = await res.json();
+    if (!res.ok) throw new Error(j.error?.message || res.statusText);
+    $('batch-submit-state').textContent = `Created ${j.id.slice(0, 8)}…`;
+    $('batch-prompts').value = '';
+    refreshBatchesList();
+    openBatchView(j.id);
+  } catch (e) {
+    $('batch-submit-state').textContent = e.message;
+  }
+};
+
+$('batch-cancel').onclick = async () => {
+  if (!selectedBatchId) return;
+  if (!window.confirm('Cancel every active job in this batch?')) return;
+  await fetch(`/api/batches/${selectedBatchId}/cancel`, { method: 'POST' });
+  openBatchView(selectedBatchId);
+  refreshBatchesList();
+};
+
 $('tab-chat').onclick = () => showTab('chat');
 $('tab-status').onclick = () => showTab('status');
 $('tab-stress').onclick = () => showTab('stress');
+$('tab-batches').onclick = () => showTab('batches');
