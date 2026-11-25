@@ -20,6 +20,10 @@ calendar. Current focus: measure, tune and use it (see "Now").
 
 ## Overview
 
+**Versioning scheme:** a feature is a minor step after the last built version
+(V7.1, V7.2, ...). A new major version (V8) is used only for a large change.
+Built so far: V1 to V7. Everything numbered V7.x below is planned and not built.
+
 | Phase | Name | Outcome |
 |---|---|---|
 | 0 | Foundation | Both machines ready and reachable |
@@ -30,6 +34,15 @@ calendar. Current focus: measure, tune and use it (see "Now").
 | 5 | V5: profiles | Named presets for fast, balanced and deep |
 | 6 | V6: operability | `doctor`, graceful shutdown, backup, status view |
 | 7 | V7: model aliases | Short names for models, defined once |
+| 7.1 | V7.1: split a batch across machines (planned) | Both machines at once, each with its own pinned model, fixed assignment |
+| 7.2 | V7.2: answer checking (planned) | Mane drafts, Firmino reviews or revises, user can override |
+| 7.3 | V7.3: prompt templates (planned) | Saved prompts with blanks |
+| 7.4 | V7.4: results export (planned) | Download batches as CSV or Markdown |
+| 7.5 | V7.5: conversation threads (planned) | Saved conversations with history |
+| 7.6 | V7.6: file input (planned) | Text and Markdown, chunked, run as a batch. Not RAG. PDF later |
+| 7.7 | V7.7: scheduled jobs (planned) | Nightly or weekly runs, set up from the page |
+| 7.8 | V7.8: OpenAI-compatible endpoint (proposed) | Not yet specified |
+| 7.9 | V7.9: notifications (proposed) | Not yet specified |
 | 7+ | Test tooling (not a numbered version) | Stress tab, bench scripts, per-request log line (D-075, D-076) |
 
 ## Who does what
@@ -154,6 +167,33 @@ gather data for tuning. Kept small (D-075, D-076, D-077).
 | Login layer or custom domain | The page has no login and is open to the tailnet. Only if the owner wants it |
 | Restart-on-boot checks | Runbook ready (OPERATIONS section 12) |
 
+## Planned next versions (owner-approved, not built)
+
+PRDs for V7.1 to V7.7 are in [NEXT-FEATURES-PRDS.md](NEXT-FEATURES-PRDS.md).
+Decisions D-086 to D-100 (renumbering in D-095). **Nothing here is built until the owner says so.**
+
+**Owner priority and build order: V7.1 and V7.2 first, then V7.3, V7.4, V7.5, V7.6,
+V7.7, then the two proposed ones (V7.8, V7.9).** The version numbers follow the
+build order. Dependencies: V7.3 (templates) feeds V7.6 and V7.7, V7.2 (checking)
+gives V7.6 its optional final step, V7.4 (export) and V7.1 (split) are
+independent of each other and useful to all.
+
+| Version | Feature | Owner priority | Main risk |
+|---|---|---|---|
+| V7.1 | Split a batch across both machines | High, owner likes it | Fixed assignment only. A down machine delays its own items |
+| V7.2 | Answer checking by a second model | High, owner needs it | Doubles run time, context size of the review prompt |
+| V7.3 | Prompt templates | Medium | Keep it plain text substitution only |
+| V7.4 | Results export (CSV, Markdown) | Medium | Spreadsheet formula injection, streaming |
+| V7.5 | Conversation threads | Medium | Context growth, retention rule |
+| V7.6 | File input (text and Markdown) | Lower | Non-goal wording. PDF is later, needs a measured memory check |
+| V7.7 | Scheduled jobs, set up from the page | Lower | Missed runs, daylight-saving time, anyone on the tailnet can create schedules |
+| V7.8 | OpenAI-compatible endpoint | Proposed | Not specified |
+| V7.9 | Notifications | Proposed | Not specified |
+
+The owner approved four constitution wording changes (D-101). They are applied
+in CONSTITUTION.md and listed in the PRD file under "Constitution changes
+applied".
+
 ## Tech debt and future work
 
 | ID | Item | Why it matters | Possible fix |
@@ -167,17 +207,18 @@ gather data for tuning. Kept small (D-075, D-076, D-077).
 | Item | Notes |
 |---|---|
 | Profiles (fast / balanced / deep) | Shipped as V5 (D-068) |
-| Notifications when tasks finish | Proposed as V10, not yet specified |
+| Notifications when tasks finish | Proposed as V7.9, not yet specified |
 | Automatic task classification | Only if rules prove insufficient |
 | High availability | Out of scope while both machines are assumed up |
 | Task-specific routing refinements | After real usage shows the need |
 | Model aliases | Shipped as V7 (D-070) |
-| Conversation threads on Mane | Group saved requests into conversations. Proposed as V8, not yet specified |
-| OpenAI-compatible endpoint | So other tools can use Pingpong. Proposed as V9, not yet specified |
+| Conversation threads on Mane | Planned as V7.5, PRD written ([NEXT-FEATURES-PRDS.md](NEXT-FEATURES-PRDS.md)) |
+| OpenAI-compatible endpoint | So other tools can use Pingpong. Proposed as V7.8, not yet specified |
+| Batch split, answer checking, templates, export, file input, schedules | Planned as V7.1 to V7.7, PRDs written |
 
 ## Explicitly excluded
 
-- RAG. Done as a separate learning project. If it needs a local model later, it
+- RAG (retrieval, embeddings, search). Chunking a file to process as a batch is V7.6 and is not RAG. Done as a separate learning project. If it needs a local model later, it
   can call Mane as an ordinary client.
 
 ## Open decisions

@@ -330,6 +330,16 @@ optional `alias` field appears on the `route` event and job detail (V7).
 
 Terminal: `pingpong doctor [--chat] [--json]` and `pingpong backup`.
 
+### 4.3a Planned, not built (V7.1 to V7.7)
+
+Do not depend on these. Sketch only, full text in [NEXT-FEATURES-PRDS.md](NEXT-FEATURES-PRDS.md):
+`/api/threads` (V7.5); `split` on `POST /api/batches` (V7.1); `check` on jobs and
+batch items (V7.2); `/api/templates` and `template` and `vars` on jobs and
+batches (V7.3); `GET /api/batches/{id}/export` (V7.4); `POST /api/batches/from-file`
+(V7.6); `/api/schedules` (create, list, edit, delete, run now, runs) (V7.7). New
+error codes planned: `CONTEXT_TOO_LARGE`, `THREAD_TOO_LONG`,
+`TEMPLATE_VARS_MISSING`, `FILE_TOO_LARGE`, `FILE_TYPE_UNSUPPORTED`, `PDF_NO_TEXT`.
+
 ### 4.4 Stress test (test tooling)
 
 Needs `storage.data_dir`, because it submits batch-lane jobs.
