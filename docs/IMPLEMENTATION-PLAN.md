@@ -193,7 +193,7 @@ Record each in [DECISIONS.md](DECISIONS.md).
 
 ## 7. Guardrails (do not do these)
 
-- Do not add RAG, vector search or document features.
+- Do not add RAG, embeddings, vector search or document retrieval. (Chunking a file to run as a batch is planned as V15 and is allowed once the owner approves the build. Awaiting owner wording on the constitution non-goal, see [NEXT-FEATURES-PRDS.md](NEXT-FEATURES-PRDS.md).)
 - Do not add logins, users, or accounts.
 - Do not add notifications or automatic task classification. (The queue and profiles are built, V3 and V5.)
 - Do not put any UI or router on Firmino.

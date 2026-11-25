@@ -30,6 +30,15 @@ calendar. Current focus: measure, tune and use it (see "Now").
 | 5 | V5: profiles | Named presets for fast, balanced and deep |
 | 6 | V6: operability | `doctor`, graceful shutdown, backup, status view |
 | 7 | V7: model aliases | Short names for models, defined once |
+| 8 | V8: conversation threads (planned) | Saved conversations with history. [PRD](NEXT-FEATURES-PRDS.md) |
+| 9 | V9: OpenAI-compatible endpoint (proposed) | Not yet specified |
+| 10 | V10: notifications (proposed) | Not yet specified |
+| 11 | V11: split a batch across machines (planned) | Both machines at once, each with its own pinned model |
+| 12 | V12: answer checking (planned) | A second, deeper model reviews or revises an answer, user-chosen |
+| 13 | V13: prompt templates (planned) | Saved prompts with blanks |
+| 14 | V14: results export (planned) | Download batches as CSV or Markdown |
+| 15 | V15: file and document input (planned) | Text or PDF, chunked, run as a batch. Not RAG |
+| 16 | V16: scheduled jobs (planned) | Nightly or weekly runs |
 | 7+ | Test tooling (not a numbered version) | Stress tab, bench scripts, per-request log line (D-075, D-076) |
 
 ## Who does what
@@ -154,6 +163,30 @@ gather data for tuning. Kept small (D-075, D-076, D-077).
 | Login layer or custom domain | The page has no login and is open to the tailnet. Only if the owner wants it |
 | Restart-on-boot checks | Runbook ready (OPERATIONS section 12) |
 
+## Planned next versions (owner-approved, not built)
+
+PRDs for V8 and V11 to V16 are in [NEXT-FEATURES-PRDS.md](NEXT-FEATURES-PRDS.md).
+Decisions D-086 to D-094. **Nothing here is built until the owner says so.**
+
+**Owner priority and build order: V11 and V12 first, then V13, V14, V8, V15,
+V16.** Version numbers follow that order, except V8 which was already reserved
+for threads. Dependencies: V13 (templates) feeds V15 and V16, V12 (checking)
+gives V15 its optional final step, V14 (export) and V11 (split) are
+independent of each other and useful to all.
+
+| Version | Feature | Owner priority | Main risk |
+|---|---|---|---|
+| V11 | Split a batch across both machines | High, owner likes it | The `when_free` mode needs owner wording on P10 |
+| V12 | Answer checking by a second model | High, owner needs it | Doubles run time, context size of the review prompt |
+| V13 | Prompt templates | Medium | Keep it plain text substitution only |
+| V14 | Results export (CSV, Markdown) | Medium | Spreadsheet formula injection, streaming |
+| V8 | Conversation threads | Medium | Context growth, retention rule |
+| V15 | File and document input | Lower | PDF memory on Mane, non-goal wording |
+| V16 | Scheduled jobs | Lower | Missed runs, daylight-saving time |
+
+Four constitution wording questions are listed in the PRD file under
+"Constitution check". They are for the owner. The constitution is not edited.
+
 ## Tech debt and future work
 
 | ID | Item | Why it matters | Possible fix |
@@ -172,12 +205,13 @@ gather data for tuning. Kept small (D-075, D-076, D-077).
 | High availability | Out of scope while both machines are assumed up |
 | Task-specific routing refinements | After real usage shows the need |
 | Model aliases | Shipped as V7 (D-070) |
-| Conversation threads on Mane | Group saved requests into conversations. Proposed as V8, not yet specified |
+| Conversation threads on Mane | Planned as V8, PRD written ([NEXT-FEATURES-PRDS.md](NEXT-FEATURES-PRDS.md)) |
 | OpenAI-compatible endpoint | So other tools can use Pingpong. Proposed as V9, not yet specified |
+| Batch split, answer checking, templates, export, file input, schedules | Planned as V11 to V16, PRDs written |
 
 ## Explicitly excluded
 
-- RAG. Done as a separate learning project. If it needs a local model later, it
+- RAG (retrieval, embeddings, search). Chunking a file to process as a batch is V15 and is not RAG. Done as a separate learning project. If it needs a local model later, it
   can call Mane as an ordinary client.
 
 ## Open decisions
