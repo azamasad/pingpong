@@ -39,7 +39,7 @@ func TestSplitBatchAssignmentAndAtomic(t *testing.T) {
 		t.Fatal(err)
 	}
 	var created struct {
-		ID   string `json:"id"`
+		ID    string `json:"id"`
 		Split struct {
 			Targets []struct {
 				Machine string `json:"machine"`
