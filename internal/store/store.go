@@ -51,6 +51,8 @@ type Job struct {
 	CheckPending   int
 	PromptTokens   int
 	OutputTokens   int
+	ThreadID       string
+	Turn           int
 }
 
 const (
@@ -60,7 +62,7 @@ const (
 
 const jobCols = `id, created_at, updated_at, status, request_json, machine, model, mode,
 output_text, output_thinking, error_code, error_message, attempt, first_failure_at, next_attempt_at,
-lane, batch_id, parent_id, stage, check_pending, prompt_tokens, output_tokens`
+lane, batch_id, parent_id, stage, check_pending, prompt_tokens, output_tokens, thread_id, turn`
 
 type Event struct {
 	ID        int64
@@ -176,7 +178,26 @@ CREATE TABLE IF NOT EXISTS templates (
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS threads (
+  id TEXT PRIMARY KEY,
+  title TEXT NOT NULL DEFAULT '',
+  machine TEXT NOT NULL,
+  model TEXT NOT NULL,
+  pin_changes_json TEXT NOT NULL DEFAULT '[]',
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
 `)
+	if err != nil {
+		return err
+	}
+	if err := s.addColumn("jobs", "thread_id", `ALTER TABLE jobs ADD COLUMN thread_id TEXT`); err != nil {
+		return err
+	}
+	if err := s.addColumn("jobs", "turn", `ALTER TABLE jobs ADD COLUMN turn INTEGER`); err != nil {
+		return err
+	}
+	_, err = s.db.Exec(`CREATE INDEX IF NOT EXISTS idx_jobs_thread ON jobs(thread_id, turn)`)
 	return err
 }
 
@@ -209,11 +230,11 @@ func (s *Store) InsertJob(ctx context.Context, j *Job) error {
 	}
 	_, err := s.db.ExecContext(ctx, `INSERT INTO jobs (
 id, created_at, updated_at, status, request_json, machine, model, mode, attempt, lane, batch_id,
-parent_id, stage, check_pending, prompt_tokens, output_tokens
-) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+parent_id, stage, check_pending, prompt_tokens, output_tokens, thread_id, turn
+) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
 		j.ID, j.CreatedAt.UTC().Format(time.RFC3339), j.UpdatedAt.UTC().Format(time.RFC3339),
 		j.Status, j.RequestJSON, j.Machine, j.Model, j.Mode, j.Attempt, lane, j.BatchID,
-		j.ParentID, j.Stage, j.CheckPending, j.PromptTokens, j.OutputTokens)
+		j.ParentID, j.Stage, j.CheckPending, j.PromptTokens, j.OutputTokens, j.ThreadID, j.Turn)
 	return err
 }
 
@@ -251,15 +272,21 @@ func scanJob(row *sql.Row) (*Job, error) {
 	var ca, ua, ff, na sql.NullString
 	var out, think, ec, em, lane, batch, parent sql.NullString
 	var stage sql.NullString
+	var threadID sql.NullString
+	var turn sql.NullInt64
 	if err := row.Scan(&j.ID, &ca, &ua, &j.Status, &j.RequestJSON, &j.Machine, &j.Model, &j.Mode,
 		&out, &think, &ec, &em, &j.Attempt, &ff, &na, &lane, &batch,
-		&parent, &stage, &j.CheckPending, &j.PromptTokens, &j.OutputTokens); err != nil {
+		&parent, &stage, &j.CheckPending, &j.PromptTokens, &j.OutputTokens, &threadID, &turn); err != nil {
 		return nil, err
 	}
 	j.OutputText, j.OutputThinking = out.String, think.String
 	j.ErrorCode, j.ErrorMessage = ec.String, em.String
 	j.Lane, j.BatchID = lane.String, batch.String
 	j.ParentID, j.Stage = parent.String, stage.String
+	j.ThreadID = threadID.String
+	if turn.Valid {
+		j.Turn = int(turn.Int64)
+	}
 	if j.Lane == "" {
 		j.Lane = LaneInteractive
 	}
@@ -324,15 +351,21 @@ func scanJobRow(rows *sql.Rows) (*Job, error) {
 	var ca, ua, ff, na sql.NullString
 	var out, think, ec, em, lane, batch, parent sql.NullString
 	var stage sql.NullString
+	var threadID sql.NullString
+	var turn sql.NullInt64
 	if err := rows.Scan(&j.ID, &ca, &ua, &j.Status, &j.RequestJSON, &j.Machine, &j.Model, &j.Mode,
 		&out, &think, &ec, &em, &j.Attempt, &ff, &na, &lane, &batch,
-		&parent, &stage, &j.CheckPending, &j.PromptTokens, &j.OutputTokens); err != nil {
+		&parent, &stage, &j.CheckPending, &j.PromptTokens, &j.OutputTokens, &threadID, &turn); err != nil {
 		return nil, err
 	}
 	j.OutputText, j.OutputThinking = out.String, think.String
 	j.ErrorCode, j.ErrorMessage = ec.String, em.String
 	j.Lane, j.BatchID = lane.String, batch.String
 	j.ParentID, j.Stage = parent.String, stage.String
+	j.ThreadID = threadID.String
+	if turn.Valid {
+		j.Turn = int(turn.Int64)
+	}
 	if j.Lane == "" {
 		j.Lane = LaneInteractive
 	}
@@ -452,6 +485,7 @@ WHERE status IN ('waiting','running','retrying')`)
 func (s *Store) PurgeOlderThan(ctx context.Context, before time.Time) (int64, error) {
 	cut := before.UTC().Format(time.RFC3339)
 	rows, err := s.db.QueryContext(ctx, `SELECT id FROM jobs WHERE (parent_id IS NULL OR parent_id='')
+AND (thread_id IS NULL OR thread_id='')
 AND status IN ('done','failed','cancelled') AND updated_at < ?`, cut)
 	if err != nil {
 		return 0, err
@@ -500,7 +534,8 @@ AND status IN ('done','failed','cancelled') AND updated_at < ?`, cut)
 	}
 	// Sweep standalone jobs (no parent link) and no children pending.
 	res, err := s.db.ExecContext(ctx, `DELETE FROM jobs WHERE status IN ('done','failed','cancelled') AND updated_at < ?
-AND (parent_id IS NULL OR parent_id='') AND id NOT IN (SELECT parent_id FROM jobs WHERE parent_id IS NOT NULL AND parent_id != '')`,
+AND (parent_id IS NULL OR parent_id='') AND (thread_id IS NULL OR thread_id='')
+AND id NOT IN (SELECT parent_id FROM jobs WHERE parent_id IS NOT NULL AND parent_id != '')`,
 		cut)
 	if err != nil {
 		return total, err

@@ -10,6 +10,9 @@ let eventSource = null;
 let templateTimer = null;
 let selectedTemplateName = null;
 let templateUseVars = [];
+let threadTimer = null;
+let selectedThreadId = null;
+let threadEventSource = null;
 
 async function refreshMeta() {
   try {
@@ -253,6 +256,7 @@ async function refreshHealth() {
     $('lane-wrap').classList.toggle('hidden', !jobsOn);
     $('tab-batches').classList.toggle('hidden', !jobsOn);
     $('tab-templates').classList.toggle('hidden', !jobsOn);
+    $('tab-threads').classList.toggle('hidden', !jobsOn);
     $('check-wrap').classList.toggle('hidden', !jobsOn);
     $('check-machine-wrap').classList.toggle('hidden', !jobsOn);
     $('check-model-wrap').classList.toggle('hidden', !jobsOn);
@@ -613,7 +617,7 @@ function templateUseBody(batchMode) {
 }
 
 function showTab(which) {
-  for (const name of ['chat', 'status', 'stress', 'batches', 'templates']) {
+  for (const name of ['chat', 'status', 'stress', 'batches', 'templates', 'threads']) {
     $('panel-' + name).classList.toggle('hidden', name !== which);
     $('tab-' + name).classList.toggle('active', name === which);
   }
@@ -649,7 +653,181 @@ function showTab(which) {
     refreshTemplatesList();
     templateTimer = setInterval(refreshTemplatesList, 8000);
   }
+  if (threadTimer) {
+    clearInterval(threadTimer);
+    threadTimer = null;
+  }
+  if (which === 'threads') {
+    refreshThreadsList();
+    fillThreadPinSelects();
+    threadTimer = setInterval(() => {
+      refreshThreadsList();
+      if (selectedThreadId) openThread(selectedThreadId);
+    }, 4000);
+  }
 }
+
+async function refreshThreadsList() {
+  if (!jobsOn) return;
+  try {
+    const list = await fetch('/api/threads').then((r) => r.json());
+    const ul = $('threads-list');
+    ul.innerHTML = '';
+    (list || []).forEach((t) => {
+      const li = document.createElement('li');
+      li.textContent = `${t.title || '(untitled)'} · ${t.model} · ${t.turns} turns`;
+      if (t.id === selectedThreadId) li.classList.add('selected');
+      li.onclick = () => openThread(t.id);
+      ul.appendChild(li);
+    });
+  } catch (_) {}
+}
+
+function fillThreadPinSelects() {
+  const ms = $('thread-pin-machine');
+  const md = $('thread-pin-model');
+  if (!ms || !md) return;
+  const msel = $('machine');
+  const mdl = $('model');
+  ms.innerHTML = msel.innerHTML;
+  md.innerHTML = mdl.innerHTML;
+}
+
+async function openThread(id) {
+  selectedThreadId = id;
+  $('threads-view').classList.remove('hidden');
+  try {
+    const t = await fetch(`/api/threads/${id}`).then((r) => r.json());
+    $('thread-title').textContent = t.title || 'Thread';
+    $('thread-meta').textContent = `${t.machine}, ${t.model}`;
+    const box = $('thread-turns');
+    box.innerHTML = '';
+    (t.turns || []).forEach((turn) => {
+      const div = document.createElement('div');
+      div.className = 'thread-turn';
+      div.innerHTML = `<strong>Turn ${turn.turn}</strong> (${turn.status}) · ${turn.machine}, ${turn.model}` +
+        `<pre class="user">${esc(turn.prompt)}</pre><pre class="out">${esc(turn.output || '')}</pre>`;
+      box.appendChild(div);
+    });
+    const active = (t.turns || []).find((x) => ['waiting', 'running', 'retrying'].includes(x.status));
+    if (active) watchThreadJob(active.job_id);
+    refreshThreadsList();
+  } catch (_) {}
+}
+
+function esc(s) {
+  return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;');
+}
+
+function watchThreadJob(jobId) {
+  if (threadEventSource) threadEventSource.close();
+  threadEventSource = new EventSource(`/api/jobs/${jobId}/events`);
+  $('thread-state').textContent = 'Running…';
+  threadEventSource.onmessage = (ev) => {
+    try {
+      const data = JSON.parse(ev.data);
+      if (data.type === 'token') {
+        const pres = $('thread-turns').querySelectorAll('.out');
+        const last = pres[pres.length - 1];
+        if (last) last.textContent += data.text || '';
+      }
+      if (data.type === 'done' || data.type === 'status') {
+        if (data.state === 'done' || data.type === 'done') {
+          $('thread-state').textContent = '';
+          if (selectedThreadId) openThread(selectedThreadId);
+        } else if (data.state) {
+          $('thread-state').textContent = data.state;
+        }
+      }
+    } catch (_) {}
+  };
+}
+
+$('thread-new').onclick = async () => {
+  const body = {};
+  if ($('machine').value) body.machine = $('machine').value;
+  if ($('model').value) body.model = $('model').value;
+  if ($('profile').value) body.profile = $('profile').value;
+  if ($('fast').checked) body.fast = true;
+  const res = await fetch('/api/threads', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  const j = await res.json();
+  if (!res.ok) {
+    $('thread-state').textContent = j.error?.message || 'Create failed';
+    return;
+  }
+  await refreshThreadsList();
+  openThread(j.id);
+};
+
+$('thread-send').onclick = async () => {
+  if (!selectedThreadId) return;
+  const content = $('thread-message').value.trim();
+  if (!content) return;
+  const body = { content };
+  if ($('thread-trim').checked) body.trim = 'oldest';
+  $('thread-trim').checked = false;
+  $('thread-state').textContent = 'Sending…';
+  const res = await fetch(`/api/threads/${selectedThreadId}/messages`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  const j = await res.json();
+  if (!res.ok) {
+    $('thread-state').textContent = j.error?.message || 'Send failed';
+    return;
+  }
+  $('thread-message').value = '';
+  if (j.dropped_turns) $('thread-state').textContent = `Dropped ${j.dropped_turns} old turns`;
+  watchThreadJob(j.job_id);
+  openThread(selectedThreadId);
+};
+
+$('thread-rename').onclick = async () => {
+  if (!selectedThreadId) return;
+  const title = prompt('New title');
+  if (!title) return;
+  await fetch(`/api/threads/${selectedThreadId}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ title }),
+  });
+  openThread(selectedThreadId);
+};
+
+$('thread-apply-pin').onclick = async () => {
+  if (!selectedThreadId) return;
+  const machine = $('thread-pin-machine').value;
+  const model = $('thread-pin-model').value;
+  if (!machine || !model) {
+    $('thread-state').textContent = 'Pick machine and model';
+    return;
+  }
+  const res = await fetch(`/api/threads/${selectedThreadId}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ machine, model }),
+  });
+  const j = await res.json();
+  if (!res.ok) {
+    $('thread-state').textContent = j.error?.message || 'Pin failed';
+    return;
+  }
+  openThread(selectedThreadId);
+};
+
+$('thread-delete').onclick = async () => {
+  if (!selectedThreadId) return;
+  if (!confirm('Delete this thread and all its turns?')) return;
+  await fetch(`/api/threads/${selectedThreadId}`, { method: 'DELETE' });
+  selectedThreadId = null;
+  $('threads-view').classList.add('hidden');
+  refreshThreadsList();
+};
 
 function fmtTps(n) {
   return n ? n.toFixed(2) : '—';
@@ -896,3 +1074,4 @@ $('tab-status').onclick = () => showTab('status');
 $('tab-stress').onclick = () => showTab('stress');
 $('tab-batches').onclick = () => showTab('batches');
 $('tab-templates').onclick = () => showTab('templates');
+$('tab-threads').onclick = () => showTab('threads');

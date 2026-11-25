@@ -21,6 +21,8 @@ var status = map[string]int{
 	"MODEL_NOT_INSTALLED": 404,
 	"MODEL_AMBIGUOUS":     409,
 	"CONFLICT":                 409,
+	"THREAD_TOO_LONG":          409,
+	"THREAD_BUSY":              409,
 	"TEMPLATE_VARS_MISSING":    400,
 	"TEMPLATE_NOT_FOUND":       404,
 	"MODELS_UNKNOWN":           503,
@@ -33,6 +35,7 @@ var status = map[string]int{
 }
 
 var retryable = map[string]bool{
+	"THREAD_BUSY":       true,
 	"MODELS_UNKNOWN":    true,
 	"MACHINE_DOWN":      true,
 	"ROUTER_RESTARTING": true,
