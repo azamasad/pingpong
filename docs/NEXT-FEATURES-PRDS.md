@@ -2,11 +2,11 @@
 
 Status: **planned, owner-approved as roadmap items, not built.** Nothing here is
 built until the owner says so (AGENTS.md). Versions and order are in
-[ROADMAP.md](ROADMAP.md). Decisions: D-086 to D-105 (product) and D-106 to D-115
+[ROADMAP.md](ROADMAP.md). Decisions: D-086 to D-105 (product) and D-106 to D-117
 (build detail). **Exact payloads, storage, config, errors, UI and acceptance
 lists are in [NEXT-FEATURES-BUILD-SPEC.md](NEXT-FEATURES-BUILD-SPEC.md), which
 wins over this file where they differ.** This file keeps the intent, stories and
-scope. V7.8 and V7.9 are drafts in the build spec and wait for owner answers.
+scope. V7.8 and V7.9 are specified in the build spec (sections 9 and 10) and approved (D-116).
 Versioning: minor steps after the last built version (V7.1, V7.2, ...). A new
 major only for a large change (D-095).
 
@@ -21,9 +21,9 @@ Every feature below inherits these rules, so they are not repeated:
 | P16 | Content only in the saved-request store. Logs get metadata only (D-076). New log fields go through the `logx` whitelist |
 | Retention | Results and thread content: 90 days. Templates and schedules are definitions, kept until deleted |
 | Storage | All of it needs `storage.data_dir`. Schema changes are additive SQLite migrations |
-| Out of scope for all | Logins, multi-user, RAG. (V7.8 OpenAI endpoint and V7.9 notifications are separate draft versions, not part of these) |
+| Out of scope for all | Logins, multi-user, RAG. (V7.8 OpenAI endpoint and V7.9 notifications are separate versions, specified in the build spec) |
 
-Build order: **V7.1, V7.2, V7.3, V7.4, V7.5, V7.6, V7.7**, then the drafts V7.8 and V7.9.
+Build order: **V7.1, V7.2, V7.3, V7.4, V7.5, V7.6, V7.7**, then V7.8 and V7.9.
 
 ---
 
@@ -63,7 +63,7 @@ and items need no routing fields. `GET /api/batches/{id}` gains per-target
 `done`, `running`, `waiting`, `failed`. Page: a "Split" option in the batch form
 and a per-machine progress bar (there is no batch form today: the new **Batches** tab is built in this version). `pingpong batch submit --split mane:MODEL,firmino:MODEL`.
 
-**Config.** `batches.max_items` (default 1000, a safety cap, replaces the fixed 100 in the code).
+**Config.** `batches.max_items` (default 1000, a safety cap, replaces the fixed 100 in the code; 500 if the memory gate in the build spec 1.8 fails, D-116).
 
 **Data.** A new `batches` table (there is no batch row today, only `batch_id` on jobs) stores the split plan. Each job already stores machine and model.
 
@@ -367,7 +367,7 @@ Tailscale ACL (D-081) limits it. The log records schedule name and outcome, neve
 
 ## Constitution changes applied
 
-The owner approved these four changes (D-101) and they are applied to
+The owner approved the first four changes (D-101) and they are applied to
 [CONSTITUTION.md](../CONSTITUTION.md) as written here.
 
 1. **P9:** "...flags, pinned names, what is installed where, and explicit user-chosen modes (a batch split plan, a review step)..."
@@ -379,11 +379,12 @@ P4 (50 MB) is unchanged: the PRDs require streaming and a measurement on Mane.
 A later `when_free` mode (V7.1 future note) would also need: "A pair chosen at
 admission under a user-chosen mode is pinned from then on." Not approved.
 
-**Not approved yet (V7.9 only).** Notifications are a constitution non-goal.
-The proposed change and its two sentences are in
-[NEXT-FEATURES-BUILD-SPEC.md](NEXT-FEATURES-BUILD-SPEC.md) section 12 (Q3). The
-constitution is not edited until the owner approves. V7.8 needs no
-constitution change.
+**Fifth change, for V7.9 (D-117).** P8 gains "Outbound calls from Mane are
+limited to the workers' Ollama and, if the owner configures it, one notification
+webhook". The non-goal "Notifications (deferred)" now reads "Notifications,
+other than one optional short message per finished batch, failed schedule run or
+failed job, sent to one webhook the owner configures. It never contains prompts
+or outputs." V7.8 needs no constitution change.
 
 No conflict found with P3, P5 (a split or review that targets Mane must name an
 8B or smaller model), P6, P7, P8, P17, or the hard limits on users, logins and

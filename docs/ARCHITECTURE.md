@@ -121,8 +121,8 @@ columns and endpoints: [NEXT-FEATURES-BUILD-SPEC.md](NEXT-FEATURES-BUILD-SPEC.md
 | Stage jobs (check, reduce) | Created by a hook when a job or the last job of a batch reaches a final state, and re-created at start if a restart interrupted it | A small function in the job service, not a new service |
 | Scheduler | One timer goroutine in the router | One timer for all schedules |
 | Upload and export | HTTP handlers that stream one chunk or one row at a time | None |
-| OpenAI endpoint (V7.8, draft) | Another handler over the same engine as `POST /api/chat` | None |
-| Webhook (V7.9, draft) | One outbound HTTP call per event, best effort | None. Needs owner approval first |
+| OpenAI endpoint (V7.8) | Another handler over the same engine as `POST /api/chat` | None |
+| Webhook (V7.9) | One outbound HTTP call per event, best effort | None. Allowed by P8 as amended (D-117) |
 
 Nothing of ours runs on Firmino for any of them.
 

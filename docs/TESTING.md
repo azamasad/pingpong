@@ -228,7 +228,7 @@ below). Write the tests from that list. Layers, for every version:
 |---|---|---|
 | Unit | Pure logic: split assignment (2), template substitution (4), chunking (7), CSV and Markdown writers (5), next-due maths (8), context estimates (3, 6), history building (6) | Tables of inputs and outputs, injectable clock |
 | Fake Ollama | Which pair ran each job, what prompt or `messages` the model received, down machine while the other finishes, failure and retry windows | Upgraded fake with recorded calls and per-call replies (spec 1.9). Needed from V7.1 on |
-| API integration | Every endpoint, every validation error and HTTP status, atomic submit (nothing saved on any error), Host and Origin on new endpoints, `/api/chat` rejects `check`, `template`, `split` | `httptest` with real store in a temp dir |
+| API integration | Every endpoint (including batch cancel), every validation error and HTTP status, atomic submit (nothing saved on any error), Host and Origin on new endpoints, `/api/chat` rejects `check`, `template`, `split` | `httptest` with real store in a temp dir |
 | Store | Migration from a database made by `main` (old jobs and batches still load), new tables in `pingpong backup` output, retention sweep rules (child with parent, thread jobs with thread, templates and schedules kept) | Fake clock |
 | Restart | Stop and start with work in each in-between state: split batch half done, check stage 1 done with no child, thread turn running, reduce pending, schedule due while stopped | Reopen the store and service |
 | Log | No prompt, output, template, var, file text or webhook URL in any log line during the smoke scenario. New fields only through the whitelist | Capture log output and assert |
@@ -277,7 +277,7 @@ Details per version: the "Owner on real machines" line in
 
 | Version | Check |
 |---|---|
-| V7.1 | A 10-item split with the 8B on Mane and the 30B on Firmino: both bars move, each result shows its own machine and model. Router RSS on Mane with the batch queued |
+| V7.1 | A 10-item split with the 8B on Mane and the 30B on Firmino: both bars move, each result shows its own machine and model. Router RSS on Mane with the batch queued. Cancel a queued batch with one call |
 | V7.2 | One review and one revise with real models. Is the fixed review wording useful? Time for the model swap on Firmino (one model loaded at a time) |
 | V7.3 | A real template run as a 5-row batch |
 | V7.4 | Download the CSV of a real batch and open it in your spreadsheet. Accented text, and a cell starting with `=` |

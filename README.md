@@ -47,7 +47,7 @@ More machines can be added later. They are always controlled through Mane.
 | V6 | `doctor`, graceful shutdown, backup, status view. [Spec](docs/V6-OPERABILITY.md) |
 | V7 | Model aliases. [Spec](docs/V7-ALIASES.md) |
 | V7.1 to V7.7 (planned, ready to build) | Batch split across machines, answer checking, templates, results export, threads, file input, scheduled jobs, in that order. [PRDs](docs/NEXT-FEATURES-PRDS.md), [build spec](docs/NEXT-FEATURES-BUILD-SPEC.md) |
-| V7.8, V7.9 (drafts, wait for the owner) | OpenAI-compatible endpoint, notifications |
+| V7.8, V7.9 (planned, approved, build after V7.7) | OpenAI-compatible endpoint, notifications (one optional webhook, no content) |
 | Test tooling | Stress tab (soak both machines), speed shown on the page and in the log, `deploy/bench/` scripts. See [docs/OPERATIONS.md](docs/OPERATIONS.md) sections 9 and 10 |
 
 See [docs/ROADMAP.md](docs/ROADMAP.md).
@@ -102,9 +102,8 @@ then the PRD, then the rest.
 
 - **V1 to V7** tag when a feature arrives. All are built. Do not build later
   roadmap items (V7.1 and beyond) until the owner says so.
-- **Proposed** or **draft** means a suggestion pending the owner's confirmation.
-  V7.8 and V7.9 are drafts, with their questions in
-  [docs/NEXT-FEATURES-BUILD-SPEC.md](docs/NEXT-FEATURES-BUILD-SPEC.md) section 12.
+- **Proposed** means a suggestion pending the owner's confirmation. Nothing is
+  currently pending.
 - Speed figures are single-run measurements from the real machines (see
   [docs/HARDWARE-AND-MODELS.md](docs/HARDWARE-AND-MODELS.md)). Re-measure after
   changes.
@@ -115,7 +114,7 @@ then the PRD, then the rest.
 - RAG (retrieval over documents). Chunking a file to run as a batch is planned (V7.6) and is not RAG. RAG is being explored separately. If it ever
   needs a local model, it can call Mane like any other client.
 - High availability. Both machines are assumed to be up.
-- Notifications. Deferred (drafted as V7.9, waits for the owner, see the roadmap).
+- Notifications, except the one optional webhook message of V7.9 (no content).
 
 ## License
 

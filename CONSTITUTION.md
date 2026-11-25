@@ -38,7 +38,7 @@ machines sit on different subnets (D-072, owner-approved). Nothing between Mane
 and a worker goes via the public internet.
 
 **P8. Private by default.**
-Reachable only through Tailscale. Never exposed to the public internet.
+Reachable only through Tailscale. Never exposed to the public internet. Outbound calls from Mane are limited to the workers' Ollama and, if the owner configures it, one notification webhook.
 
 **P9. Explicit beats clever.**
 Routing follows simple, documented rules driven by clear signals: flags,
@@ -108,7 +108,7 @@ PRD, then the other documents.
 - High availability or automatic failover.
 - Distributed inference that splits one model across machines.
 - Multi-user accounts, billing or quotas.
-- Notifications (deferred).
+- Notifications, other than one optional short message per finished batch, failed schedule run or failed job, sent to one webhook the owner configures. It never contains prompts or outputs.
 - Automatic prompt classification (deferred).
 
 ## Amending this document
