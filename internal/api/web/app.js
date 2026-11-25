@@ -7,6 +7,14 @@ let jobsOn = false;
 let activeJobId = null;
 let selectedJobId = null;
 let eventSource = null;
+let templateTimer = null;
+let selectedTemplateName = null;
+let templateUseVars = [];
+let threadTimer = null;
+let selectedThreadId = null;
+let threadEventSource = null;
+let scheduleTimer = null;
+let selectedScheduleId = null;
 
 async function refreshMeta() {
   try {
@@ -249,12 +257,16 @@ async function refreshHealth() {
     $('jobs-panel').classList.toggle('hidden', !jobsOn);
     $('lane-wrap').classList.toggle('hidden', !jobsOn);
     $('tab-batches').classList.toggle('hidden', !jobsOn);
+    $('tab-templates').classList.toggle('hidden', !jobsOn);
+    $('tab-threads').classList.toggle('hidden', !jobsOn);
+    $('tab-schedules').classList.toggle('hidden', !jobsOn);
     $('check-wrap').classList.toggle('hidden', !jobsOn);
     $('check-machine-wrap').classList.toggle('hidden', !jobsOn);
     $('check-model-wrap').classList.toggle('hidden', !jobsOn);
     if (jobsOn) {
       refreshJobs();
       fillBatchModelSelects();
+      fillBatchReduceSelectors();
       fillCheckSelectors();
     }
   } catch (_) {}
@@ -407,6 +419,30 @@ async function fillCheckSelectors() {
   } catch (_) {}
 }
 
+async function fillBatchReduceSelectors() {
+  try {
+    const machines = await fetch('/api/machines').then((r) => r.json());
+    const models = await fetch('/api/models').then((r) => r.json());
+    const ms = $('batch-reduce-machine');
+    const md = $('batch-reduce-model');
+    if (!ms || !md) return;
+    ms.innerHTML = '<option value="">—</option>';
+    md.innerHTML = '<option value="">—</option>';
+    (machines || []).forEach((m) => {
+      const o = document.createElement('option');
+      o.value = m.name;
+      o.textContent = m.name;
+      ms.appendChild(o);
+    });
+    (models || []).forEach((m) => {
+      const o = document.createElement('option');
+      o.value = m.name;
+      o.textContent = m.name;
+      md.appendChild(o);
+    });
+  } catch (_) {}
+}
+
 function fillBatchModelSelects() {
   fetch('/api/models').then((r) => r.json()).then((models) => {
     document.querySelectorAll('.batch-model').forEach((sel) => {
@@ -452,7 +488,11 @@ function progressPct(counts) {
 function renderBatchView(b) {
   $('batch-detail').classList.remove('hidden');
   $('batch-view-id').textContent = b.id.slice(0, 8) + '…';
-  $('batch-view-meta').textContent = `${b.kind} · ${b.pending} pending · ${b.total} items`;
+  let meta = `${b.kind} · ${b.pending} pending · ${b.total} items`;
+  if (b.reduce) {
+    meta += ` · reduce ${b.reduce.status || 'pending'}`;
+  }
+  $('batch-view-meta').textContent = meta;
   const overall = $('batch-overall-bar').firstElementChild;
   overall.style.width = `${progressPct(b.counts || {})}%`;
   const tb = $('batch-target-bars');
@@ -498,8 +538,118 @@ async function openBatchView(id) {
   } catch (_) {}
 }
 
+async function refreshTemplatesList() {
+  try {
+    const list = await fetch('/api/templates').then((r) => r.json());
+    const ul = $('templates-list');
+    ul.innerHTML = '';
+    (list || []).forEach((t) => {
+      const li = document.createElement('li');
+      li.textContent = `${t.name} (${t.bytes} B, ${(t.vars || []).join(', ') || 'no blanks'})`;
+      const use = document.createElement('button');
+      use.type = 'button';
+      use.textContent = 'Use';
+      use.onclick = () => openTemplateUse(t);
+      const edit = document.createElement('button');
+      edit.type = 'button';
+      edit.textContent = 'Edit';
+      edit.onclick = () => openTemplateEdit(t.name);
+      li.appendChild(use);
+      li.appendChild(edit);
+      ul.appendChild(li);
+    });
+  } catch (_) {}
+}
+
+async function openTemplateEdit(name) {
+  selectedTemplateName = name || null;
+  $('template-editor').classList.remove('hidden');
+  $('template-use').classList.add('hidden');
+  $('template-delete').classList.toggle('hidden', !name);
+  $('template-name').disabled = !!name;
+  $('template-editor-title').textContent = name ? `Edit ${name}` : 'New template';
+  $('template-editor-state').classList.add('hidden');
+  if (name) {
+    const t = await fetch(`/api/templates/${encodeURIComponent(name)}`).then((r) => r.json());
+    $('template-name').value = t.name;
+    $('template-body').value = t.body || '';
+    $('template-defaults').value = t.defaults ? JSON.stringify(t.defaults) : '';
+  } else {
+    $('template-name').value = '';
+    $('template-body').value = '';
+    $('template-defaults').value = '';
+  }
+}
+
+async function fillTemplateUseSelectors() {
+  const profiles = await fetch('/api/profiles').then((r) => r.json()).catch(() => []);
+  const ps = $('template-use-profile');
+  ps.innerHTML = '<option value="">—</option>';
+  (profiles || []).forEach((p) => {
+    const o = document.createElement('option');
+    o.value = p.name;
+    o.textContent = p.name;
+    ps.appendChild(o);
+  });
+  const machines = await fetch('/api/machines').then((r) => r.json());
+  const models = await fetch('/api/models').then((r) => r.json());
+  const ms = $('template-use-machine');
+  const md = $('template-use-model');
+  ms.innerHTML = '<option value="">—</option>';
+  md.innerHTML = '<option value="">—</option>';
+  (machines || []).forEach((m) => {
+    const o = document.createElement('option');
+    o.value = m.name;
+    o.textContent = m.name;
+    ms.appendChild(o);
+  });
+  (models || []).forEach((m) => {
+    const o = document.createElement('option');
+    o.value = m.name;
+    o.textContent = m.name;
+    md.appendChild(o);
+  });
+}
+
+async function openTemplateUse(t) {
+  selectedTemplateName = t.name;
+  $('template-editor').classList.add('hidden');
+  $('template-use').classList.remove('hidden');
+  $('template-use-name').textContent = t.name;
+  templateUseVars = t.vars || [];
+  const full = await fetch(`/api/templates/${encodeURIComponent(t.name)}`).then((r) => r.json());
+  templateUseVars = full.vars || templateUseVars;
+  const box = $('template-vars');
+  box.innerHTML = '';
+  templateUseVars.forEach((v) => {
+    const lab = document.createElement('label');
+    lab.textContent = v + ' ';
+    const inp = document.createElement('input');
+    inp.type = 'text';
+    inp.id = `template-var-${v}`;
+    lab.appendChild(inp);
+    box.appendChild(lab);
+  });
+  $('template-batch-rows').classList.add('hidden');
+  $('template-use-state').textContent = '';
+  await fillTemplateUseSelectors();
+}
+
+function templateUseBody(batchMode) {
+  const vars = {};
+  templateUseVars.forEach((v) => {
+    vars[v] = $(`template-var-${v}`).value;
+  });
+  const body = { template: selectedTemplateName, vars, lane: batchMode ? 'batch' : undefined };
+  if ($('template-use-profile').value) body.profile = $('template-use-profile').value;
+  if ($('template-use-fast').checked) body.fast = true;
+  if ($('template-use-model').value) body.model = $('template-use-model').value;
+  if ($('template-use-machine').value) body.machine = $('template-use-machine').value;
+  return body;
+}
+
 function showTab(which) {
-  for (const name of ['chat', 'status', 'stress', 'batches']) {
+  for (const name of ['chat', 'status', 'stress', 'batches', 'templates', 'threads', 'schedules']) {
     $('panel-' + name).classList.toggle('hidden', name !== which);
     $('tab-' + name).classList.toggle('active', name === which);
   }
@@ -527,7 +677,373 @@ function showTab(which) {
       if (selectedBatchId) openBatchView(selectedBatchId);
     }, 4000);
   }
+  if (templateTimer) {
+    clearInterval(templateTimer);
+    templateTimer = null;
+  }
+  if (which === 'templates') {
+    refreshTemplatesList();
+    templateTimer = setInterval(refreshTemplatesList, 8000);
+  }
+  if (threadTimer) {
+    clearInterval(threadTimer);
+    threadTimer = null;
+  }
+  if (which === 'threads') {
+    refreshThreadsList();
+    fillThreadPinSelects();
+    threadTimer = setInterval(() => {
+      refreshThreadsList();
+      if (selectedThreadId) openThread(selectedThreadId);
+    }, 4000);
+  }
+  if (scheduleTimer) {
+    clearInterval(scheduleTimer);
+    scheduleTimer = null;
+  }
+  if (which === 'schedules') {
+    refreshSchedulesList();
+    fillScheduleSelectors();
+    scheduleTimer = setInterval(refreshSchedulesList, 8000);
+  }
 }
+
+async function refreshSchedulesList() {
+  if (!jobsOn) return;
+  try {
+    const list = await fetch('/api/schedules').then((r) => r.json());
+    const ul = $('schedules-list');
+    ul.innerHTML = '';
+    (list || []).forEach((s) => {
+      const li = document.createElement('li');
+      const when = s.rule?.every === 'week'
+        ? `${s.rule.weekday} ${s.rule.at}`
+        : `daily ${s.rule?.at}`;
+      li.textContent = `${s.name} · ${when} · ${s.machine}/${s.model} · next: ${s.next_due || '—'} · last: ${s.last_state || '—'} · ${s.enabled ? 'on' : 'paused'}`;
+      const edit = document.createElement('button');
+      edit.type = 'button';
+      edit.textContent = 'Edit';
+      edit.onclick = () => openScheduleEditor(s);
+      const run = document.createElement('button');
+      run.type = 'button';
+      run.textContent = 'Run now';
+      run.onclick = async () => {
+        await fetch(`/api/schedules/${s.id}/run`, { method: 'POST' });
+        refreshSchedulesList();
+      };
+      const runs = document.createElement('button');
+      runs.type = 'button';
+      runs.textContent = 'Runs';
+      runs.onclick = () => openScheduleRuns(s);
+      const tog = document.createElement('button');
+      tog.type = 'button';
+      tog.textContent = s.enabled ? 'Pause' : 'Resume';
+      tog.onclick = async () => {
+        await fetch(`/api/schedules/${s.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ enabled: !s.enabled }),
+        });
+        refreshSchedulesList();
+      };
+      li.appendChild(document.createTextNode(' '));
+      li.appendChild(edit);
+      li.appendChild(run);
+      li.appendChild(runs);
+      li.appendChild(tog);
+      ul.appendChild(li);
+    });
+  } catch (_) {}
+}
+
+function fillScheduleSelectors() {
+  ['schedule-machine', 'schedule-model'].forEach((id) => {
+    const sel = $(id);
+    const prev = sel.value;
+    if (id.endsWith('machine')) {
+      sel.innerHTML = '<option value="">—</option>';
+      document.querySelectorAll('#machine option').forEach((o) => {
+        if (!o.value) return;
+        const c = o.cloneNode(true);
+        sel.appendChild(c);
+      });
+    } else {
+      sel.innerHTML = '<option value="">—</option>';
+      document.querySelectorAll('#model option').forEach((o) => {
+        if (!o.value) return;
+        sel.appendChild(o.cloneNode(true));
+      });
+    }
+    if (prev) sel.value = prev;
+  });
+}
+
+function openScheduleEditor(s) {
+  selectedScheduleId = s?.id || null;
+  $('schedule-editor').classList.remove('hidden');
+  $('schedule-runs').classList.add('hidden');
+  $('schedule-editor-title').textContent = s ? 'Edit schedule' : 'New schedule';
+  $('schedule-name').value = s?.name || '';
+  $('schedule-every').value = s?.rule?.every || 'day';
+  $('schedule-weekday').classList.toggle('hidden', $('schedule-every').value !== 'week');
+  if (s?.rule?.weekday) $('schedule-weekday').value = s.rule.weekday;
+  $('schedule-at').value = s?.rule?.at || '02:00';
+  $('schedule-machine').value = s?.machine || '';
+  $('schedule-model').value = s?.model || '';
+  $('schedule-template').value = s?.template || '';
+  $('schedule-prompt').value = s?.prompt || '';
+  $('schedule-vars').value = s?.vars ? JSON.stringify(s.vars) : '';
+  $('schedule-rows').value = s?.rows ? JSON.stringify(s.rows) : '';
+  $('schedule-missed').value = s?.missed || 'skip';
+  $('schedule-overlap').value = s?.overlap || 'skip';
+  $('schedule-enabled').checked = s?.enabled !== false;
+  $('schedule-delete').classList.toggle('hidden', !s);
+  $('schedule-run-now').classList.toggle('hidden', !s);
+}
+
+async function openScheduleRuns(s) {
+  $('schedule-runs').classList.remove('hidden');
+  $('schedule-editor').classList.add('hidden');
+  $('schedule-runs-name').textContent = s.name;
+  const runs = await fetch(`/api/schedules/${s.id}/runs`).then((r) => r.json());
+  const ul = $('schedule-runs-list');
+  ul.innerHTML = '';
+  (runs || []).forEach((r) => {
+    const li = document.createElement('li');
+    li.textContent = `${r.due} · ${r.status} · ${r.state || ''} ${r.error_code || ''}`.trim();
+    ul.appendChild(li);
+  });
+}
+
+function schedulePayloadFromForm() {
+  const every = $('schedule-every').value;
+  const rule = { every, at: $('schedule-at').value };
+  if (every === 'week') rule.weekday = $('schedule-weekday').value;
+  const body = {
+    name: $('schedule-name').value.trim(),
+    rule,
+    machine: $('schedule-machine').value,
+    model: $('schedule-model').value,
+    missed: $('schedule-missed').value,
+    overlap: $('schedule-overlap').value,
+    enabled: $('schedule-enabled').checked,
+  };
+  const tpl = $('schedule-template').value.trim();
+  const prompt = $('schedule-prompt').value.trim();
+  if (tpl) body.template = tpl;
+  else if (prompt) body.prompt = prompt;
+  const vars = $('schedule-vars').value.trim();
+  if (vars) body.vars = JSON.parse(vars);
+  const rows = $('schedule-rows').value.trim();
+  if (rows) body.rows = JSON.parse(rows);
+  return body;
+}
+
+$('schedule-every').onchange = () => {
+  $('schedule-weekday').classList.toggle('hidden', $('schedule-every').value !== 'week');
+};
+
+$('schedule-new').onclick = () => openScheduleEditor(null);
+$('schedule-cancel').onclick = () => $('schedule-editor').classList.add('hidden');
+$('schedule-runs-back').onclick = () => $('schedule-runs').classList.add('hidden');
+
+$('schedule-save').onclick = async () => {
+  $('schedule-editor-state').classList.add('hidden');
+  let body;
+  try {
+    body = schedulePayloadFromForm();
+  } catch (_) {
+    $('schedule-editor-state').textContent = 'Invalid JSON in vars or rows';
+    $('schedule-editor-state').classList.remove('hidden');
+    return;
+  }
+  const url = selectedScheduleId ? `/api/schedules/${selectedScheduleId}` : '/api/schedules';
+  const method = selectedScheduleId ? 'PATCH' : 'POST';
+  const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  const j = await res.json();
+  if (!res.ok) {
+    $('schedule-editor-state').textContent = j.error?.message || 'Save failed';
+    $('schedule-editor-state').classList.remove('hidden');
+    return;
+  }
+  $('schedule-editor').classList.add('hidden');
+  refreshSchedulesList();
+};
+
+$('schedule-delete').onclick = async () => {
+  if (!selectedScheduleId || !confirm('Delete this schedule and its run history?')) return;
+  await fetch(`/api/schedules/${selectedScheduleId}`, { method: 'DELETE' });
+  $('schedule-editor').classList.add('hidden');
+  refreshSchedulesList();
+};
+
+$('schedule-run-now').onclick = async () => {
+  if (!selectedScheduleId) return;
+  await fetch(`/api/schedules/${selectedScheduleId}/run`, { method: 'POST' });
+  refreshSchedulesList();
+};
+
+async function refreshThreadsList() {
+  if (!jobsOn) return;
+  try {
+    const list = await fetch('/api/threads').then((r) => r.json());
+    const ul = $('threads-list');
+    ul.innerHTML = '';
+    (list || []).forEach((t) => {
+      const li = document.createElement('li');
+      li.textContent = `${t.title || '(untitled)'} · ${t.model} · ${t.turns} turns`;
+      if (t.id === selectedThreadId) li.classList.add('selected');
+      li.onclick = () => openThread(t.id);
+      ul.appendChild(li);
+    });
+  } catch (_) {}
+}
+
+function fillThreadPinSelects() {
+  const ms = $('thread-pin-machine');
+  const md = $('thread-pin-model');
+  if (!ms || !md) return;
+  const msel = $('machine');
+  const mdl = $('model');
+  ms.innerHTML = msel.innerHTML;
+  md.innerHTML = mdl.innerHTML;
+}
+
+async function openThread(id) {
+  selectedThreadId = id;
+  $('threads-view').classList.remove('hidden');
+  try {
+    const t = await fetch(`/api/threads/${id}`).then((r) => r.json());
+    $('thread-title').textContent = t.title || 'Thread';
+    $('thread-meta').textContent = `${t.machine}, ${t.model}`;
+    const box = $('thread-turns');
+    box.innerHTML = '';
+    (t.turns || []).forEach((turn) => {
+      const div = document.createElement('div');
+      div.className = 'thread-turn';
+      div.innerHTML = `<strong>Turn ${turn.turn}</strong> (${turn.status}) · ${turn.machine}, ${turn.model}` +
+        `<pre class="user">${esc(turn.prompt)}</pre><pre class="out">${esc(turn.output || '')}</pre>`;
+      box.appendChild(div);
+    });
+    const active = (t.turns || []).find((x) => ['waiting', 'running', 'retrying'].includes(x.status));
+    if (active) watchThreadJob(active.job_id);
+    refreshThreadsList();
+  } catch (_) {}
+}
+
+function esc(s) {
+  return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;');
+}
+
+function watchThreadJob(jobId) {
+  if (threadEventSource) threadEventSource.close();
+  threadEventSource = new EventSource(`/api/jobs/${jobId}/events`);
+  $('thread-state').textContent = 'Running…';
+  threadEventSource.onmessage = (ev) => {
+    try {
+      const data = JSON.parse(ev.data);
+      if (data.type === 'token') {
+        const pres = $('thread-turns').querySelectorAll('.out');
+        const last = pres[pres.length - 1];
+        if (last) last.textContent += data.text || '';
+      }
+      if (data.type === 'done' || data.type === 'status') {
+        if (data.state === 'done' || data.type === 'done') {
+          $('thread-state').textContent = '';
+          if (selectedThreadId) openThread(selectedThreadId);
+        } else if (data.state) {
+          $('thread-state').textContent = data.state;
+        }
+      }
+    } catch (_) {}
+  };
+}
+
+$('thread-new').onclick = async () => {
+  const body = {};
+  if ($('machine').value) body.machine = $('machine').value;
+  if ($('model').value) body.model = $('model').value;
+  if ($('profile').value) body.profile = $('profile').value;
+  if ($('fast').checked) body.fast = true;
+  const res = await fetch('/api/threads', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  const j = await res.json();
+  if (!res.ok) {
+    $('thread-state').textContent = j.error?.message || 'Create failed';
+    return;
+  }
+  await refreshThreadsList();
+  openThread(j.id);
+};
+
+$('thread-send').onclick = async () => {
+  if (!selectedThreadId) return;
+  const content = $('thread-message').value.trim();
+  if (!content) return;
+  const body = { content };
+  if ($('thread-trim').checked) body.trim = 'oldest';
+  $('thread-trim').checked = false;
+  $('thread-state').textContent = 'Sending…';
+  const res = await fetch(`/api/threads/${selectedThreadId}/messages`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  const j = await res.json();
+  if (!res.ok) {
+    $('thread-state').textContent = j.error?.message || 'Send failed';
+    return;
+  }
+  $('thread-message').value = '';
+  if (j.dropped_turns) $('thread-state').textContent = `Dropped ${j.dropped_turns} old turns`;
+  watchThreadJob(j.job_id);
+  openThread(selectedThreadId);
+};
+
+$('thread-rename').onclick = async () => {
+  if (!selectedThreadId) return;
+  const title = prompt('New title');
+  if (!title) return;
+  await fetch(`/api/threads/${selectedThreadId}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ title }),
+  });
+  openThread(selectedThreadId);
+};
+
+$('thread-apply-pin').onclick = async () => {
+  if (!selectedThreadId) return;
+  const machine = $('thread-pin-machine').value;
+  const model = $('thread-pin-model').value;
+  if (!machine || !model) {
+    $('thread-state').textContent = 'Pick machine and model';
+    return;
+  }
+  const res = await fetch(`/api/threads/${selectedThreadId}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ machine, model }),
+  });
+  const j = await res.json();
+  if (!res.ok) {
+    $('thread-state').textContent = j.error?.message || 'Pin failed';
+    return;
+  }
+  openThread(selectedThreadId);
+};
+
+$('thread-delete').onclick = async () => {
+  if (!selectedThreadId) return;
+  if (!confirm('Delete this thread and all its turns?')) return;
+  await fetch(`/api/threads/${selectedThreadId}`, { method: 'DELETE' });
+  selectedThreadId = null;
+  $('threads-view').classList.add('hidden');
+  refreshThreadsList();
+};
 
 function fmtTps(n) {
   return n ? n.toFixed(2) : '—';
@@ -593,6 +1109,80 @@ $('stress-stop').onclick = async () => {
   renderStress(await res.json());
 };
 
+function setBatchFormMode(mode) {
+  const file = mode === 'file';
+  $('batch-lines-mode').classList.toggle('hidden', file);
+  $('batch-file-mode').classList.toggle('hidden', !file);
+  $('batch-submit').classList.toggle('hidden', file);
+  $('batch-file-start').classList.toggle('hidden', !file);
+}
+
+$('batch-mode-lines').onchange = () => setBatchFormMode('lines');
+$('batch-mode-file').onchange = () => setBatchFormMode('file');
+
+function fileBatchForm(extra) {
+  const fd = new FormData();
+  const f = $('batch-file').files[0];
+  if (!f) throw new Error('Choose a file');
+  fd.append('file', f);
+  const inst = $('batch-file-instruction').value.trim();
+  if (!inst.includes('{{chunk}}')) throw new Error('Instruction needs {{chunk}}');
+  fd.append('instruction', inst);
+  const cc = Number($('batch-chunk-chars').value);
+  if (cc >= 500 && cc <= 20000) fd.append('chunk_chars', String(cc));
+  const red = $('batch-reduce-instruction').value.trim();
+  const rm = $('batch-reduce-machine').value;
+  const rmod = $('batch-reduce-model').value;
+  if (red || rm || rmod) {
+    if (!red.includes('{{results}}') || !rm || !rmod) {
+      throw new Error('Reduce needs instruction with {{results}}, machine and model');
+    }
+    fd.append('reduce', JSON.stringify({ instruction: red, machine: rm, model: rmod }));
+  }
+  const assign = $('batch-assign').value;
+  if (assign) {
+    const targets = [];
+    document.querySelectorAll('.batch-target').forEach((row) => {
+      const machine = row.dataset.machine;
+      const model = row.querySelector('.batch-model').value;
+      const weight = Number(row.querySelector('.batch-weight').value) || 1;
+      if (model) targets.push({ machine, model, weight });
+    });
+    if (targets.length) fd.append('split', JSON.stringify({ assign, targets }));
+  }
+  if (extra) Object.entries(extra).forEach(([k, v]) => fd.append(k, v));
+  return fd;
+}
+
+$('batch-file-preview').onclick = async () => {
+  $('batch-file-preview-state').textContent = 'Previewing…';
+  try {
+    const fd = fileBatchForm({ dry_run: '1' });
+    const res = await fetch('/api/batches/from-file', { method: 'POST', body: fd });
+    const j = await res.json();
+    if (!res.ok) throw new Error(j.error?.message || res.statusText);
+    $('batch-file-preview-state').textContent = `${j.chunks} chunks, ${j.chars} chars`;
+  } catch (e) {
+    $('batch-file-preview-state').textContent = e.message;
+  }
+};
+
+$('batch-file-start').onclick = async () => {
+  $('batch-submit-state').textContent = 'Uploading…';
+  try {
+    const fd = fileBatchForm();
+    const res = await fetch('/api/batches/from-file', { method: 'POST', body: fd });
+    const j = await res.json();
+    if (!res.ok) throw new Error(j.error?.message || res.statusText);
+    $('batch-submit-state').textContent = `Created ${j.id.slice(0, 8)}… (${j.chunks} chunks)`;
+    $('batch-file').value = '';
+    refreshBatchesList();
+    openBatchView(j.id);
+  } catch (e) {
+    $('batch-submit-state').textContent = e.message;
+  }
+};
+
 $('batch-submit').onclick = async () => {
   const lines = $('batch-prompts').value.split('\n').map((s) => s.trim()).filter(Boolean);
   if (!lines.length) {
@@ -635,6 +1225,28 @@ $('batch-submit').onclick = async () => {
   }
 };
 
+function batchExportURL(format) {
+  if (!selectedBatchId) return '';
+  const q = new URLSearchParams({ format });
+  if ($('batch-export-thinking').checked) q.set('include_thinking', '1');
+  if ($('batch-export-partial').checked) q.set('partial', '1');
+  return `/api/batches/${selectedBatchId}/export?${q}`;
+}
+
+function startBatchDownload(format) {
+  const url = batchExportURL(format);
+  if (!url) return;
+  const a = document.createElement('a');
+  a.href = url;
+  a.rel = 'noopener';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+}
+
+$('batch-export-csv').onclick = () => startBatchDownload('csv');
+$('batch-export-md').onclick = () => startBatchDownload('md');
+
 $('batch-cancel').onclick = async () => {
   if (!selectedBatchId) return;
   if (!window.confirm('Cancel every active job in this batch?')) return;
@@ -643,7 +1255,114 @@ $('batch-cancel').onclick = async () => {
   refreshBatchesList();
 };
 
+$('template-new').onclick = () => openTemplateEdit(null);
+
+$('template-cancel-edit').onclick = () => {
+  $('template-editor').classList.add('hidden');
+};
+
+$('template-save').onclick = async () => {
+  const name = $('template-name').value.trim();
+  const body = $('template-body').value;
+  let defaults = {};
+  const defRaw = $('template-defaults').value.trim();
+  if (defRaw) {
+    try {
+      defaults = JSON.parse(defRaw);
+    } catch (_) {
+      $('template-editor-state').textContent = 'Defaults must be valid JSON';
+      $('template-editor-state').classList.remove('hidden');
+      return;
+    }
+  }
+  const payload = { body, defaults };
+  const url = selectedTemplateName
+    ? `/api/templates/${encodeURIComponent(selectedTemplateName)}`
+    : '/api/templates';
+  const method = selectedTemplateName ? 'PUT' : 'POST';
+  if (!selectedTemplateName) payload.name = name;
+  const res = await fetch(url, {
+    method,
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  const j = await res.json();
+  if (!res.ok) {
+    $('template-editor-state').textContent = j.error?.message || 'Save failed';
+    $('template-editor-state').classList.remove('hidden');
+    return;
+  }
+  $('template-editor').classList.add('hidden');
+  refreshTemplatesList();
+};
+
+$('template-delete').onclick = async () => {
+  if (!selectedTemplateName) return;
+  if (!window.confirm(`Delete template ${selectedTemplateName}? Past jobs are unchanged.`)) return;
+  await fetch(`/api/templates/${encodeURIComponent(selectedTemplateName)}`, { method: 'DELETE' });
+  $('template-editor').classList.add('hidden');
+  refreshTemplatesList();
+};
+
+$('template-use-back').onclick = () => {
+  $('template-use').classList.add('hidden');
+};
+
+$('template-run-one').onclick = async () => {
+  $('template-batch-rows').classList.add('hidden');
+  $('template-use-state').textContent = 'Submitting…';
+  const res = await fetch('/api/jobs', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(templateUseBody(false)),
+  });
+  const j = await res.json();
+  if (!res.ok) {
+    $('template-use-state').textContent = j.error?.message || 'Failed';
+    return;
+  }
+  const warn = (j.warnings || []).join('; ');
+  $('template-use-state').textContent = `Job ${j.id.slice(0, 8)}…${warn ? ' — ' + warn : ''}`;
+  refreshJobs();
+};
+
+$('template-run-batch').onclick = async () => {
+  $('template-batch-rows').classList.remove('hidden');
+  const lines = $('template-batch-rows').value.split('\n').map((s) => s.trim()).filter(Boolean);
+  if (!lines.length) {
+    $('template-use-state').textContent = 'Add one JSON object per line, then click again';
+    return;
+  }
+  let rows;
+  try {
+    rows = lines.map((l) => JSON.parse(l));
+  } catch (_) {
+    $('template-use-state').textContent = 'Each line must be valid JSON';
+    return;
+  }
+  const body = templateUseBody(true);
+  body.rows = rows;
+  $('template-use-state').textContent = 'Submitting batch…';
+  const res = await fetch('/api/batches', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  const j = await res.json();
+  if (!res.ok) {
+    $('template-use-state').textContent = j.error?.message || 'Failed';
+    return;
+  }
+  const warn = (j.warnings || []).join('; ');
+  $('template-use-state').textContent = `Batch ${j.id.slice(0, 8)}…${warn ? ' — ' + warn : ''}`;
+  showTab('batches');
+  openBatchView(j.id);
+};
+
 $('tab-chat').onclick = () => showTab('chat');
 $('tab-status').onclick = () => showTab('status');
 $('tab-stress').onclick = () => showTab('stress');
 $('tab-batches').onclick = () => showTab('batches');
+$('tab-templates').onclick = () => showTab('templates');
+$('tab-threads').onclick = () => showTab('threads');
+$('tab-schedules').onclick = () => showTab('schedules');

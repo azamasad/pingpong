@@ -1,6 +1,6 @@
 # Build spec for V7.1 to V7.9
 
-Status: **specified, not built.** Written so a coding agent can build each
+Status: **built (M21 to M29).** This file stays the acceptance contract. Written so a coding agent can build each
 version without guessing. Product intent and stories are in
 [NEXT-FEATURES-PRDS.md](NEXT-FEATURES-PRDS.md). This file is the single source
 for payloads, storage, config, errors, limits, UI and acceptance of the planned
@@ -401,13 +401,13 @@ Missing batch `NOT_FOUND`. Bad `format` `BAD_REQUEST`. Needs `storage.data_dir`.
 
 **Acceptance.**
 
-- [ ] History order, exclusion of failed and cancelled turns, thinking excluded (assert on the fake's recorded `messages`).
-- [ ] Pair stored at creation and used for every turn even if the config default changes. Explicit pin change recorded and applied from the next turn only.
-- [ ] `THREAD_TOO_LONG` with numbers, `trim` drops oldest whole turns and reports them, turn cap reached gives `THREAD_TOO_LONG`.
-- [ ] Parallel message, patch or delete while active gives `THREAD_BUSY`.
-- [ ] Thread turn jobs survive the job sweep at 91 days while the thread is active, and the whole thread is removed 91 days after the last message (fake clock).
-- [ ] Restart with an active turn resumes it. Cancel leaves history clean.
-- [ ] Delete removes thread and jobs.
+- [x] History order, exclusion of failed and cancelled turns, thinking excluded (assert on the fake's recorded `messages`).
+- [x] Pair stored at creation and used for every turn even if the config default changes. Explicit pin change recorded and applied from the next turn only.
+- [x] `THREAD_TOO_LONG` with numbers, `trim` drops oldest whole turns and reports them, turn cap reached gives `THREAD_TOO_LONG`.
+- [x] Parallel message, patch or delete while active gives `THREAD_BUSY`.
+- [x] Thread turn jobs survive the job sweep at 91 days while the thread is active, and the whole thread is removed 91 days after the last message (fake clock).
+- [x] Restart with an active turn resumes it. Cancel leaves history clean.
+- [x] Delete removes thread and jobs.
 
 **Smoke.** Create a thread, send three messages, `GET` the thread.
 
@@ -563,7 +563,7 @@ Approved by the owner (D-116). Opt-in: `openai.enabled` (default `false`). When 
 
 **Behaviour.** Same engine and wait rules as `POST /api/chat`: connection-tied, disconnect cancels (D-064), no saved record, no retry. State this in the docs: a long wait on Firmino may exceed the client's own timeout. No new storage, no new dependency, no log content.
 
-**Acceptance.** [ ] SSE framing and `[DONE]`. [ ] Non-stream shape and `usage` from Ollama stats. [ ] Each rejected field. [ ] `machine/model` pin, alias, `pingpong-fast`. [ ] Disconnect cancels upstream. [ ] Disabled by default returns 404. [ ] The official `curl` examples of the OpenAI docs work with only the base URL and a dummy key changed.
+**Acceptance.** [x] SSE framing and `[DONE]`. [x] Non-stream shape and `usage` from Ollama stats. [x] Each rejected field. [x] `machine/model` pin, alias, `pingpong-fast`. [x] Disconnect cancels upstream. [x] Disabled by default returns 404. [ ] The official `curl` examples of the OpenAI docs work with only the base URL and a dummy key changed (owner on real machines).
 
 **Owner on real machines.** Point one OpenAI-compatible client at `https://MANE_TAILNET_NAME/v1` and chat.
 

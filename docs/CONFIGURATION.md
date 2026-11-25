@@ -180,33 +180,35 @@ storage:          # V2
 - Not checked today: that a profile's `machine` names a real machine. A typo
   fails only when a request uses that profile. V7 adds this check.
 
-Also built: `router.shutdown_grace` (V6, default `10s`) and `aliases` (V7). See
-[V6-OPERABILITY.md](V6-OPERABILITY.md) and [V7-ALIASES.md](V7-ALIASES.md).
+Also built: `router.shutdown_grace` (V6, default `10s`), `aliases` (V7),
+`batches.max_items` (V7.1), and `templates.max_bytes` / `templates.max_count`
+(V7.3). See [V6-OPERABILITY.md](V6-OPERABILITY.md) and [V7-ALIASES.md](V7-ALIASES.md).
 
-Planned keys, not built (full contract in
+Further keys (full contract in
 [NEXT-FEATURES-BUILD-SPEC.md](NEXT-FEATURES-BUILD-SPEC.md)). All are optional,
-and all except `openai` and `notify` need `storage.data_dir`. Schedules, templates
-and threads are stored in the database, never in the config file.
+and all except `openai` and `notify` need `storage.data_dir`. Schedules,
+templates and threads are stored in the database, never in the config file.
 
 | Key | Version | Default | Meaning |
 |---|---|---|---|
 | `batches.max_items` | V7.1 | `500` | Most items in one batch (default 500 after D-118 memory gate; may set `1000` after Mane RSS check) |
-| `templates.max_bytes` | V7.3 | `16384` | Largest template body |
-| `templates.max_count` | V7.3 | `200` | Most templates |
+| `templates.max_bytes` | V7.3 (built) | `16384` | Largest template body |
+| `templates.max_count` | V7.3 (built) | `200` | Most templates |
 | `threads.max_turns` | V7.5 | `200` | Most turns in one thread |
 | `files.max_bytes` | V7.6 | `2097152` | Largest uploaded text file (the upload endpoint has its own body limit of this plus 64 KB) |
 | `files.chunk_chars` | V7.6 | `6000` | Default chunk size in characters (a request may use 500 to 20000) |
 | `schedules.max_count` | V7.7 | `50` | Most schedules |
 | `schedules.grace` | V7.7 | `1h` | How late a missed run may still run once (`missed: run_once`) |
 | `openai.enabled` | V7.8 | `false` | Turns on `/v1/models` and `/v1/chat/completions` |
-| `notify.webhook_url` | V7.9 | empty (off) | One outbound URL. Real value only in the real config file, never committed or logged |
-| `notify.events` | V7.9 | `[batch_done, schedule_failed, job_failed]` | Which events send a message |
-| `notify.timeout` | V7.9 | `10s` | Per message |
+| `notify.webhook_url` | V7.9 (built) | empty (off) | One outbound URL. Real value only in the real config file, never committed or logged |
+| `notify.events` | V7.9 (built) | `[batch_done, schedule_failed, job_failed]` | Which events send a message |
+| `notify.timeout` | V7.9 (built) | `10s` | Per message |
 
-Validation to add with each key: integers above 0, `files.chunk_chars` within
+Startup checks these keys: integers above 0, `files.chunk_chars` within
 500 to 20000, `schedules.grace` a positive duration, `notify.webhook_url` an
-`http` or `https` URL when set. A key that needs storage while `data_dir` is
-unset is a startup error naming the key.
+`http` or `https` URL when set, and `notify.events` only `batch_done`,
+`schedule_failed` and `job_failed`. Endpoints that need the store return `404`
+when `data_dir` is unset. `openai` and `notify` do not need the store.
 
 ## 6. Rules for changes
 

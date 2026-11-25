@@ -36,13 +36,13 @@ Built so far: V1 to V7. Everything numbered V7.x below is planned and not built,
 | 7 | V7: model aliases | Short names for models, defined once |
 | 7.1 | V7.1: split a batch across machines (planned) | Both machines at once, each with its own pinned model, fixed assignment |
 | 7.2 | V7.2: answer checking (planned) | Mane drafts, Firmino reviews or revises, user can override |
-| 7.3 | V7.3: prompt templates (planned) | Saved prompts with blanks |
+| 7.3 | V7.3: prompt templates (**built** on V7 branch) | Saved prompts with blanks |
 | 7.4 | V7.4: results export (planned) | Download batches as CSV or Markdown |
 | 7.5 | V7.5: conversation threads (planned) | Saved conversations with history |
 | 7.6 | V7.6: file input (planned) | Text and Markdown, chunked, run as a batch. Not RAG. PDF later |
 | 7.7 | V7.7: scheduled jobs (planned) | Nightly or weekly runs, set up from the page |
 | 7.8 | V7.8: OpenAI-compatible endpoint (planned) | Opt-in `/v1` |
-| 7.9 | V7.9: notifications (planned) | One optional webhook, no content |
+| 7.9 | V7.9: notifications | One optional webhook, no content (built) |
 | 7+ | Test tooling (not a numbered version) | Stress tab, bench scripts, per-request log line (D-075, D-076) |
 
 ## Who does what
@@ -190,8 +190,8 @@ independent of each other and useful to all.
 | V7.5 | Conversation threads | Medium | Context growth, retention rule |
 | V7.6 | File input (text and Markdown) | Lower | Non-goal wording. PDF is later, needs a measured memory check |
 | V7.7 | Scheduled jobs, set up from the page | Lower | Missed runs, daylight-saving time, anyone on the tailnet can create schedules |
-| V7.8 | OpenAI-compatible endpoint | Owner approved (D-116) | Connection-tied, no tools |
-| V7.9 | Notifications | Owner approved (D-116, D-117) | Outbound call from Mane. Public webhook host accepted, no content sent |
+| V7.8 | OpenAI-compatible endpoint | Built (M28, V7 branch) | Connection-tied, no tools |
+| V7.9 | Notifications | Built (M29, D-120) | Outbound call from Mane. Public webhook host accepted, no content sent |
 
 The owner approved four constitution wording changes (D-101). They are applied
 in CONSTITUTION.md and listed in the PRD file under "Constitution changes
@@ -216,7 +216,7 @@ applied".
 | Task-specific routing refinements | After real usage shows the need |
 | Model aliases | Shipped as V7 (D-070) |
 | Conversation threads on Mane | Planned as V7.5, PRD written ([NEXT-FEATURES-PRDS.md](NEXT-FEATURES-PRDS.md)) |
-| OpenAI-compatible endpoint | So other tools can use Pingpong. Planned as V7.8 |
+| OpenAI-compatible endpoint | Shipped as V7.8 (M28, opt-in `/v1`) |
 | Batch split, answer checking, templates, export, file input, schedules | Planned as V7.1 to V7.7, PRDs written |
 
 ## Explicitly excluded

@@ -2,14 +2,12 @@ package api
 
 import (
 	"encoding/json"
-	"errors"
 	"net/http"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/azamasad/pingpong/internal/apperrors"
-	"github.com/azamasad/pingpong/internal/jobs"
 	"github.com/azamasad/pingpong/internal/store"
 )
 
@@ -35,8 +33,16 @@ func (s *Server) handleJobCreate(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, apperrors.New("BODY_TOO_LARGE", "body too large"))
 		return
 	}
+	expanded, warnings, err := s.Jobs.ExpandJobTemplate(r.Context(), string(body))
+	if err != nil {
+		if writeJobErr(w, err) {
+			return
+		}
+		writeErr(w, apperrors.New("INTERNAL", "could not expand template"))
+		return
+	}
 	var cb ChatBody
-	if err := json.Unmarshal(body, &cb); err != nil {
+	if err := json.Unmarshal([]byte(expanded), &cb); err != nil {
 		writeErr(w, apperrors.New("BAD_REQUEST", "invalid json"))
 		return
 	}
@@ -44,19 +50,21 @@ func (s *Server) handleJobCreate(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, err.(apperrors.APIError))
 		return
 	}
-	id, err := s.Jobs.Submit(r.Context(), string(body))
+	id, err := s.Jobs.Submit(r.Context(), expanded)
 	if err != nil {
-		var re *jobs.RouteRejectedError
-		if errors.As(err, &re) {
-			writeErr(w, apperrors.New(re.Code, routeMessages(re.Code)))
+		if writeJobErr(w, err) {
 			return
 		}
 		writeErr(w, apperrors.New("INTERNAL", "could not create job"))
 		return
 	}
+	out := map[string]any{"id": id}
+	if len(warnings) > 0 {
+		out["warnings"] = warnings
+	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusAccepted)
-	_ = json.NewEncoder(w).Encode(map[string]string{"id": id})
+	_ = json.NewEncoder(w).Encode(out)
 }
 
 func (s *Server) handleJobList(w http.ResponseWriter, r *http.Request) {

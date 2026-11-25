@@ -120,6 +120,30 @@ func TestStorageDataDirExpandsHome(t *testing.T) {
 	}
 }
 
+func TestNotifyWebhookRejectsBadScheme(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "c.yaml")
+	content := `
+machines:
+  - name: a
+    address: "http://127.0.0.1:11434"
+    roles: [fast]
+    default_model: "m:8b"
+routing:
+  auto_role: fast
+  fast_role: fast
+notify:
+  webhook_url: "ftp://example.com/topic"
+`
+	if err := os.WriteFile(path, []byte(content), 0600); err != nil {
+		t.Fatal(err)
+	}
+	_, _, err := Load(path)
+	if err == nil || !strings.Contains(err.Error(), "notify.webhook_url") {
+		t.Fatalf("expected notify url error: %v", err)
+	}
+}
+
 func TestRefreshOnMissDefaultsOn(t *testing.T) {
 	var h HealthConfig
 	if !h.RefreshOnMiss() {

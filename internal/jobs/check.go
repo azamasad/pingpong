@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -23,6 +24,9 @@ QUESTION:
 
 ANSWER:
 %s`
+
+// errSkipStage rolls back a stage insert when cancel already cleared the work.
+var errSkipStage = errors.New("skip stage")
 
 const revisePromptTemplate = `Below are a question and a draft answer. Write the corrected final answer to the question.
 Output only the final answer, with no commentary.
@@ -222,21 +226,37 @@ func (s *Service) createCheckStage(ctx context.Context, parent *store.Job, spec 
 		if dup != nil {
 			return nil
 		}
-		if err := s.store.InsertJobTx(ctx, tx, child); err != nil {
+		res, err := tx.ExecContext(ctx, `UPDATE jobs SET check_pending=0 WHERE id=? AND check_pending=1 AND status=?`,
+			parent.ID, store.StatusDone)
+		if err != nil {
 			return err
 		}
-		return s.store.ClearCheckPendingTx(ctx, tx, parent.ID)
+		n, err := res.RowsAffected()
+		if err != nil {
+			return err
+		}
+		if n == 0 {
+			return errSkipStage
+		}
+		return s.store.InsertJobTx(ctx, tx, child)
 	})
+	if errors.Is(err, errSkipStage) {
+		return nil
+	}
 	if err != nil {
 		return err
 	}
 	if dup, _ := s.store.ChildByParentStage(ctx, parent.ID, spec.Mode); dup != nil && dup.ID != child.ID {
 		return nil
 	}
+	// Insert omits error fields. A stage that is already failed or retrying must keep them.
+	_ = s.store.UpdateJob(ctx, child)
 	if oversize || (child.Status == store.StatusFailed && child.ErrorCode != "") {
 		logx.Event("warn", "check_failed", map[string]any{
 			"request_id": parent.ID, "stage": spec.Mode, "error_code": child.ErrorCode,
 		})
+		s.maybeNotifyJobFailed(child, child.ErrorCode)
+		s.onBatchItemTerminal(ctx, child)
 	} else {
 		logx.Event("info", "check_created", map[string]any{
 			"request_id": parent.ID, "stage": spec.Mode,
@@ -322,6 +342,7 @@ func (s *Service) prepareCheckedJob(bodyJSON, batchID string, pinMachine, pinMod
 		j.Stage = store.StageAnswer
 		j.CheckPending = 1
 	}
+	j.Machine, j.Model = cb.Machine, cb.Model
 	if res.OK {
 		j.Machine, j.Model, j.Mode = res.Machine, res.Model, res.Mode
 	} else {

@@ -23,7 +23,7 @@ import (
 //go:embed web/*
 var webFS embed.FS
 
-const Version = "7.1.0"
+const Version = "7.8.0"
 
 type Server struct {
 	Cfg          *config.Config
@@ -65,17 +65,40 @@ func (s *Server) routes() {
 	s.Mux.HandleFunc("POST /api/chat", s.handleChat)
 	s.Mux.HandleFunc("POST /api/jobs", s.handleJobCreate)
 	s.Mux.HandleFunc("GET /api/jobs", s.handleJobList)
+	s.Mux.HandleFunc("GET /api/jobs/export", s.handleJobsExport)
 	s.Mux.HandleFunc("GET /api/jobs/{id}", s.handleJobGet)
 	s.Mux.HandleFunc("GET /api/jobs/{id}/events", s.handleJobEvents)
 	s.Mux.HandleFunc("POST /api/jobs/{id}/cancel", s.handleJobCancel)
 	s.Mux.HandleFunc("DELETE /api/jobs/{id}", s.handleJobDelete)
 	s.Mux.HandleFunc("GET /api/batches", s.handleBatchList)
 	s.Mux.HandleFunc("POST /api/batches", s.handleBatchCreate)
+	s.Mux.HandleFunc("POST /api/batches/from-file", s.handleBatchFromFile)
+	s.Mux.HandleFunc("GET /api/batches/{id}/export", s.handleBatchExport)
 	s.Mux.HandleFunc("GET /api/batches/{id}", s.handleBatchGet)
 	s.Mux.HandleFunc("POST /api/batches/{id}/cancel", s.handleBatchCancel)
+	s.Mux.HandleFunc("POST /api/templates", s.handleTemplateCreate)
+	s.Mux.HandleFunc("GET /api/templates", s.handleTemplateList)
+	s.Mux.HandleFunc("GET /api/templates/{name}", s.handleTemplateGet)
+	s.Mux.HandleFunc("PUT /api/templates/{name}", s.handleTemplateUpdate)
+	s.Mux.HandleFunc("DELETE /api/templates/{name}", s.handleTemplateDelete)
+	s.Mux.HandleFunc("POST /api/threads", s.handleThreadCreate)
+	s.Mux.HandleFunc("GET /api/threads", s.handleThreadList)
+	s.Mux.HandleFunc("GET /api/threads/{id}", s.handleThreadGet)
+	s.Mux.HandleFunc("POST /api/threads/{id}/messages", s.handleThreadMessage)
+	s.Mux.HandleFunc("PATCH /api/threads/{id}", s.handleThreadPatch)
+	s.Mux.HandleFunc("DELETE /api/threads/{id}", s.handleThreadDelete)
+	s.Mux.HandleFunc("GET /api/schedules", s.handleScheduleList)
+	s.Mux.HandleFunc("POST /api/schedules", s.handleScheduleCreate)
+	s.Mux.HandleFunc("GET /api/schedules/{id}", s.handleScheduleGet)
+	s.Mux.HandleFunc("PATCH /api/schedules/{id}", s.handleSchedulePatch)
+	s.Mux.HandleFunc("DELETE /api/schedules/{id}", s.handleScheduleDelete)
+	s.Mux.HandleFunc("POST /api/schedules/{id}/run", s.handleScheduleRunNow)
+	s.Mux.HandleFunc("GET /api/schedules/{id}/runs", s.handleScheduleRuns)
 	s.Mux.HandleFunc("GET /api/stress", s.handleStressGet)
 	s.Mux.HandleFunc("POST /api/stress", s.handleStressStart)
 	s.Mux.HandleFunc("DELETE /api/stress", s.handleStressStop)
+	s.Mux.HandleFunc("GET /v1/models", s.handleOpenAIModels)
+	s.Mux.HandleFunc("POST /v1/chat/completions", s.handleOpenAIChatCompletions)
 }
 
 func (s *Server) Handler() http.Handler {
@@ -94,7 +117,7 @@ func (s *Server) Handler() http.Handler {
 		}
 		rec := &statusRecorder{ResponseWriter: w, status: http.StatusOK}
 		s.Mux.ServeHTTP(rec, r)
-		if rec.swallowed && !rec.wrote && strings.HasPrefix(r.URL.Path, "/api/") {
+		if rec.swallowed && !rec.wrote && (strings.HasPrefix(r.URL.Path, "/api/") || strings.HasPrefix(r.URL.Path, "/v1/")) {
 			writeErr(w, apperrors.New("NOT_FOUND", "not found"))
 		}
 	})

@@ -18,7 +18,7 @@ func TestCheckMaxItemsRSSGate(t *testing.T) {
 	mS.ChatSteps = done
 	fS.ChatSteps = done
 	ts := newHarnessFromURLs(t, mURL, fURL)
-	defer ts.Close()
+	t.Cleanup(func() { ts.Close() })
 
 	before, err := rssKB()
 	if err != nil {
@@ -40,6 +40,11 @@ func TestCheckMaxItemsRSSGate(t *testing.T) {
 	if res.StatusCode != http.StatusAccepted {
 		t.Fatalf("status %d", res.StatusCode)
 	}
+	var created struct {
+		ID string `json:"id"`
+	}
+	_ = decodeJSON(res, &created)
+	t.Cleanup(func() { stopBatchBeforeClose(ts, created.ID) })
 	after, _ := rssKB()
 	delta := after - before
 	if delta > 5120 {
