@@ -135,6 +135,13 @@ put it in the repository. See [V6-OPERABILITY.md](V6-OPERABILITY.md).
 
 ## 6. Rollback
 
+Before installing any V7.1 to V7.9 build, run `pingpong backup` and keep the copy
+private. New versions only add tables and columns, so an older binary still
+opens the file, but it does not know the new rules: after V7.5 an older binary
+would sweep thread jobs at 90 days, and after V7.7 it ignores schedules. Roll
+back only to a build from before the version you want to leave, or restore the
+backup.
+
 - Stop the launch agent
 - `tailscale serve reset` if needed
 - Firmino and Mane Ollama keep running independently

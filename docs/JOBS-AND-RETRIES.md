@@ -184,6 +184,16 @@ pingpong batch get --url http://127.0.0.1:8787 --id <batch-id>
 
 `items.json` is `{"items":[{"prompt":"..."}, ...]}`. Fetch with `GET /api/batches/{id}`.
 
+## 6a. Planned changes (V7.1 to V7.7, not built)
+
+Jobs gain optional links, all additive: `parent_id` and `stage` (a check or
+reduce job belongs to a parent), `thread_id` and `turn` (a conversation turn),
+and a `batches` row per new batch. Retention changes: a child job goes with its
+parent, jobs of a thread go with the thread (90 days after its last message),
+and templates and schedules are never swept. A check stage waits for stage 1 to
+be `done` and is created at that moment, so the state table above is unchanged.
+Full rules: [NEXT-FEATURES-BUILD-SPEC.md](NEXT-FEATURES-BUILD-SPEC.md) section 1.
+
 ## 7. Open questions
 
 - Whether `POST /api/chat` stays a separate path in V2 (see API.md).

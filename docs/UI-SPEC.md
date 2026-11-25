@@ -71,14 +71,28 @@ The page has three tabs: **Chat** (everything above), **Status** and **Stress**.
 | Status | Machines (reachable, models, in flight), job counts by status and lane, oldest waiting job age, router memory and uptime. Reads `GET /api/status`. Never shows prompts or outputs |
 | Stress | Pick a target (mane, firmino, both) and a duration (1 to 7200 seconds), then Start or Stop. Shows remaining time and, per machine, done and failed counts and median, minimum and maximum speeds. The run is on the server and survives closing the page. Reads `/api/stress` |
 
+## 3b. Planned tabs (V7.1 to V7.7, not built)
+
+Plain HTML and JavaScript like the rest. Hidden when jobs are off. Contract in
+[NEXT-FEATURES-BUILD-SPEC.md](NEXT-FEATURES-BUILD-SPEC.md) section 1.6.
+
+| Tab | Version | Holds |
+|---|---|---|
+| Batches | V7.1, extended by V7.2, V7.4, V7.6 | Batch list, New batch form (with Split, Check, From file and Reduce), batch view with per-machine bars, export buttons |
+| Templates | V7.3 | List, edit, Use panel |
+| Threads | V7.5 | Thread list and conversation view |
+| Schedules | V7.7 | Schedule table, form, runs |
+
+The Chat tab gains a "Check with" selector (V7.2).
+
 ## 4. Not included
 
 - Logins and user management.
 - Settings pages and themes.
 - Model installation or deletion from the page.
 - Charts and dashboards (the Status and Stress tabs show numbers only).
-- Notifications (deferred).
-- RAG or document features.
+- Notifications (deferred, drafted as V7.9).
+- RAG. (Text file chunking arrives with V7.6 in the Batches tab.)
 
 ## 5. Terminal access
 

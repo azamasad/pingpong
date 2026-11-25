@@ -1,6 +1,6 @@
 # Roadmap
 
-Status: v2. V1 to V7 are built, merged and **running on the real machines**.
+Status: v3. V1 to V7 are built, merged and **running on the real machines**. V7.1 to V7.7 are specified and ready to build. V7.8 and V7.9 are drafts.
 Dates are intentionally absent. Phases are ordered by dependency, not by
 calendar. Current focus: measure, tune and use it (see "Now").
 
@@ -22,7 +22,7 @@ calendar. Current focus: measure, tune and use it (see "Now").
 
 **Versioning scheme:** a feature is a minor step after the last built version
 (V7.1, V7.2, ...). A new major version (V8) is used only for a large change.
-Built so far: V1 to V7. Everything numbered V7.x below is planned and not built.
+Built so far: V1 to V7. Everything numbered V7.x below is planned and not built, and is built in the order V7.1 to V7.9.
 
 | Phase | Name | Outcome |
 |---|---|---|
@@ -41,8 +41,8 @@ Built so far: V1 to V7. Everything numbered V7.x below is planned and not built.
 | 7.5 | V7.5: conversation threads (planned) | Saved conversations with history |
 | 7.6 | V7.6: file input (planned) | Text and Markdown, chunked, run as a batch. Not RAG. PDF later |
 | 7.7 | V7.7: scheduled jobs (planned) | Nightly or weekly runs, set up from the page |
-| 7.8 | V7.8: OpenAI-compatible endpoint (proposed) | Not yet specified |
-| 7.9 | V7.9: notifications (proposed) | Not yet specified |
+| 7.8 | V7.8: OpenAI-compatible endpoint (draft spec) | Opt-in `/v1`, waits for owner answer Q1 |
+| 7.9 | V7.9: notifications (draft spec) | One optional webhook, no content. Waits for owner answers Q2 and Q3 and a constitution change |
 | 7+ | Test tooling (not a numbered version) | Stress tab, bench scripts, per-request log line (D-075, D-076) |
 
 ## Who does what
@@ -169,11 +169,14 @@ gather data for tuning. Kept small (D-075, D-076, D-077).
 
 ## Planned next versions (owner-approved, not built)
 
-PRDs for V7.1 to V7.7 are in [NEXT-FEATURES-PRDS.md](NEXT-FEATURES-PRDS.md).
-Decisions D-086 to D-100 (renumbering in D-095). **Nothing here is built until the owner says so.**
+PRDs for V7.1 to V7.7 are in [NEXT-FEATURES-PRDS.md](NEXT-FEATURES-PRDS.md), and
+the build contract for V7.1 to V7.9 (payloads, storage, config, errors, UI,
+acceptance) is in [NEXT-FEATURES-BUILD-SPEC.md](NEXT-FEATURES-BUILD-SPEC.md).
+Decisions D-086 to D-115 (renumbering in D-095). The build checklist is
+[IMPLEMENTATION-PLAN.md](IMPLEMENTATION-PLAN.md) section 5c.
 
 **Owner priority and build order: V7.1 and V7.2 first, then V7.3, V7.4, V7.5, V7.6,
-V7.7, then the two proposed ones (V7.8, V7.9).** The version numbers follow the
+V7.7, then the two drafts (V7.8, V7.9).** The version numbers follow the
 build order. Dependencies: V7.3 (templates) feeds V7.6 and V7.7, V7.2 (checking)
 gives V7.6 its optional final step, V7.4 (export) and V7.1 (split) are
 independent of each other and useful to all.
@@ -187,8 +190,8 @@ independent of each other and useful to all.
 | V7.5 | Conversation threads | Medium | Context growth, retention rule |
 | V7.6 | File input (text and Markdown) | Lower | Non-goal wording. PDF is later, needs a measured memory check |
 | V7.7 | Scheduled jobs, set up from the page | Lower | Missed runs, daylight-saving time, anyone on the tailnet can create schedules |
-| V7.8 | OpenAI-compatible endpoint | Proposed | Not specified |
-| V7.9 | Notifications | Proposed | Not specified |
+| V7.8 | OpenAI-compatible endpoint | Draft | Needs owner answer Q1. Connection-tied, no tools |
+| V7.9 | Notifications | Draft | Needs owner answers Q2, Q3 and a constitution change. Outbound call from Mane |
 
 The owner approved four constitution wording changes (D-101). They are applied
 in CONSTITUTION.md and listed in the PRD file under "Constitution changes
@@ -207,13 +210,13 @@ applied".
 | Item | Notes |
 |---|---|
 | Profiles (fast / balanced / deep) | Shipped as V5 (D-068) |
-| Notifications when tasks finish | Proposed as V7.9, not yet specified |
+| Notifications when tasks finish | Drafted as V7.9, waits for the owner |
 | Automatic task classification | Only if rules prove insufficient |
 | High availability | Out of scope while both machines are assumed up |
 | Task-specific routing refinements | After real usage shows the need |
 | Model aliases | Shipped as V7 (D-070) |
 | Conversation threads on Mane | Planned as V7.5, PRD written ([NEXT-FEATURES-PRDS.md](NEXT-FEATURES-PRDS.md)) |
-| OpenAI-compatible endpoint | So other tools can use Pingpong. Proposed as V7.8, not yet specified |
+| OpenAI-compatible endpoint | So other tools can use Pingpong. Drafted as V7.8, waits for the owner |
 | Batch split, answer checking, templates, export, file input, schedules | Planned as V7.1 to V7.7, PRDs written |
 
 ## Explicitly excluded
@@ -223,4 +226,8 @@ applied".
 
 ## Open decisions
 
-- None blocking. Owner choices are listed under "Now".
+None blocks V7.1 to V7.7. Owner choices under "Now" are unchanged. Questions
+Q1 to Q5, each with a recommended answer, are in
+[NEXT-FEATURES-BUILD-SPEC.md](NEXT-FEATURES-BUILD-SPEC.md) section 12: V7.8 go-ahead
+(Q1), V7.9 go-ahead and webhook host (Q2), constitution wording for notifications
+(Q3), batch cancel endpoint (Q4), `batches.max_items` default (Q5).
