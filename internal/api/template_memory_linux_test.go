@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/azamasad/pingpong/internal/fakeollama"
 )
@@ -36,10 +37,19 @@ func TestTemplateBatchRSSGate(t *testing.T) {
 	if res.StatusCode != http.StatusAccepted {
 		t.Fatalf("status %d", res.StatusCode)
 	}
+	var created struct{ ID string `json:"id"` }
+	_ = decodeJSON(res, &created)
 	after, _ := rssKB()
 	deltaMB := float64(after-before) / 1024
 	t.Logf("RSS growth after 200-row template batch: %.1f MB", deltaMB)
 	if deltaMB > 5 {
 		t.Fatalf("RSS grew %.1f MB (gate 5 MB)", deltaMB)
 	}
+	if created.ID != "" {
+		c, _ := http.NewRequest(http.MethodPost, ts.URL+"/api/batches/"+created.ID+"/cancel", nil)
+		c.Host = "localhost"
+		_, _ = http.DefaultClient.Do(c)
+	}
+	time.Sleep(300 * time.Millisecond)
+	ts.Close()
 }
