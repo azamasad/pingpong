@@ -40,22 +40,22 @@ type message struct {
 
 // ModelDetail is optional metadata returned from GET /api/tags.
 type ModelDetail struct {
-	Name           string
-	ParameterSize  string
+	Name          string
+	ParameterSize string
 }
 
 // Server is a test double for Ollama.
 type Server struct {
-	Models      []string
+	Models       []string
 	ModelDetails []ModelDetail
-	ChatSteps   []Step
-	Reply       func(Call) []Step
-	TagsStatus  int
-	ChatStatus  int
-	mu          sync.Mutex
-	chatCalls   int
-	calls       []Call
-	OnChat      func(*http.Request)
+	ChatSteps    []Step
+	Reply        func(Call) []Step
+	TagsStatus   int
+	ChatStatus   int
+	mu           sync.Mutex
+	chatCalls    int
+	calls        []Call
+	OnChat       func(*http.Request)
 }
 
 func (s *Server) Handler() http.Handler {
@@ -78,8 +78,8 @@ func (s *Server) handleTags(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	type detail struct {
-		Name           string `json:"name"`
-		ParameterSize  string `json:"parameter_size,omitempty"`
+		Name          string `json:"name"`
+		ParameterSize string `json:"parameter_size,omitempty"`
 	}
 	list := make([]detail, 0)
 	if len(s.ModelDetails) > 0 {

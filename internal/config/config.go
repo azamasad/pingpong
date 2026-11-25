@@ -18,17 +18,17 @@ var aliasNameRe = regexp.MustCompile(`^[a-z0-9_-]+$`)
 
 // Config is the router configuration (V1 fields; V2 sections are ignored until used).
 type Config struct {
-	Router   RouterConfig       `yaml:"router"`
-	Machines []Machine          `yaml:"machines"`
-	Routing  RoutingConfig      `yaml:"routing"`
-	Timeouts TimeoutConfig      `yaml:"timeouts"`
-	Health   HealthConfig       `yaml:"health"`
-	Retry    RetryConfig        `yaml:"retry"`
-	Storage  StorageConfig      `yaml:"storage"`
-	Batches   BatchesConfig   `yaml:"batches"`
-	Templates TemplatesConfig `yaml:"templates"`
-	Profiles map[string]Profile `yaml:"profiles"`
-	Aliases  map[string]Alias   `yaml:"aliases"`
+	Router    RouterConfig       `yaml:"router"`
+	Machines  []Machine          `yaml:"machines"`
+	Routing   RoutingConfig      `yaml:"routing"`
+	Timeouts  TimeoutConfig      `yaml:"timeouts"`
+	Health    HealthConfig       `yaml:"health"`
+	Retry     RetryConfig        `yaml:"retry"`
+	Storage   StorageConfig      `yaml:"storage"`
+	Batches   BatchesConfig      `yaml:"batches"`
+	Templates TemplatesConfig    `yaml:"templates"`
+	Profiles  map[string]Profile `yaml:"profiles"`
+	Aliases   map[string]Alias   `yaml:"aliases"`
 }
 
 type BatchesConfig struct {
