@@ -54,7 +54,7 @@ func TestSplitBatchAssignmentAndAtomic(t *testing.T) {
 		t.Fatalf("split counts %+v", created.Split.Targets)
 	}
 
-	deadline := time.Now().Add(8 * time.Second)
+	deadline := time.Now().Add(30 * time.Second)
 	for time.Now().Before(deadline) {
 		g, _ := http.NewRequest(http.MethodGet, ts.URL+"/api/batches/"+created.ID, nil)
 		g.Host = "localhost"

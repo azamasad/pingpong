@@ -42,7 +42,7 @@ func TestBatchSubmitAndFetch(t *testing.T) {
 	if created.ID == "" || len(created.JobIDs) != 2 {
 		t.Fatalf("%+v", created)
 	}
-	deadline := time.Now().Add(5 * time.Second)
+	deadline := time.Now().Add(30 * time.Second)
 	for time.Now().Before(deadline) {
 		g, _ := http.NewRequest(http.MethodGet, ts.URL+"/api/batches/"+created.ID, nil)
 		g.Host = "localhost"

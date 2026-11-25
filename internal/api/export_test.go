@@ -3,6 +3,7 @@ package api_test
 import (
 	"bytes"
 	"encoding/csv"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -176,17 +177,34 @@ func TestExportPartialAndThinking(t *testing.T) {
 
 func waitBatchDone(t *testing.T, ts *httptest.Server, id string) {
 	t.Helper()
-	deadline := time.Now().Add(8 * time.Second)
+	// 30s, not 8s. A loaded CI runner can still be finishing the previous
+	// batch's goroutines, and an 8s budget failed once on the same commit
+	// that passed in the other workflow.
+	deadline := time.Now().Add(30 * time.Second)
+	last := "no sample"
 	for time.Now().Before(deadline) {
-		g, _ := http.NewRequest(http.MethodGet, ts.URL+"/api/batches/"+id, nil)
+		g, err := http.NewRequest(http.MethodGet, ts.URL+"/api/batches/"+id, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
 		g.Host = "localhost"
-		gr, _ := http.DefaultClient.Do(g)
+		gr, err := http.DefaultClient.Do(g)
+		if err != nil {
+			last = err.Error()
+			time.Sleep(30 * time.Millisecond)
+			continue
+		}
 		var view map[string]any
-		_ = decodeJSON(gr, &view)
+		if err := decodeJSON(gr, &view); err != nil {
+			last = err.Error()
+			time.Sleep(30 * time.Millisecond)
+			continue
+		}
 		if view["pending"] == float64(0) {
 			return
 		}
+		last = fmt.Sprintf("pending=%v total=%v", view["pending"], view["total"])
 		time.Sleep(30 * time.Millisecond)
 	}
-	t.Fatal("batch timeout")
+	t.Fatalf("batch timeout: %s", last)
 }
