@@ -68,7 +68,8 @@ is the non-thinking one.
 | Mane | `llama3.1:8b` | 4.9 GB | Default for the `fast` flag | `fast` |
 | Mane | `llama3.2:3b` | 2.0 GB | Simple, quick tasks | Pinning |
 | Firmino | `qwen3:30b-a3b-instruct-2507-q4_K_M` | about 18 GB | Default for auto. Long-running work (D-073) | Auto |
-| Firmino | `qwen2.5:14b` | 9 GB | Optional. Kept only as a slower dense comparison. Safe to remove with `ollama rm` | Pinning |
+| Firmino | `qwen2.5:14b` | 9 GB | Kept on Firmino by the owner (D-083). A slower dense comparison | Pinning |
+| Firmino | `gpt-oss:20b` | about 14 GB | Candidate for a blind comparison, pin only (D-084). See section 2a | Pinning |
 
 Notes:
 
@@ -83,10 +84,28 @@ Notes:
   but uses only about 3.3B per token, so it reads far less and is about five
   times faster than the dense 14B here, while being a bigger and better model.
   A dense 32B would be about 1 token/s and a 70B does not fit.
-- Second candidate if this model disappoints: `gpt-oss:20b` (about 13 GB,
-  also mixture-of-experts). Community reports say it is slower than Qwen3 on
-  CPU. Not tested.
+- Second candidate: `gpt-oss:20b`. See section 2a for whether it fits and how
+  it should behave. Not yet tested here.
 - Alternatives for Mane: keep to 8B or smaller.
+
+## 2a. Can `gpt-oss:20b` sit alongside the 30B on Firmino?
+
+The owner asked about adding "GMP 20S", read as `gpt-oss:20b`. This is an
+assessment from the model's published size and design, **not a measurement**.
+The comparison to settle it is in [OPERATIONS.md](OPERATIONS.md) section 13.
+
+| Question | Answer |
+|---|---|
+| What is it | An open-weight reasoning model with about 21B parameters in total and about 3.6B active per token (mixture-of-experts, like the 30B). Weights in a 4-bit format, about 14 GB on disk |
+| Disk | Fits easily. Models on Firmino would be about 18 GB (30B) + 9 GB (14B) + 14 GB (gpt-oss) = about 41 GB, against roughly 130 GB free on the 178 GB root partition |
+| Memory, one at a time | Fits easily. 14 GB of weights plus a few GB of context is well under 40 GB |
+| Memory, both loaded together | Would fit on paper (18 + 14 = 32 GB of 40 GB) but leaves only about 8 GB for Ubuntu, the context caches and the flex-mode slow region. **Do not do this.** Firmino stays at `OLLAMA_MAX_LOADED_MODELS=1`, so Ollama unloads one model when the other is requested |
+| Cost of switching | Each switch pays the cold load time (25.9 s measured for the 30B, probably 15 to 25 s for gpt-oss, not measured). Fine for pinned occasional use, annoying if requests alternate constantly |
+| Expected generation speed | Similar to the 30B, because both read about the same number of bytes per token (about 3.3B and 3.6B active at 4 bits). A reasonable guess is 8 to 14 tokens/s. Community reports say it is somewhat slower than Qwen3 on CPU. Not measured |
+| The catch: it thinks first | It is a reasoning model. It writes a reasoning phase before the answer, counted in the same token budget. At 10 tokens/s, 300 to 1,000 thinking tokens is 30 to 100 seconds before the first visible word. So the time to a usable answer is much longer than the tokens/s figure suggests. Compare "median reply" time, not tokens/s |
+| Reasoning effort | It has levels (low, medium, high). The router's `think` option is a true/false switch only (tech debt TD-2), so it runs at its default (medium) |
+| Fit with the non-thinking rule (D-038) | It must be pinned. It would not become the default unless it clearly wins the comparison |
+| Verdict | **Install it to compare. It fits.** Keep the 30B as the default, keep one model loaded, and decide after the blind comparison |
 
 ## 3. Memory budgets
 
@@ -213,6 +232,5 @@ role (see [ARCHITECTURE.md](ARCHITECTURE.md)) and described here when added.
 ## 10. Open questions
 
 - Whether to reclaim the Windows partitions on Firmino.
-- Whether `gpt-oss:20b` is worth a comparison against the current Firmino
-  model.
-- Whether to remove `qwen2.5:14b` from Firmino to free disk.
+- Whether `gpt-oss:20b` beats the current Firmino model on quality enough to
+  justify its longer thinking time (comparison ready, OPERATIONS section 13).

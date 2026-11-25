@@ -2,8 +2,9 @@
 
 Status: v2. Reflects the real setup. Mane and Firmino sit on different subnets
 and the gateway blocks traffic between them, so they talk over Tailscale
-(D-072). The Tailscale ACL in section 4 is **recommended but not yet applied**
-(see section 10).
+(D-072). The Tailscale ACL in section 4 is **recommended (D-081) and ready to
+apply, but not yet applied**, so any tailnet device can still reach Firmino's
+Ollama port. The page's tailnet-only exposure was checked by the owner (D-080).
 
 ## 1. Access paths
 
@@ -50,16 +51,98 @@ and the gateway blocks traffic between them, so they talk over Tailscale
 
 **Tailscale bypasses the Linux firewall.** On Linux, Tailscale adds a rule that accepts everything arriving on its own interface before `ufw` runs (this is deliberate, and Tailscale's ACLs are the control for tailnet traffic). So a `ufw` rule can **not** keep your MacBook Air off Firmino's Ollama over the tailnet. Only the Tailscale ACL can, now that Ollama has to listen on the tailnet address (D-072). This replaces the earlier design (D-054), which kept Ollama on the LAN address and blocked it with the ACL.
 
-### Tailscale ACL template (simple, tag-based)
+### Restrict Firmino's Ollama port to Mane (recommended: do this)
 
-Idea: give each machine a **tag** for its role, and write rules about tags, not
-individual machines. Adding a machine later means giving it a tag, with no rule
-changes. Anything not allowed is denied. Mane-to-Firmino traffic now travels
-over the tailnet, so the template includes a rule for it (port 11434, router
-tag to worker tag only).
+**Decision (D-081): restrict it with a Tailscale ACL.** Ollama has no login, and
+Firmino's Ollama must listen on a tailnet address (D-072). With the default ACL
+("everything may reach everything"), any device on your tailnet, for example a
+phone, a work laptop that joined later, or a shared node, can run models on
+Firmino or delete them. A two-rule ACL closes that and costs about ten
+minutes. It is a **recommendation until you apply it**. Nothing in the router
+changes.
 
-Paste into the Tailscale admin console, Access controls (replace the
-placeholders, and do not commit your real values to this public repo):
+Why this way and not another: `ufw` cannot do it (Tailscale traffic skips it),
+binding to `127.0.0.1` would stop Mane reaching it, and a login proxy is more
+moving parts than a personal system needs. The ACL below uses host names for
+the two machines, so **no re-tagging is needed**. Re-tagging a machine changes
+its identity and key handling, and is a bigger step than this needs. A
+tag-based version for when you add more machines is given afterwards.
+
+**Rules** (Tailscale admin console, Access controls). Replace the placeholders
+with the real Tailscale addresses (`tailscale ip -4` on each machine) in the
+console only, never in this repository:
+
+```
+{
+  "hosts": {
+    "mane":    "<MANE_TAILSCALE_IP>",
+    "firmino": "<FIRMINO_TAILSCALE_IP>"
+  },
+  "acls": [
+    {
+      "action": "accept",
+      "src":    ["autogroup:member"],
+      "dst":    ["mane:443", "mane:22", "firmino:22"]
+    },
+    {
+      "action": "accept",
+      "src":    ["mane"],
+      "dst":    ["firmino:11434"]
+    }
+  ],
+  "tests": [
+    { "src": "<MANE_TAILSCALE_IP>", "accept": ["<FIRMINO_TAILSCALE_IP>:11434"] },
+    { "src": "<AIR_TAILSCALE_IP>",
+      "accept": ["<MANE_TAILSCALE_IP>:443", "<FIRMINO_TAILSCALE_IP>:22"],
+      "deny":   ["<FIRMINO_TAILSCALE_IP>:11434"] }
+  ]
+}
+```
+
+What it says: every device of yours may open Mane's page (443) and SSH to Mane
+and Firmino (22). Only Mane may reach port 11434 on Firmino. Everything else on
+the tailnet is denied. Keep your existing `ssh` block and any other blocks as
+they are, and change only `hosts`, `acls` and `tests`. Mane is also one of your
+devices, so it keeps the same access as the rest, plus the Ollama port. Replies
+to connections Mane starts are allowed automatically.
+
+If you also use other ports over the tailnet (for example screen sharing to
+Mane), add them to the first rule's `dst`, or they will stop working. If the
+console rejects a line in `tests`, delete the `tests` block: the checks in step 6
+are the real proof.
+
+**Step by step (about 10 minutes, from the MacBook Air):**
+
+1. Open the Tailscale admin console, Access controls. Copy the whole current
+   policy into a text note. This is your rollback (the console also keeps a
+   version history).
+2. Find the three Tailscale addresses: run `tailscale ip -4` on Mane, on
+   Firmino and on the MacBook Air (or read them in the Machines page).
+3. Keep one SSH session to Firmino open, in case you need to fix something.
+4. Edit the policy: add `hosts`, replace `acls` with the two rules above, add
+   `tests`. Leave other blocks alone. Click Save. The console refuses to save if a
+   test fails.
+5. Wait about 30 seconds.
+6. Check, in this order:
+   - The Mane page still loads from the MacBook Air (and from your phone).
+   - SSH to Mane and to Firmino still works.
+   - From the MacBook Air: `curl -m 5 http://<FIRMINO_TAILSCALE_IP>:11434/api/tags`
+     must **fail or time out**. (Type the real address, without brackets.)
+   - On Mane: `pingpong doctor --chat` still passes for both machines.
+   - On Mane: `tailscale serve status` still shows the router.
+7. If anything in step 6 fails: Access controls, version history, restore the
+   previous policy, then tell the assistant exactly what failed.
+
+When it is done, update the "not yet applied" lines in this document, the
+SETUP-GUIDE and the ROADMAP, or ask the assistant to.
+
+### Tailscale ACL template, tag-based (for when you add machines)
+
+Use this only when you have more machines. Give each machine a **tag** for its
+role, and write rules about tags, not individual machines. Adding a machine then
+means giving it a tag, with no rule changes. Tagging changes how a machine is
+owned and how its key expires, so do it deliberately. Paste into Access controls
+(replace the placeholders, and do not commit real values to this public repo):
 
 ```
 {
@@ -71,7 +154,7 @@ placeholders, and do not commit your real values to this public repo):
     {
       "action": "accept",
       "src": ["autogroup:member"],
-      "dst": ["tag:router:443", "tag:worker:22"]
+      "dst": ["tag:router:443", "tag:router:22", "tag:worker:22"]
     },
     {
       "action": "accept",
@@ -90,8 +173,8 @@ placeholders, and do not commit your real values to this public repo):
   "tests": [
     {
       "src": "<YOUR_EMAIL>",
-      "accept": ["tag:router:443", "tag:worker:22"],
-      "deny": ["tag:worker:11434", "tag:router:22"]
+      "accept": ["tag:router:443", "tag:router:22", "tag:worker:22"],
+      "deny": ["tag:worker:11434"]
     },
     {
       "src": "tag:router",
@@ -101,13 +184,8 @@ placeholders, and do not commit your real values to this public repo):
 }
 ```
 
-What it says: you (any member of your tailnet) may open Mane's page (443) and SSH
-to Firmino (22), and nothing else. Only Mane may reach port 11434 on Firmino.
-The `tests` block makes the console refuse a policy that does not behave this
-way. Check that tagging Mane does not break the Tailscale Serve page or SSH,
-using the safe order below.
-
-Safe order (so you cannot lock yourself out):
+(An earlier version of this template denied SSH to Mane. Fixed: you use SSH on
+both machines.) Safe order so you cannot lock yourself out:
 
 1. Add only `tagOwners` first, and save.
 2. Tag Mane as `tag:router` and Firmino as `tag:worker` (admin console, machine
@@ -116,11 +194,9 @@ Safe order (so you cannot lock yourself out):
 3. Keep your current SSH session to Firmino open.
 4. Replace `acls`, `ssh` and `tests` with the template, and save. If the tests
    fail, the console tells you and does not apply it.
-5. Check from the MacBook Air: Mane's page loads, SSH to Firmino works, and
-   `http://<Firmino tailnet address>:11434` fails. Then run `pingpong doctor
-   --chat` on Mane: Firmino must still pass.
+5. Run the checks in step 6 of the previous section.
 
-A new worker later: install Tailscale, tag it `tag:worker`, done.
+A new worker later (tag-based setup): install Tailscale, tag it `tag:worker`, done.
 
 Ollama has no built-in authentication, so the firewall and Tailscale are the
 protection. Do not rely on obscurity.
@@ -190,12 +266,11 @@ public repository.
 - The web page loads no external assets, so no third parties see page loads.
 - **The page has no login.** Anyone whose device is on the tailnet and who is
   allowed by the ACL can open it, and the default ACL allows every device. It
-  is not reachable from outside the tailnet while Funnel is off. This has been
-  checked with `tailscale serve status`. The check from a device that is
-  **not** on the tailnet (for example a phone on mobile data with Tailscale
-  off) is still the owner's to do. If the page opens from such a device,
-  switch Funnel off with `tailscale funnel reset` and re-check. A login layer
-  or a custom domain behind a proxy is possible later and is not planned.
+  is not reachable from outside the tailnet: Funnel is off (`tailscale serve
+  status` says tailnet only), and **the owner confirmed from a device that is
+  not on the tailnet that the page does not load (D-080)**. Re-check after any
+  change to Tailscale Serve or Funnel. A login layer or a custom domain behind
+  a proxy is possible later and is not planned.
 
 ## 8. Threats considered
 
@@ -217,9 +292,8 @@ disk encryption.
 
 ## 10. Open questions
 
-- Whether to apply the ACL in section 4 now. It is the one remaining gap in
-  the Firmino path.
-- The off-tailnet check of the page (section 7).
+- Applying the ACL in section 4 (owner, about 10 minutes). It is the one
+  remaining gap in the Firmino path.
 - Whether to add a login layer or custom domain later.
 - Which router handles the DHCP reservations, if the machines ever share a
   subnet.

@@ -7,6 +7,10 @@ Environment:
   PINGPONG_URL          chat endpoint (default http://127.0.0.1:8787/api/chat)
   PINGPONG_CONTESTANTS  comma list of machine:model, for example
                         mane:llama3.1:8b,firmino:qwen3:30b-a3b-instruct-2507-q4_K_M
+                        Add @N to give one contestant a bigger answer budget
+                        (num_predict). Reasoning models such as gpt-oss spend
+                        tokens thinking first, so use for example
+                        firmino:gpt-oss:20b@1500. Default budget is 220.
 Optional ~/my-prompts.txt adds one prompt per line. Outputs go to ~/.
 """
 import json, os, random, statistics, time, urllib.request
@@ -14,11 +18,17 @@ import json, os, random, statistics, time, urllib.request
 URL = os.environ.get("PINGPONG_URL", "http://127.0.0.1:8787/api/chat")
 HOME = os.path.expanduser("~")
 DEFAULT_CONTESTANTS = "mane:llama3.1:8b,firmino:qwen3:30b-a3b-instruct-2507-q4_K_M"
-CONTESTANTS = [
-    tuple(item.split(":", 1))
-    for item in os.environ.get("PINGPONG_CONTESTANTS", DEFAULT_CONTESTANTS).split(",")
-    if item.strip()
-]
+CONTESTANTS = []
+for item in os.environ.get("PINGPONG_CONTESTANTS", DEFAULT_CONTESTANTS).split(","):
+    item = item.strip()
+    if not item:
+        continue
+    budget = 220
+    if "@" in item:
+        item, n = item.rsplit("@", 1)
+        budget = int(n)
+    machine, model = item.split(":", 1)
+    CONTESTANTS.append((machine, model, budget))
 ARTICLE = (
     "The city council voted on Tuesday to replace the aging downtown bridge. "
     "The project will cost 42 million dollars and take about three years. "
@@ -57,10 +67,10 @@ if os.path.exists(mine):
             PROMPTS.append(("mine%d" % i, line.strip(), None))
 
 
-def ask(machine, model, prompt):
+def ask(machine, model, budget, prompt):
     body = json.dumps({
         "prompt": prompt, "machine": machine, "model": model, "stream": False,
-        "options": {"num_predict": 220, "temperature": 0},
+        "options": {"num_predict": budget, "temperature": 0},
     }).encode()
     req = urllib.request.Request(URL, body, {"Content-Type": "application/json"})
     try:
@@ -68,15 +78,19 @@ def ask(machine, model, prompt):
             d = json.load(r)
     except Exception as e:
         return "", {}, str(e)
-    return d.get("text", ""), d.get("stats", {}), json.dumps(d.get("error", "")) if d.get("error") else ""
+    err = json.dumps(d.get("error", "")) if d.get("error") else ""
+    text = d.get("text", "")
+    if not err and not text.strip():
+        err = "empty answer (the model used its whole budget thinking; raise @N)"
+    return text, d.get("stats", {}), err
 
 
 results = {}
-for ci, (machine, model) in enumerate(CONTESTANTS):
-    print("running", machine, model, flush=True)
+for ci, (machine, model, budget) in enumerate(CONTESTANTS):
+    print("running", machine, model, "budget", budget, flush=True)
     for pi, (name, prompt, check) in enumerate(PROMPTS):
         t0 = time.time()
-        text, stats, err = ask(machine, model, prompt)
+        text, stats, err = ask(machine, model, budget, prompt)
         ok = None
         if check is not None and not err:
             ok = bool(check(text))
@@ -103,7 +117,7 @@ with open(out_path, "w") as out, open(key_path, "w") as key:
 
 print("\nSPEED AND AUTO-CHECKS")
 summary = []
-for ci, (machine, model) in enumerate(CONTESTANTS):
+for ci, (machine, model, budget) in enumerate(CONTESTANTS):
     rows = [results[(pi, ci)] for pi in range(len(PROMPTS))]
     tps = [r[1].get("output_tokens_per_s") for r in rows if r[1].get("output_tokens_per_s")]
     pps = [r[1].get("prompt_tokens_per_s") for r in rows if r[1].get("prompt_tokens_per_s")]

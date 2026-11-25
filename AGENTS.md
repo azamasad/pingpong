@@ -35,7 +35,7 @@ Anything beyond that (V8 threads, V9 OpenAI-compatible API, V10 notifications, a
 | Go-live on real machines (M8b, M9b, M10 in effect) | Done. `doctor --chat` passes on both |
 | Stress tab, speed log line, bench scripts | Done |
 | Automated tests | `docs/TESTING.md` §2 in CI, plus a smoke run of the real binary against stand-in Ollama servers |
-| Owner's open checks | Off-tailnet test of the page, Tailscale ACL for Firmino's port 11434, reboot and power-cut checks (see [docs/ROADMAP.md](docs/ROADMAP.md) "Now") |
+| Owner's open checks | Tailscale ACL for Firmino's port 11434 (ready, D-081), soak test, reboot and power-cut tests, `gpt-oss:20b` comparison. Runbooks in [docs/OPERATIONS.md](docs/OPERATIONS.md) sections 11 to 13. Page access was confirmed tailnet-only by the owner (D-080) |
 
 The real Ollama stream format has been verified on both machines (D-052 closed,
 D-078). Still unverified: the exact shape of mid-stream errors from a real
@@ -73,8 +73,9 @@ Run: `make test && make build`. Enable jobs with `storage.data_dir` in config (`
   owner. Build and test against a fake Ollama, and give the owner checklists or
   scripts (`deploy/bench/`) for anything that must happen on real hardware.
   Measured numbers in the docs came from the owner; do not invent new ones.
-- **Mane must not run the Ollama desktop app** (D-074). Do not tell the owner
-  to install it.
+- **Mane should not run the Ollama desktop app** (D-074). It is still installed
+  there, as accepted tech debt (TD-1, D-082). Never tell the owner to open or
+  install it, and always include the port-11434 check in reboot instructions.
 
 ## Working agreement
 

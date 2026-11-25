@@ -206,12 +206,12 @@ port. `ufw` here protects the LAN side.
       unless you installed the command-line tool separately.
 - [ ] Set `allowed_hosts` in the router config to Mane's **full** tailnet name
       (`mane.<tailnet>.ts.net`), plus `localhost` and `127.0.0.1`.
-- [ ] Apply the tag-based Tailscale ACL from [NETWORK-AND-SECURITY.md](NETWORK-AND-SECURITY.md)
+- [ ] Apply the Tailscale ACL from [NETWORK-AND-SECURITY.md](NETWORK-AND-SECURITY.md) section 4 (the host-based two-rule version, D-081)
       (the default allows everything). Follow its safe order, and keep an SSH
       session to Firmino open while you do it.
 - [ ] Check from the MacBook Air that the page loads, and from a device **not**
       on your tailnet (a phone with Tailscale off) that it does not. Also check
-      that `tailscale serve status` says "(tailnet only)". Not yet done by the owner.
+      that `tailscale serve status` says "(tailnet only)". Done by the owner (D-080).
 - [ ] Check from the MacBook Air that `http://<Firmino tailnet address>:11434` is
       refused or times out (after the ACL is applied).
 - [ ] Reboot Mane and confirm `tailscale serve status` still shows the router,
@@ -278,4 +278,4 @@ machines:
 | Firmino model `qwen2.5:14b` | `qwen3:30b-a3b-instruct-2507-q4_K_M` | A mixture-of-experts model is about 5.6 times faster on this CPU (D-073) |
 | "Buy matched memory modules" | Not possible | 8 GB of Firmino's memory is soldered |
 | Install steps assumed a fresh Ollama | Install script, `ollama` user, models directory, override file | Models pulled as root were invisible to the service |
-| Ollama desktop app "may conflict" | Must not be present on Mane | It silently blocked the launch agent (D-074) |
+| Ollama desktop app "may conflict" | Should not be present on Mane. It is still installed today, kept as known tech debt (D-082), so check the port after each reboot | It silently blocked the launch agent (D-074) |

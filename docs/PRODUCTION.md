@@ -16,7 +16,9 @@ checklist to repeat after a rebuild. Real addresses are not recorded here.
 | Mane to Firmino path | Firmino's Tailscale address (D-072) |
 | Saved requests | On. SQLite in `storage.data_dir` on Mane |
 | Router memory | About 24 MB resident after 24 jobs (budget 50 MB) |
-| Owner checks still open | Off-tailnet test of the page, Tailscale ACL for Firmino's port 11434, remove or delete the Ollama desktop app on Mane |
+| Page access | Checked by the owner from off the tailnet: it does not load (D-080) |
+| Owner checks still open | Tailscale ACL for Firmino's port 11434 (ready, D-081), soak test, reboot and power-cut tests, `gpt-oss:20b` comparison (runbooks in [OPERATIONS.md](OPERATIONS.md) sections 11 to 13) |
+| Known tech debt | The Ollama desktop app is still installed on Mane (TD-1, D-082). Check the port 11434 listener after every reboot |
 
 ## 2. Prerequisites
 
@@ -58,8 +60,9 @@ Two user launch agents, both with absolute paths: `com.ollama.serve` (runs
 [SETUP-GUIDE.md](SETUP-GUIDE.md) section 3.3) and `com.pingpong.router` (from
 `deploy/com.pingpong.router.plist.example`).
 
-**Before loading them, make sure the Ollama desktop app is not running** and
-not in Login Items. It holds port 11434, the launch agent then stays at "spawn
+**Before loading them, make sure the Ollama desktop app is not running.**
+Ideally it is also removed from Login Items. The owner has left it installed for
+now (tech debt TD-1, D-082), so it may start at login and grab the port again. It holds port 11434, the launch agent then stays at "spawn
 scheduled", and its settings are never applied (D-074). Check with
 `lsof -nP -iTCP:11434 -sTCP:LISTEN`: the listener must be the launch agent's
 `ollama`, not `Ollama.app`.
