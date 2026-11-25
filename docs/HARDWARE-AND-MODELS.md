@@ -224,9 +224,11 @@ Stress tab for a long soak. See [OPERATIONS.md](OPERATIONS.md) section 9.
 Note that `pingpong doctor --chat` reports speeds from a 2-token reply and is
 not a benchmark (D-077).
 
-Planned: each V7.1 to V7.7 pull request adds a row here for the router's RSS
-under the load named in its build-spec section (idle, then the load). The
-owner repeats it on Mane.
+| Version | Load | VmRSS delta (CI test binary) | Owner on Mane |
+|---|---|---|---|
+| V7.1 | 500-item split batch submit (default `max_items`) | ~35 MB in CI test binary (`TestBatchMaxItemsRSSGate`; not the production router) | **Pending** (10 MB gate on real router) |
+
+Each later V7.x pull request adds a row. The owner repeats on Mane.
 
 ## 9. Future machines
 

@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -12,6 +13,9 @@ import (
 
 	_ "modernc.org/sqlite"
 )
+
+// ErrNotFound means the row does not exist.
+var ErrNotFound = errors.New("not found")
 
 type JobStatus string
 
@@ -125,14 +129,28 @@ CREATE INDEX IF NOT EXISTS idx_events_job ON events(job_id, seq);
 	if err != nil {
 		return err
 	}
-	if err := s.addColumn("lane", `ALTER TABLE jobs ADD COLUMN lane TEXT NOT NULL DEFAULT 'interactive'`); err != nil {
+	if err := s.addColumn("jobs", "lane", `ALTER TABLE jobs ADD COLUMN lane TEXT NOT NULL DEFAULT 'interactive'`); err != nil {
 		return err
 	}
-	return s.addColumn("batch_id", `ALTER TABLE jobs ADD COLUMN batch_id TEXT`)
+	if err := s.addColumn("jobs", "batch_id", `ALTER TABLE jobs ADD COLUMN batch_id TEXT`); err != nil {
+		return err
+	}
+	_, err = s.db.Exec(`
+CREATE TABLE IF NOT EXISTS batches (
+  id TEXT PRIMARY KEY,
+  created_at TEXT NOT NULL,
+  kind TEXT NOT NULL,
+  item_count INTEGER NOT NULL,
+  plan_json TEXT NOT NULL DEFAULT '',
+  source TEXT NOT NULL DEFAULT ''
+);
+CREATE INDEX IF NOT EXISTS idx_jobs_batch ON jobs(batch_id);
+`)
+	return err
 }
 
-func (s *Store) addColumn(name, stmt string) error {
-	rows, err := s.db.Query(`PRAGMA table_info(jobs)`)
+func (s *Store) addColumn(table, name, stmt string) error {
+	rows, err := s.db.Query(`PRAGMA table_info(` + table + `)`)
 	if err != nil {
 		return err
 	}
@@ -392,5 +410,7 @@ func (s *Store) PurgeOlderThan(ctx context.Context, before time.Time) (int64, er
 	if err != nil {
 		return 0, err
 	}
-	return res.RowsAffected()
+	n, _ := res.RowsAffected()
+	_, _ = s.PurgeEmptyBatches(ctx)
+	return n, nil
 }
