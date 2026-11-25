@@ -236,9 +236,11 @@ has been verified by `doctor --chat`.
 | Jobs | 24 jobs: 23 done, 1 cancelled, 0 failures |
 | Mane speed | 21.3 tokens/s generation, 488 tokens/s prompt reading (warm) |
 | Firmino speed | 11.9 tokens/s generation on the 30B mixture-of-experts model, 35 tokens/s prompt reading |
-| Page reachable only on the tailnet | `tailscale serve status` says tailnet only. Test from a device off the tailnet **not yet done** |
-| ACL blocking Firmino's port 11434 | **Not yet applied** |
-| Reboot and power-cut checks (steps 12 and 16) | **Not yet done** |
+| Page reachable only on the tailnet | `tailscale serve status` says tailnet only, and the owner confirmed from a device off the tailnet that it does not load (D-080) |
+| ACL blocking Firmino's port 11434 | **Not yet applied.** Ready to apply: [NETWORK-AND-SECURITY.md](NETWORK-AND-SECURITY.md) section 4 (D-081) |
+| Soak test with the Stress tab | **Not yet done.** Runbook: [OPERATIONS.md](OPERATIONS.md) section 11 |
+| Reboot and power-cut checks (steps 12 and 16) | **Not yet done.** Runbook: [OPERATIONS.md](OPERATIONS.md) section 12 |
+| `gpt-oss:20b` blind comparison | **Not yet done.** Runbook: [OPERATIONS.md](OPERATIONS.md) section 13 |
 
 Speed figures are single runs. See [HARDWARE-AND-MODELS.md](HARDWARE-AND-MODELS.md)
 section 8 and [OPERATIONS.md](OPERATIONS.md) section 9 to repeat them.

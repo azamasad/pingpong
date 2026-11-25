@@ -11,10 +11,12 @@ calendar. Current focus: measure, tune and use it (see "Now").
 | Router V1 to V7, Stress tab, bench scripts, per-request log | Built |
 | Live on Mane and Firmino, `doctor --chat` passing | Done |
 | Firmino model: mixture-of-experts 30B (D-073) | Done, measured |
-| Tailscale ACL for Firmino's port 11434 | Owner, recommended |
-| Off-tailnet test of the page | Owner |
-| Soak with the Stress tab, then read the log for improvements | Next |
-| Decide whether to keep `qwen2.5:14b` on Firmino | Owner |
+| Page reachable only on the tailnet | Done, checked by the owner (D-080) |
+| Tailscale ACL for Firmino's port 11434 | Owner. Rules and steps are ready (D-081) |
+| Soak with the Stress tab, then read the log for improvements | Owner, runbook in [OPERATIONS.md](OPERATIONS.md) section 11 |
+| Reboot and power-cut tests | Owner, runbook in section 12 |
+| `gpt-oss:20b` blind comparison against the 30B | Owner, runbook in section 13. Assessment in [HARDWARE-AND-MODELS.md](HARDWARE-AND-MODELS.md) section 2a |
+| `qwen2.5:14b` on Firmino | Decided: stays (D-083) |
 
 ## Overview
 
@@ -147,10 +149,18 @@ gather data for tuning. Kept small (D-075, D-076, D-077).
 |---|---|
 | Read a day of the log and tune from it | The log now carries speed, queue wait, loads and retries |
 | Lower `first_token_timeout` | The measured prompt reading speed on Firmino is about 30 tokens/s, so 8K tokens take 4 to 5 minutes |
-| Compare `gpt-oss:20b` against the current Firmino model | Second mixture-of-experts candidate. Reported slower on CPU |
-| Tailscale ACL for Firmino's Ollama port | The only gap in the Firmino path |
+| Compare `gpt-oss:20b` against the current Firmino model | Second mixture-of-experts candidate. Reported slower on CPU. Setup ready (OPERATIONS section 13) |
+| Apply the Tailscale ACL for Firmino's Ollama port | The only gap in the Firmino path. Rules ready (D-081) |
 | Login layer or custom domain | The page has no login and is open to the tailnet. Only if the owner wants it |
-| Restart-on-boot checks | Reboot each machine and confirm everything returns |
+| Restart-on-boot checks | Runbook ready (OPERATIONS section 12) |
+
+## Tech debt and future work
+
+| ID | Item | Why it matters | Possible fix |
+|---|---|---|---|
+| TD-1 | The Ollama desktop app is still installed on Mane (D-082) | If it starts at login it holds port 11434, so the launch agent's settings (context 8192, keep-alive, no-cloud) silently do not apply. This already happened once | Delete the app, or remove it from Login Items. Cheap safety net, only if the owner wants it: `pingpong doctor` could warn when the listener on the Ollama port is not the launch agent. Until then, check after each reboot with `lsof -nP -iTCP:11434 -sTCP:LISTEN` |
+| TD-2 | The router's `think` option is a true/false switch only | `gpt-oss` models take levels (low, medium, high), so their reasoning effort cannot be set through the router | Accept a string as well. Only if `gpt-oss` wins the comparison |
+| TD-3 | No automatic tests of the bench scripts | They are exercised by hand against stand-in servers only | Add a small script test if they become important |
 
 ## Deferred and backlog
 

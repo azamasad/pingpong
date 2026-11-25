@@ -178,7 +178,7 @@ The manual check list is in [TESTING.md](TESTING.md) section 4.
 - Closing the browser during a request stops the work on the worker.
 - Mane's router and page stay within the RAM budget under normal use.
 - Mane-to-Firmino traffic is confirmed to use the private path (Tailscale or LAN).
-- Firmino's inference port is not reachable from the MacBook Air directly (needs the Tailscale ACL, not yet applied).
+- Firmino's inference port is not reachable from the MacBook Air directly (needs the Tailscale ACL, ready in NETWORK-AND-SECURITY section 4, not yet applied).
 - Logs contain no prompts or outputs.
 - A long quiet wait on Firmino (many minutes) does not drop the connection, and the page shows elapsed time.
 - A prompt that fills the context window shows a warning.
