@@ -30,6 +30,13 @@
 | **Split (planned, V7.1)** | Running one batch on several machines at once, each with its own pinned model |
 | **Check (planned, V7.2)** | An explicit second step where a user-chosen model reviews or revises an answer |
 | **Template (planned, V7.3)** | A saved prompt with `{{blanks}}` |
+| **Split batch (planned, V7.1)** | A batch whose items are shared across machines by a fixed rule chosen at submit (round robin or weights) |
+| **Stage (planned, V7.2)** | A job that belongs to a parent job: a check (review or revise) or a reduce. It starts only after its parent is done |
+| **Chunk (planned, V7.6)** | One piece of an uploaded text file, cut on paragraph boundaries, run as one job. Not RAG |
+| **Reduce (planned, V7.6)** | An optional last job that combines all chunk results into one answer |
+| **Export (planned, V7.4)** | Downloading a batch as CSV or Markdown |
+| **Thread (planned, V7.5)** | A saved conversation bound to one machine and model. Each turn is a job |
+| **Schedule (planned, V7.7)** | A saved daily or weekly rule that submits a job or batch, created from the page |
 | **Stress run** | A server-side soak, started from the Stress tab, that keeps short batch jobs flowing to Mane, Firmino or both for up to 2 hours |
 | **Mixture-of-experts (MoE)** | A model with many parameters in total but only a few used per token (the Firmino model has 30B in total and about 3.3B active). Much faster on CPU than a dense model of the same size |
 | **Dense model** | A model that uses all its parameters for every token (for example `qwen2.5:14b`). Slower on CPU |
@@ -43,6 +50,7 @@
 | **Thinking model** | A model that writes out reasoning before its answer (for example the Qwen3 family). Slow on CPU, so not used by default. Its reasoning arrives as separate `thinking` events |
 | **Tailscale Serve** | A Tailscale feature that publishes a local service to the tailnet only, with HTTPS. Used so the router can stay on localhost |
 | **Context window** | How much text a model can consider at once. Larger uses more memory |
-| **RAG** | Retrieval over documents. Out of scope here |
+| **RAG** | Retrieval over documents (search, embeddings, an index). Out of scope here. Chunking a file to run as a batch is allowed and is not RAG |
 | **NDJSON** | Newline-delimited JSON. One JSON object per line. Used for streaming |
 | **V1 to V7** | Release stages. All are built and running. See [ROADMAP.md](ROADMAP.md) |
+| **V7.1 to V7.9** | Planned minor versions, built in order one at a time. See [NEXT-FEATURES-BUILD-SPEC.md](NEXT-FEATURES-BUILD-SPEC.md) |

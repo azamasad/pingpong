@@ -2,7 +2,9 @@
 
 Status: v2. How we know each version works. Acceptance criteria live in
 [PRD.md](PRD.md). This document says how to check them. V1 to V7 are covered by
-automated tests and have been run on the real machines (section 4a).
+automated tests and have been run on the real machines (section 4a). Tests for
+the planned V7.1 to V7.9 are listed in section 2.10 and the owner's checks for
+them in section 4b.
 
 ## 1. Approach
 
@@ -216,6 +218,28 @@ doctor check. Listed in [V7-ALIASES.md](V7-ALIASES.md) section 8.
   anything else, so prompts and outputs cannot leak (`internal/logx`).
 - A finished job's `done` event carries speed `stats`.
 
+### 2.10 Tests for V7.1 to V7.9 (planned, per version)
+
+Each version's full acceptance list is in
+[NEXT-FEATURES-BUILD-SPEC.md](NEXT-FEATURES-BUILD-SPEC.md) (the section named
+below). Write the tests from that list. Layers, for every version:
+
+| Layer | What it covers | How |
+|---|---|---|
+| Unit | Pure logic: split assignment (2), template substitution (4), chunking (7), CSV and Markdown writers (5), next-due maths (8), context estimates (3, 6), history building (6) | Tables of inputs and outputs, injectable clock |
+| Fake Ollama | Which pair ran each job, what prompt or `messages` the model received, down machine while the other finishes, failure and retry windows | Upgraded fake with recorded calls and per-call replies (spec 1.9). Needed from V7.1 on |
+| API integration | Every endpoint (including batch cancel), every validation error and HTTP status, atomic submit (nothing saved on any error), Host and Origin on new endpoints, `/api/chat` rejects `check`, `template`, `split` | `httptest` with real store in a temp dir |
+| Store | Migration from a database made by `main` (old jobs and batches still load), new tables in `pingpong backup` output, retention sweep rules (child with parent, thread jobs with thread, templates and schedules kept) | Fake clock |
+| Restart | Stop and start with work in each in-between state: split batch half done, check stage 1 done with no child, thread turn running, reduce pending, schedule due while stopped | Reopen the store and service |
+| Log | No prompt, output, template, var, file text or webhook URL in any log line during the smoke scenario. New fields only through the whitelist | Capture log output and assert |
+| Memory | The load named in each spec section, read from `VmRSS` on Linux (as `memory_linux_test.go`) | Recorded in HARDWARE-AND-MODELS section 8 |
+| Smoke | Real binary, two stand-in Ollama servers, `curl` commands from the spec section | Manual, results in the pull request |
+
+Cross-version cases to cover once all are built: a checked, split batch from a
+template exports to CSV with every stage and pair; a scheduled template batch
+with `split` runs and notifies (V7.9); a thread survives a router restart; a
+2 MB file with reduce stays under the memory gate.
+
 ### Fake Ollama scenario format
 
 The fake Ollama is a small test server. Each test gives it a scenario: a list of
@@ -244,6 +268,25 @@ has been verified by `doctor --chat`.
 
 Speed figures are single runs. See [HARDWARE-AND-MODELS.md](HARDWARE-AND-MODELS.md)
 section 8 and [OPERATIONS.md](OPERATIONS.md) section 9 to repeat them.
+
+## 4b. Owner checks for V7.1 to V7.9 (when each is built)
+
+Run after the version is merged and installed. The agent cannot do these.
+Details per version: the "Owner on real machines" line in
+[NEXT-FEATURES-BUILD-SPEC.md](NEXT-FEATURES-BUILD-SPEC.md).
+
+| Version | Check |
+|---|---|
+| V7.1 | A 10-item split with the 8B on Mane and the 30B on Firmino: both bars move, each result shows its own machine and model. Router RSS on Mane with the batch queued. Cancel a queued batch with one call |
+| V7.2 | One review and one revise with real models. Is the fixed review wording useful? Time for the model swap on Firmino (one model loaded at a time) |
+| V7.3 | A real template run as a 5-row batch |
+| V7.4 | Download the CSV of a real batch and open it in your spreadsheet. Accented text, and a cell starting with `=` |
+| V7.5 | A 10-turn conversation with the 30B, close the laptop mid-answer, reopen on the phone. Time to start turn 10 |
+| V7.6 | Upload a real report of about 100 KB, with and without reduce. Say what chunk size suits. Router RSS during the upload |
+| V7.7 | One nightly schedule for a week: one due-time run, one after a Mane restart, one run now. Check Mane's time zone. Daylight-saving change if one falls in the week |
+| V7.8 | Point one OpenAI-compatible client at the router and chat |
+| V7.9 | Finish one small batch and check the phone message has no content |
+| All | `pingpong backup` after each, `pingpong doctor --chat` still passes, router RSS under 50 MB, log lines contain no content (`logsummary.py`) |
 
 ## 5. What not to test here
 
