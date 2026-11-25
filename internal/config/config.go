@@ -25,8 +25,13 @@ type Config struct {
 	Health   HealthConfig       `yaml:"health"`
 	Retry    RetryConfig        `yaml:"retry"`
 	Storage  StorageConfig      `yaml:"storage"`
+	Batches  BatchesConfig      `yaml:"batches"`
 	Profiles map[string]Profile `yaml:"profiles"`
 	Aliases  map[string]Alias   `yaml:"aliases"`
+}
+
+type BatchesConfig struct {
+	MaxItems int `yaml:"max_items"`
 }
 
 // Alias maps a short name to a real model and optional machine (V7).
@@ -227,6 +232,13 @@ func (c *Config) applyDefaults() {
 	if c.Storage.OutputFlushInterval.Duration == 0 {
 		c.Storage.OutputFlushInterval = Duration{time.Second}
 	}
+	if c.Batches.MaxItems == 0 {
+		// D-118: 1000-item gate in CI grew RSS >10 MB; default 500 until owner re-measures on Mane.
+		c.Batches.MaxItems = 500
+	}
+	if c.Batches.MaxItems < 1 {
+		c.Batches.MaxItems = 1
+	}
 	if len(c.Profiles) == 0 {
 		c.Profiles = map[string]Profile{
 			"fast":     {Fast: true},
@@ -325,6 +337,9 @@ func (c *Config) validate() ([]string, error) {
 		if n > 1 {
 			warnings = append(warnings, fmt.Sprintf("role %q is on %d machines; V4 picks the least loaded machine that is up", role, n))
 		}
+	}
+	if c.Batches.MaxItems < 1 {
+		return warnings, errors.New("batches.max_items must be >= 1")
 	}
 	if c.Timeouts.FirstTokenTimeout.Duration < c.Timeouts.IdleTokenTimeout.Duration {
 		return warnings, errors.New("first_token_timeout must not be shorter than idle_token_timeout")

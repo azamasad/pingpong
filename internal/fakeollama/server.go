@@ -27,15 +27,35 @@ type DoneStats struct {
 	DoneReason      string `json:"done_reason"`
 }
 
+// Call records one chat request seen by the fake server.
+type Call struct {
+	Model    string
+	Messages []message
+}
+
+type message struct {
+	Role    string `json:"role"`
+	Content string `json:"content"`
+}
+
+// ModelDetail is optional metadata returned from GET /api/tags.
+type ModelDetail struct {
+	Name           string
+	ParameterSize  string
+}
+
 // Server is a test double for Ollama.
 type Server struct {
-	Models     []string
-	ChatSteps  []Step
-	TagsStatus int
-	ChatStatus int
-	mu         sync.Mutex
-	chatCalls  int
-	OnChat     func(*http.Request)
+	Models      []string
+	ModelDetails []ModelDetail
+	ChatSteps   []Step
+	Reply       func(Call) []Step
+	TagsStatus  int
+	ChatStatus  int
+	mu          sync.Mutex
+	chatCalls   int
+	calls       []Call
+	OnChat      func(*http.Request)
 }
 
 func (s *Server) Handler() http.Handler {
@@ -57,24 +77,50 @@ func (s *Server) handleTags(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(s.TagsStatus)
 		return
 	}
-	type m struct {
-		Name string `json:"name"`
+	type detail struct {
+		Name           string `json:"name"`
+		ParameterSize  string `json:"parameter_size,omitempty"`
 	}
-	list := make([]m, 0, len(s.Models))
-	for _, n := range s.Models {
-		list = append(list, m{Name: n})
+	list := make([]detail, 0)
+	if len(s.ModelDetails) > 0 {
+		for _, m := range s.ModelDetails {
+			list = append(list, detail{Name: m.Name, ParameterSize: m.ParameterSize})
+		}
+	} else {
+		for _, n := range s.Models {
+			list = append(list, detail{Name: n})
+		}
 	}
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(map[string]any{"models": list})
 }
 
 func (s *Server) handleChat(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Model    string    `json:"model"`
+		Messages []message `json:"messages"`
+		Stream   *bool     `json:"stream"`
+	}
+	_ = json.NewDecoder(r.Body).Decode(&req)
+	stream := true
+	if req.Stream != nil {
+		stream = *req.Stream
+	}
+
+	call := Call{Model: req.Model, Messages: req.Messages}
+
 	s.mu.Lock()
 	s.chatCalls++
 	if s.OnChat != nil {
 		s.OnChat(r)
 	}
+	s.calls = append(s.calls, call)
 	steps := s.ChatSteps
+	if s.Reply != nil {
+		if custom := s.Reply(call); custom != nil {
+			steps = custom
+		}
+	}
 	status := s.ChatStatus
 	s.mu.Unlock()
 
@@ -84,12 +130,6 @@ func (s *Server) handleChat(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var req map[string]any
-	_ = json.NewDecoder(r.Body).Decode(&req)
-	stream := true
-	if v, ok := req["stream"].(bool); ok {
-		stream = v
-	}
 	if !stream {
 		var content, thinking string
 		var done DoneStats
@@ -178,7 +218,6 @@ func (s *Server) handleChat(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
-	// default done if no steps
 	if len(steps) == 0 {
 		line := map[string]any{
 			"model":      "fake",
@@ -195,6 +234,15 @@ func (s *Server) ChatCallCount() int {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return s.chatCalls
+}
+
+// Calls returns recorded chat calls in order.
+func (s *Server) Calls() []Call {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	out := make([]Call, len(s.calls))
+	copy(out, s.calls)
+	return out
 }
 
 func NewHTTPTestServer(s *Server) *httptest.Server {

@@ -302,10 +302,12 @@ sequence number.
 |---|---|
 | `POST /api/jobs` | Optional `"lane":"interactive"` (default) or `"batch"` |
 | `GET /api/jobs` | Also filters `lane` and `batch_id` |
-| `POST /api/batches` | Body `{"items":[ <job body>, ... ]}`. All items run on the batch lane. Returns `{"id","job_ids"}` |
-| `GET /api/batches/{id}` | Batch status: `pending` count and each job's detail |
+| `POST /api/batches` | Body `{"items":[ <job body>, ... ], "split"?:{...}}`. All items run on the batch lane (up to `batches.max_items`, default 500). Optional `split` with `assign` `round_robin` or `weights` and two or more `{machine, model, weight?}` targets on **different** machines. Returns `202` `{"id","job_ids","split"?,"not_split"}` |
+| `GET /api/batches` | Recent batches: `[{"id","kind","created_at","total","counts":{...}}]`. Query `limit` (default 50), `before` |
+| `GET /api/batches/{id}` | Batch view. Query `limit` (default 200, max 1000), `offset`. Fields: `id`, `kind`, `created_at`, `total`, `pending`, `counts`, `split` (per-target progress or null), `jobs`, `next_offset` |
+| `POST /api/batches/{id}/cancel` | Cancel every waiting, running and retrying job. Returns `200` `{"cancelled":N}` |
 
-Terminal: `pingpong batch submit` and `pingpong batch get` (see [JOBS-AND-RETRIES.md](JOBS-AND-RETRIES.md)).
+Terminal: `pingpong batch submit|get|cancel` (see [JOBS-AND-RETRIES.md](JOBS-AND-RETRIES.md)).
 
 ### 4.2 V5 profiles
 
@@ -338,10 +340,6 @@ file as each version is built. All need `storage.data_dir` unless noted.
 
 | Method and path | Version | Purpose |
 |---|---|---|
-| `POST /api/batches` with `split` | V7.1 | Split a batch over explicit machine and model targets. Also lifts the 100-item cap (`batches.max_items`) |
-| `POST /api/batches/{id}/cancel` | V7.1 | Cancel every active job of a batch and its stage children. Returns `{"cancelled":N}` |
-| `GET /api/batches` | V7.1 | Recent batches (id, kind, created, counts) for the Batches tab |
-| `GET /api/batches/{id}?limit&offset` | V7.1 | Adds `total`, `counts`, `kind`, per-target `split` progress, paging. Old fields unchanged |
 | `check` on `POST /api/jobs` and batch items | V7.2 | Review or revise by a second model. Job detail gains `stage`, `parent_id`, `children`, `check` |
 | `POST/GET/PUT/DELETE /api/templates` | V7.3 | Saved prompts with `{{blanks}}` |
 | `template`, `vars`, `rows` on `POST /api/jobs` and `POST /api/batches` | V7.3 | Use a template |
