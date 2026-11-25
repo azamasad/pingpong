@@ -222,7 +222,7 @@ doctor check. Listed in [V7-ALIASES.md](V7-ALIASES.md) section 8.
   anything else, so prompts and outputs cannot leak (`internal/logx`).
 - A finished job's `done` event carries speed `stats`.
 
-### 2.10 Tests for V7.1 to V7.9 (planned, per version)
+### 2.10 Tests for V7.1 to V7.9
 
 Each version's full acceptance list is in
 [NEXT-FEATURES-BUILD-SPEC.md](NEXT-FEATURES-BUILD-SPEC.md) (the section named

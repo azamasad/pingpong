@@ -3,17 +3,33 @@
 package api_test
 
 import (
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"regexp"
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/azamasad/pingpong/internal/api"
 	"github.com/azamasad/pingpong/internal/fakeollama"
 	"github.com/azamasad/pingpong/internal/gate"
 	"github.com/azamasad/pingpong/internal/registry"
 )
+
+// stopBatchBeforeClose cancels a batch and waits so job goroutines drop the
+// database before the test server and its temp directory are removed.
+func stopBatchBeforeClose(ts *httptest.Server, batchID string) {
+	if batchID != "" && ts != nil {
+		c, err := http.NewRequest(http.MethodPost, ts.URL+"/api/batches/"+batchID+"/cancel", nil)
+		if err == nil {
+			c.Host = "localhost"
+			_, _ = http.DefaultClient.Do(c)
+		}
+	}
+	time.Sleep(300 * time.Millisecond)
+}
 
 func rssKB() (int, error) {
 	b, err := os.ReadFile("/proc/self/status")

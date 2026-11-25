@@ -88,6 +88,10 @@ func TestTemplateCRUDAndUse(t *testing.T) {
 	if detail["prompt_preview"] == "" {
 		t.Fatal("job should keep final prompt after template delete")
 	}
+	reqMap, _ := detail["request"].(map[string]any)
+	if reqMap["template"] != "summary" {
+		t.Fatalf("saved request should keep the template name, got %+v", reqMap)
+	}
 }
 
 func TestTemplateMissingVars(t *testing.T) {

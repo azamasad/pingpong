@@ -18,7 +18,7 @@ func TestBatchMaxItemsRSSGate(t *testing.T) {
 	mS.ChatSteps = done
 	fS.ChatSteps = done
 	ts := newHarnessFromURLs(t, mURL, fURL)
-	defer ts.Close()
+	t.Cleanup(func() { ts.Close() })
 
 	before, err := rssKB()
 	if err != nil {
@@ -45,14 +45,7 @@ func TestBatchMaxItemsRSSGate(t *testing.T) {
 	}
 	_ = decodeJSON(res, &created)
 	after, _ := rssKB()
-	t.Cleanup(func() {
-		if created.ID == "" {
-			return
-		}
-		c, _ := http.NewRequest(http.MethodPost, ts.URL+"/api/batches/"+created.ID+"/cancel", nil)
-		c.Host = "localhost"
-		_, _ = http.DefaultClient.Do(c)
-	})
+	t.Cleanup(func() { stopBatchBeforeClose(ts, created.ID) })
 	deltaMB := float64(after-before) / 1024
 	t.Logf("RSS growth after %d-item submit: %.1f MB (Mane gate is 10 MB; CI test binary is heavier)", n, deltaMB)
 	// Proxy ceiling similar to TestRSSProxyBudget; owner re-checks on Mane.

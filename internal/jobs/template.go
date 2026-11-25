@@ -94,9 +94,11 @@ func (s *Service) expandOneTemplate(t *store.Template, tplName string, vars map[
 			req[k] = v
 		}
 	}
+	// Drop request-only fields, then keep the template name on the saved job
+	// so the page can show it after the template itself is deleted.
+	stripTemplateFields(req)
 	req["prompt"] = prompt
 	req["template"] = tplName
-	stripTemplateFields(req)
 	b, err := json.Marshal(req)
 	if err != nil {
 		return "", nil, &RouteRejectedError{Code: "BAD_REQUEST"}

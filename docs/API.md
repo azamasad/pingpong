@@ -362,11 +362,10 @@ optional `alias` field appears on the `route` event and job detail (V7).
 
 Terminal: `pingpong doctor [--chat] [--json]` and `pingpong backup`.
 
-### 4.3a Planned, not built (V7.1 to V7.9)
+### 4.3a V7.5 threads, V7.6 file input, V7.7 schedules (built)
 
-Do not depend on these. Payloads, validation and errors are in
-[NEXT-FEATURES-BUILD-SPEC.md](NEXT-FEATURES-BUILD-SPEC.md), which moves into this
-file as each version is built. All need `storage.data_dir` unless noted.
+All need `storage.data_dir`. Payloads, validation and errors are in
+[NEXT-FEATURES-BUILD-SPEC.md](NEXT-FEATURES-BUILD-SPEC.md) sections 6 to 8.
 
 | Method and path | Version | Purpose |
 |---|---|---|

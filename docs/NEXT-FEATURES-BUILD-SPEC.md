@@ -1,6 +1,6 @@
 # Build spec for V7.1 to V7.9
 
-Status: **specified, not built.** Written so a coding agent can build each
+Status: **built (M21 to M29).** This file stays the acceptance contract. Written so a coding agent can build each
 version without guessing. Product intent and stories are in
 [NEXT-FEATURES-PRDS.md](NEXT-FEATURES-PRDS.md). This file is the single source
 for payloads, storage, config, errors, limits, UI and acceptance of the planned
