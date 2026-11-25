@@ -244,6 +244,9 @@ func (s *Service) CancelBatch(ctx context.Context, batchID string) (int, error) 
 	if !hasJobs && batchErr != nil {
 		return 0, store.ErrNotFound
 	}
+	// Drop pending stages before cancel so a job that finishes during cancel cannot start one.
+	_ = s.store.ClearBatchCheckPending(ctx, batchID)
+	_ = s.store.ClearBatchPendingReduce(ctx, batchID)
 	active, err := s.store.ActiveJobsByBatch(ctx, batchID)
 	if err != nil {
 		return 0, err
@@ -254,6 +257,8 @@ func (s *Service) CancelBatch(ctx context.Context, batchID string) (int, error) 
 			n++
 		}
 	}
+	_ = s.store.ClearBatchCheckPending(ctx, batchID)
 	_ = s.store.ClearBatchPendingReduce(ctx, batchID)
+	s.maybeNotifyBatchTerminal(ctx, batchID)
 	return n, nil
 }

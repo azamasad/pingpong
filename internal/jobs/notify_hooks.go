@@ -23,20 +23,24 @@ func jobFailedNotifyEligible(j *store.Job) bool {
 }
 
 func (s *Service) maybeNotifyJobFailed(j *store.Job, code string) {
-	if s.notify == nil || !s.notify.Enabled() {
-		return
-	}
-	if !jobFailedNotifyEligible(j) {
-		return
-	}
 	if code == "" {
 		code = j.ErrorCode
 	}
 	if code == "" {
 		code = "FAILED"
 	}
-	body := fmt.Sprintf("Job %s failed (%s)", id8(j.ID), code)
-	s.notify.Send(notify.EventJobFailed, body)
+	if s.notify != nil && s.notify.Enabled() && jobFailedNotifyEligible(j) {
+		body := fmt.Sprintf("Job %s failed (%s)", id8(j.ID), code)
+		s.notify.Send(notify.EventJobFailed, body)
+	}
+	if j == nil || j.BatchID != "" || j.ID == "" {
+		return
+	}
+	name, err := s.store.ScheduleNameByJobID(context.Background(), j.ID)
+	if err != nil || name == "" {
+		return
+	}
+	s.notifyScheduleFailed(name, code)
 }
 
 func (s *Service) notifyScheduleFailed(name, code string) {

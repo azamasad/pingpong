@@ -125,7 +125,7 @@ func (s *Service) SubmitThreadMessage(ctx context.Context, threadID string, req 
 		Status:      store.StatusWaiting,
 		Lane:        store.LaneInteractive,
 		Machine:     machine, Model: model,
-		ThreadID:    threadID, Turn: nextTurn,
+		ThreadID: threadID, Turn: nextTurn,
 	}
 	mode := s.resolve(route.Request{Model: model, Machine: machine})
 	if mode.OK {
@@ -362,7 +362,7 @@ func (s *Service) ThreadDetail(ctx context.Context, threadID string, limit int) 
 		"id": th.ID, "title": th.Title, "machine": th.Machine, "model": th.Model,
 		"created_at": th.CreatedAt.UTC().Format(time.RFC3339),
 		"updated_at": th.UpdatedAt.UTC().Format(time.RFC3339),
-		"turns": turns, "pin_changes": pinOut,
+		"turns":      turns, "pin_changes": pinOut,
 	}, nil
 }
 

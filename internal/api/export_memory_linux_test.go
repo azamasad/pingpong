@@ -34,7 +34,9 @@ func TestExportLargeBatchRSSGate(t *testing.T) {
 	req.Host = "localhost"
 	req.Header.Set("Content-Type", "application/json")
 	res, _ := http.DefaultClient.Do(req)
-	var created struct{ ID string `json:"id"` }
+	var created struct {
+		ID string `json:"id"`
+	}
 	_ = decodeJSON(res, &created)
 	waitBatchDone(t, ts, created.ID)
 

@@ -10,6 +10,12 @@ const (
 	StageReduce = "reduce"
 )
 
+// ClearBatchCheckPending stops every answer job in a batch from growing a later stage.
+func (s *Store) ClearBatchCheckPending(ctx context.Context, batchID string) error {
+	_, err := s.db.ExecContext(ctx, `UPDATE jobs SET check_pending=0 WHERE batch_id=? AND check_pending=1`, batchID)
+	return err
+}
+
 func (s *Store) ClearCheckPending(ctx context.Context, id string) error {
 	_, err := s.db.ExecContext(ctx, `UPDATE jobs SET check_pending=0, updated_at=datetime('now') WHERE id=?`, id)
 	return err

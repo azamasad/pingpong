@@ -243,6 +243,21 @@ FROM schedule_runs WHERE schedule_id=? ORDER BY due DESC`
 	return scanScheduleRuns(rows)
 }
 
+// ScheduleNameByJobID returns the schedule name for a single-job run, or empty.
+func (s *Store) ScheduleNameByJobID(ctx context.Context, jobID string) (string, error) {
+	if jobID == "" {
+		return "", nil
+	}
+	var name string
+	err := s.db.QueryRowContext(ctx, `SELECT s.name FROM schedule_runs r
+JOIN schedules s ON s.id = r.schedule_id
+WHERE r.job_id=? ORDER BY r.started DESC LIMIT 1`, jobID).Scan(&name)
+	if errors.Is(err, sql.ErrNoRows) {
+		return "", nil
+	}
+	return name, err
+}
+
 func (s *Store) LastScheduleRun(ctx context.Context, scheduleID string) (*ScheduleRun, error) {
 	row := s.db.QueryRowContext(ctx, `SELECT id, schedule_id, due, started, kind, job_id, batch_id, status, error_code
 FROM schedule_runs WHERE schedule_id=? ORDER BY due DESC LIMIT 1`, scheduleID)
