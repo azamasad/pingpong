@@ -27,7 +27,7 @@ which machine and model should handle it.
 
 See also the constitution.
 
-- RAG, document search, vector databases.
+- RAG, document search, embeddings, vector databases. Splitting a file into chunks to run as a batch is allowed.
 - High availability and failover.
 - Splitting one model across machines.
 - Multiple users, logins, billing.

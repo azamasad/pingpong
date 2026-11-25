@@ -42,12 +42,14 @@ Reachable only through Tailscale. Never exposed to the public internet.
 
 **P9. Explicit beats clever.**
 Routing follows simple, documented rules driven by clear signals: flags,
-pinned names, and what is installed where. The router does not read prompts
-to guess difficulty.
+pinned names, what is installed where, and explicit user-chosen modes (a batch
+split plan, a review step). The router does not read prompts to guess difficulty.
 
 **P10. Pinned means pinned.**
 If the user names a model or a machine, that is exactly what is used. No
-silent substitution, no switching mid-task. If it is unavailable, say so.
+silent substitution, no switching mid-task. A second model used to check an
+answer is a separate, visible step the user chose, not a switch. If it is
+unavailable, say so.
 
 **P11. Be transparent.**
 Every response reports which model and which machine produced it. Waiting,
@@ -73,8 +75,9 @@ Significant choices and their reasons go in
 [docs/DECISIONS.md](docs/DECISIONS.md) so they are not re-debated.
 
 **P16. Never log content.**
-Prompts and model outputs are never written to logs. In V2 they are stored
-only in the saved-request store, for the retention period.
+Prompts and model outputs are never written to logs. They are stored only in
+the saved-request store: results for the retention period, and templates and
+schedules until deleted.
 
 **P17. Public repository, private system.**
 The repository is public. It never contains real addresses, keys, tokens,
@@ -95,13 +98,13 @@ PRD, then the other documents.
 | Logins | None. Tailscale is the access control. |
 | Public exposure | None |
 | Retry window for an unavailable machine (V2) | Every 2 minutes, up to 3 hours, then stop |
-| Retention of finished results (when stored) | 90 days |
+| Retention of finished results and thread content (when stored) | 90 days (threads: from the last message). Templates and schedules are definitions and are kept until deleted |
 | Logging of prompts or outputs | Never |
 | Concurrency per machine (default) | 1 request in flight |
 
 ## Non-goals
 
-- RAG, document search or vector databases.
+- RAG, document search, embeddings or vector databases. Splitting a file into chunks to run as a batch is allowed.
 - High availability or automatic failover.
 - Distributed inference that splits one model across machines.
 - Multi-user accounts, billing or quotas.
