@@ -104,7 +104,10 @@ func (s *Server) handleJobGet(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, apperrors.New("NOT_FOUND", "job not found"))
 		return
 	}
-	detail := jobDetail(j)
+	detail := s.Jobs.JobDetail(r.Context(), j)
+	if p := promptFromRequest(j.RequestJSON); p != "" {
+		detail["prompt_preview"] = truncate(p, 120)
+	}
 	if events, err := s.Jobs.EventsSince(r.Context(), id, 1); err == nil {
 		detail["status_history"] = statusHistoryFromEvents(events)
 	}
@@ -238,28 +241,6 @@ func jobSummary(j *store.Job) map[string]any {
 		"lane": j.Lane, "batch_id": j.BatchID,
 		"prompt_preview": truncate(prompt, 120),
 	}
-}
-
-func jobDetail(j *store.Job) map[string]any {
-	cb := map[string]any{}
-	_ = json.Unmarshal([]byte(j.RequestJSON), &cb)
-	delete(cb, "messages")
-	out := jobSummary(j)
-	out["request"] = cb
-	out["output_text"] = j.OutputText
-	out["output_thinking"] = j.OutputThinking
-	out["attempt"] = j.Attempt
-	out["error"] = nil
-	if j.ErrorCode != "" {
-		out["error"] = map[string]string{"code": j.ErrorCode, "message": j.ErrorMessage}
-	}
-	if j.FirstFailureAt != nil {
-		out["first_failure_at"] = j.FirstFailureAt
-	}
-	if j.NextAttemptAt != nil {
-		out["next_attempt_at"] = j.NextAttemptAt
-	}
-	return out
 }
 
 func promptFromRequest(raw string) string {

@@ -46,6 +46,11 @@ type Job struct {
 	NextAttemptAt  *time.Time
 	Lane           string
 	BatchID        string
+	ParentID       string
+	Stage          string
+	CheckPending   int
+	PromptTokens   int
+	OutputTokens   int
 }
 
 const (
@@ -54,7 +59,8 @@ const (
 )
 
 const jobCols = `id, created_at, updated_at, status, request_json, machine, model, mode,
-output_text, output_thinking, error_code, error_message, attempt, first_failure_at, next_attempt_at, lane, batch_id`
+output_text, output_thinking, error_code, error_message, attempt, first_failure_at, next_attempt_at,
+lane, batch_id, parent_id, stage, check_pending, prompt_tokens, output_tokens`
 
 type Event struct {
 	ID        int64
@@ -135,6 +141,21 @@ CREATE INDEX IF NOT EXISTS idx_events_job ON events(job_id, seq);
 	if err := s.addColumn("jobs", "batch_id", `ALTER TABLE jobs ADD COLUMN batch_id TEXT`); err != nil {
 		return err
 	}
+	if err := s.addColumn("jobs", "parent_id", `ALTER TABLE jobs ADD COLUMN parent_id TEXT`); err != nil {
+		return err
+	}
+	if err := s.addColumn("jobs", "stage", `ALTER TABLE jobs ADD COLUMN stage TEXT NOT NULL DEFAULT ''`); err != nil {
+		return err
+	}
+	if err := s.addColumn("jobs", "check_pending", `ALTER TABLE jobs ADD COLUMN check_pending INTEGER NOT NULL DEFAULT 0`); err != nil {
+		return err
+	}
+	if err := s.addColumn("jobs", "prompt_tokens", `ALTER TABLE jobs ADD COLUMN prompt_tokens INTEGER NOT NULL DEFAULT 0`); err != nil {
+		return err
+	}
+	if err := s.addColumn("jobs", "output_tokens", `ALTER TABLE jobs ADD COLUMN output_tokens INTEGER NOT NULL DEFAULT 0`); err != nil {
+		return err
+	}
 	_, err = s.db.Exec(`
 CREATE TABLE IF NOT EXISTS batches (
   id TEXT PRIMARY KEY,
@@ -145,6 +166,9 @@ CREATE TABLE IF NOT EXISTS batches (
   source TEXT NOT NULL DEFAULT ''
 );
 CREATE INDEX IF NOT EXISTS idx_jobs_batch ON jobs(batch_id);
+CREATE INDEX IF NOT EXISTS idx_jobs_parent ON jobs(parent_id);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_jobs_parent_stage ON jobs(parent_id, stage)
+  WHERE parent_id IS NOT NULL AND parent_id != '';
 `)
 	return err
 }
@@ -177,10 +201,12 @@ func (s *Store) InsertJob(ctx context.Context, j *Job) error {
 		lane = LaneInteractive
 	}
 	_, err := s.db.ExecContext(ctx, `INSERT INTO jobs (
-id, created_at, updated_at, status, request_json, machine, model, mode, attempt, lane, batch_id
-) VALUES (?,?,?,?,?,?,?,?,?,?,?)`,
+id, created_at, updated_at, status, request_json, machine, model, mode, attempt, lane, batch_id,
+parent_id, stage, check_pending, prompt_tokens, output_tokens
+) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
 		j.ID, j.CreatedAt.UTC().Format(time.RFC3339), j.UpdatedAt.UTC().Format(time.RFC3339),
-		j.Status, j.RequestJSON, j.Machine, j.Model, j.Mode, j.Attempt, lane, j.BatchID)
+		j.Status, j.RequestJSON, j.Machine, j.Model, j.Mode, j.Attempt, lane, j.BatchID,
+		j.ParentID, j.Stage, j.CheckPending, j.PromptTokens, j.OutputTokens)
 	return err
 }
 
@@ -216,14 +242,17 @@ func (s *Store) GetJob(ctx context.Context, id string) (*Job, error) {
 func scanJob(row *sql.Row) (*Job, error) {
 	var j Job
 	var ca, ua, ff, na sql.NullString
-	var out, think, ec, em, lane, batch sql.NullString
+	var out, think, ec, em, lane, batch, parent sql.NullString
+	var stage sql.NullString
 	if err := row.Scan(&j.ID, &ca, &ua, &j.Status, &j.RequestJSON, &j.Machine, &j.Model, &j.Mode,
-		&out, &think, &ec, &em, &j.Attempt, &ff, &na, &lane, &batch); err != nil {
+		&out, &think, &ec, &em, &j.Attempt, &ff, &na, &lane, &batch,
+		&parent, &stage, &j.CheckPending, &j.PromptTokens, &j.OutputTokens); err != nil {
 		return nil, err
 	}
 	j.OutputText, j.OutputThinking = out.String, think.String
 	j.ErrorCode, j.ErrorMessage = ec.String, em.String
 	j.Lane, j.BatchID = lane.String, batch.String
+	j.ParentID, j.Stage = parent.String, stage.String
 	if j.Lane == "" {
 		j.Lane = LaneInteractive
 	}
@@ -286,14 +315,17 @@ func (s *Store) ListJobs(ctx context.Context, status, lane, batchID string, befo
 func scanJobRow(rows *sql.Rows) (*Job, error) {
 	var j Job
 	var ca, ua, ff, na sql.NullString
-	var out, think, ec, em, lane, batch sql.NullString
+	var out, think, ec, em, lane, batch, parent sql.NullString
+	var stage sql.NullString
 	if err := rows.Scan(&j.ID, &ca, &ua, &j.Status, &j.RequestJSON, &j.Machine, &j.Model, &j.Mode,
-		&out, &think, &ec, &em, &j.Attempt, &ff, &na, &lane, &batch); err != nil {
+		&out, &think, &ec, &em, &j.Attempt, &ff, &na, &lane, &batch,
+		&parent, &stage, &j.CheckPending, &j.PromptTokens, &j.OutputTokens); err != nil {
 		return nil, err
 	}
 	j.OutputText, j.OutputThinking = out.String, think.String
 	j.ErrorCode, j.ErrorMessage = ec.String, em.String
 	j.Lane, j.BatchID = lane.String, batch.String
+	j.ParentID, j.Stage = parent.String, stage.String
 	if j.Lane == "" {
 		j.Lane = LaneInteractive
 	}
@@ -329,6 +361,12 @@ func (s *Store) WaitingForMachine(ctx context.Context, machine string) ([]*Job, 
 }
 
 func (s *Store) DeleteJob(ctx context.Context, id string) error {
+	children, _ := s.ChildrenOf(ctx, id)
+	for _, c := range children {
+		if err := s.DeleteJob(ctx, c.ID); err != nil && err != sql.ErrNoRows {
+			return err
+		}
+	}
 	_, err := s.db.ExecContext(ctx, `DELETE FROM events WHERE job_id=?`, id)
 	if err != nil {
 		return err
@@ -405,12 +443,63 @@ WHERE status IN ('waiting','running','retrying')`)
 }
 
 func (s *Store) PurgeOlderThan(ctx context.Context, before time.Time) (int64, error) {
-	res, err := s.db.ExecContext(ctx, `DELETE FROM jobs WHERE status IN ('done','failed','cancelled') AND updated_at < ?`,
-		before.UTC().Format(time.RFC3339))
+	cut := before.UTC().Format(time.RFC3339)
+	rows, err := s.db.QueryContext(ctx, `SELECT id FROM jobs WHERE (parent_id IS NULL OR parent_id='')
+AND status IN ('done','failed','cancelled') AND updated_at < ?`, cut)
 	if err != nil {
 		return 0, err
 	}
+	defer rows.Close()
+	var total int64
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return total, err
+		}
+		childRows, err := s.db.QueryContext(ctx, `SELECT id, status, updated_at FROM jobs WHERE parent_id=?`, id)
+		if err != nil {
+			continue
+		}
+		skip := false
+		for childRows.Next() {
+			var cid, st, ua string
+			_ = childRows.Scan(&cid, &st, &ua)
+			if st != string(StatusDone) && st != string(StatusFailed) && st != string(StatusCancelled) {
+				skip = true
+				break
+			}
+			if ua >= cut {
+				skip = true
+				break
+			}
+		}
+		childRows.Close()
+		if skip {
+			continue
+		}
+		children, _ := s.ChildrenOf(ctx, id)
+		for _, c := range children {
+			_, _ = s.db.ExecContext(ctx, `DELETE FROM events WHERE job_id=?`, c.ID)
+			if res, err := s.db.ExecContext(ctx, `DELETE FROM jobs WHERE id=?`, c.ID); err == nil {
+				n, _ := res.RowsAffected()
+				total += n
+			}
+		}
+		_, _ = s.db.ExecContext(ctx, `DELETE FROM events WHERE job_id=?`, id)
+		if res, err := s.db.ExecContext(ctx, `DELETE FROM jobs WHERE id=?`, id); err == nil {
+			n, _ := res.RowsAffected()
+			total += n
+		}
+	}
+	// Sweep standalone jobs (no parent link) and no children pending.
+	res, err := s.db.ExecContext(ctx, `DELETE FROM jobs WHERE status IN ('done','failed','cancelled') AND updated_at < ?
+AND (parent_id IS NULL OR parent_id='') AND id NOT IN (SELECT parent_id FROM jobs WHERE parent_id IS NOT NULL AND parent_id != '')`,
+		cut)
+	if err != nil {
+		return total, err
+	}
 	n, _ := res.RowsAffected()
+	total += n
 	_, _ = s.PurgeEmptyBatches(ctx)
-	return n, nil
+	return total, nil
 }
