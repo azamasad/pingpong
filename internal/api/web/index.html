@@ -16,6 +16,7 @@
       <button type="button" id="tab-batches" class="hidden">Batches</button>
       <button type="button" id="tab-templates" class="hidden">Templates</button>
       <button type="button" id="tab-threads" class="hidden">Threads</button>
+      <button type="button" id="tab-schedules" class="hidden">Schedules</button>
     </nav>
     <p id="machines" class="machines">Loading machines…</p>
   </header>
@@ -217,6 +218,47 @@
           <span id="thread-state"></span>
         </div>
       </div>
+    </div>
+  </section>
+  <section id="panel-schedules" class="hidden">
+    <p class="warn">Anyone on your tailnet can create or change schedules. Keep access limited to your own devices.</p>
+    <h2>Schedules</h2>
+    <ul id="schedules-list"></ul>
+    <div class="actions">
+      <button type="button" id="schedule-new">New schedule</button>
+    </div>
+    <div id="schedule-editor" class="hidden">
+      <h3 id="schedule-editor-title">Edit schedule</h3>
+      <label>Name <input type="text" id="schedule-name" pattern="[a-z0-9_-]+" maxlength="64"></label>
+      <label>Every
+        <select id="schedule-every"><option value="day">Daily</option><option value="week">Weekly</option></select>
+      </label>
+      <label>Weekday <select id="schedule-weekday" class="hidden">
+        <option value="mon">Mon</option><option value="tue">Tue</option><option value="wed">Wed</option>
+        <option value="thu">Thu</option><option value="fri">Fri</option><option value="sat">Sat</option><option value="sun">Sun</option>
+      </select></label>
+      <label>At (local time) <input type="time" id="schedule-at" value="02:00"></label>
+      <label>Machine <select id="schedule-machine"><option value="">—</option></select></label>
+      <label>Model <select id="schedule-model"><option value="">—</option></select></label>
+      <label>Template <input type="text" id="schedule-template" placeholder="template name"></label>
+      <label>Or prompt <textarea id="schedule-prompt" rows="2" placeholder="Literal prompt (if no template)"></textarea></label>
+      <label>Vars JSON <textarea id="schedule-vars" rows="2" placeholder='{"words":"50"}'></textarea></label>
+      <label>Rows JSON <textarea id="schedule-rows" rows="2" placeholder='[{"text":"..."}] (optional batch)'></textarea></label>
+      <label>Missed <select id="schedule-missed"><option value="skip">Skip</option><option value="run_once">Run once</option></select></label>
+      <label>Overlap <select id="schedule-overlap"><option value="skip">Skip</option><option value="allow">Allow</option></select></label>
+      <label><input type="checkbox" id="schedule-enabled" checked> Enabled</label>
+      <div class="actions">
+        <button type="button" id="schedule-save">Save</button>
+        <button type="button" id="schedule-cancel">Cancel</button>
+        <button type="button" id="schedule-run-now" class="hidden">Run now</button>
+        <button type="button" id="schedule-delete" class="hidden">Delete</button>
+      </div>
+      <p id="schedule-editor-state" class="warn hidden"></p>
+    </div>
+    <div id="schedule-runs" class="hidden">
+      <h3>Runs for <span id="schedule-runs-name"></span></h3>
+      <ul id="schedule-runs-list"></ul>
+      <button type="button" id="schedule-runs-back">Back</button>
     </div>
   </section>
   <section id="panel-templates" class="hidden">

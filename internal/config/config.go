@@ -18,19 +18,20 @@ var aliasNameRe = regexp.MustCompile(`^[a-z0-9_-]+$`)
 
 // Config is the router configuration (V1 fields; V2 sections are ignored until used).
 type Config struct {
-	Router   RouterConfig       `yaml:"router"`
-	Machines []Machine          `yaml:"machines"`
-	Routing  RoutingConfig      `yaml:"routing"`
-	Timeouts TimeoutConfig      `yaml:"timeouts"`
-	Health   HealthConfig       `yaml:"health"`
-	Retry    RetryConfig        `yaml:"retry"`
-	Storage  StorageConfig      `yaml:"storage"`
-	Batches   BatchesConfig   `yaml:"batches"`
-	Templates TemplatesConfig `yaml:"templates"`
-	Threads   ThreadsConfig   `yaml:"threads"`
-	Files     FilesConfig     `yaml:"files"`
-	Profiles map[string]Profile `yaml:"profiles"`
-	Aliases  map[string]Alias   `yaml:"aliases"`
+	Router    RouterConfig       `yaml:"router"`
+	Machines  []Machine          `yaml:"machines"`
+	Routing   RoutingConfig      `yaml:"routing"`
+	Timeouts  TimeoutConfig      `yaml:"timeouts"`
+	Health    HealthConfig       `yaml:"health"`
+	Retry     RetryConfig        `yaml:"retry"`
+	Storage   StorageConfig      `yaml:"storage"`
+	Batches   BatchesConfig      `yaml:"batches"`
+	Templates TemplatesConfig    `yaml:"templates"`
+	Threads   ThreadsConfig      `yaml:"threads"`
+	Files     FilesConfig        `yaml:"files"`
+	Schedules SchedulesConfig    `yaml:"schedules"`
+	Profiles  map[string]Profile `yaml:"profiles"`
+	Aliases   map[string]Alias   `yaml:"aliases"`
 }
 
 type BatchesConfig struct {
@@ -49,6 +50,11 @@ type ThreadsConfig struct {
 type FilesConfig struct {
 	MaxBytes   int `yaml:"max_bytes"`
 	ChunkChars int `yaml:"chunk_chars"`
+}
+
+type SchedulesConfig struct {
+	MaxCount int      `yaml:"max_count"`
+	Grace    Duration `yaml:"grace"`
 }
 
 // Alias maps a short name to a real model and optional machine (V7).
@@ -273,6 +279,12 @@ func (c *Config) applyDefaults() {
 	}
 	if c.Files.ChunkChars == 0 {
 		c.Files.ChunkChars = 6000
+	}
+	if c.Schedules.MaxCount == 0 {
+		c.Schedules.MaxCount = 50
+	}
+	if c.Schedules.Grace.Duration == 0 {
+		c.Schedules.Grace = Duration{time.Hour}
 	}
 	if len(c.Profiles) == 0 {
 		c.Profiles = map[string]Profile{

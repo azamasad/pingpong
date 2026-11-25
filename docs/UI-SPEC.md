@@ -75,7 +75,11 @@ The page has three tabs: **Chat** (everything above), **Status** and **Stress**.
 
 Hidden when jobs are off. **Batches** (V7.1, extended by V7.2): batch list, new batch form with split and check, batch view with per-machine progress and cancel. **Templates** (V7.3): list with new, edit, delete, and a Use panel (one field per blank, routing selectors, run one job or run as batch with one JSON object per line). The Chat tab has a "Check with" selector (V7.2).
 
-## 3c. Planned tabs (V7.5 to V7.7, not built)
+## 3c. Job tabs (built V7.1 to V7.7)
+
+Built: Batches (V7.1+), Templates (V7.3), Threads (V7.5), Schedules (V7.7).
+
+## 3d. Former planned tabs (reference)
 
 | Tab | Version | Holds |
 |---|---|---|
