@@ -1,8 +1,10 @@
-# Next features: PRDs for V8 and V11 to V16
+# Next features: PRDs for V7.1 to V7.7
 
 Status: **planned, owner-approved as roadmap items, not built.** Nothing here is
 built until the owner says so (AGENTS.md). Versions and order are in
-[ROADMAP.md](ROADMAP.md). Decisions: D-086 to D-094.
+[ROADMAP.md](ROADMAP.md). Decisions: D-086 to D-100.
+Versioning: minor steps after the last built version (V7.1, V7.2, ...). A new
+major only for a large change (D-095).
 
 Every feature below inherits these rules, so they are not repeated:
 
@@ -15,13 +17,13 @@ Every feature below inherits these rules, so they are not repeated:
 | P16 | Content only in the saved-request store. Logs get metadata only (D-076). New log fields go through the `logx` whitelist |
 | Retention | Results and thread content: 90 days. Templates and schedules are definitions, kept until deleted |
 | Storage | All of it needs `storage.data_dir`. Schema changes are additive SQLite migrations |
-| Out of scope for all | Logins, multi-user, notifications (V10), OpenAI endpoint (V9), RAG |
+| Out of scope for all | Logins, multi-user, notifications (V7.9), OpenAI endpoint (V7.8), RAG |
 
-Build order: **V11, V12, V13, V14, V8, V15, V16.**
+Build order: **V7.1, V7.2, V7.3, V7.4, V7.5, V7.6, V7.7.**
 
 ---
 
-## V11: Split a batch across both machines
+## V7.1: Split a batch across both machines
 
 **Goal.** Finish a batch sooner by running it on Mane and Firmino at once, each
 with its own pinned model.
@@ -35,21 +37,24 @@ which machine and model produced each item.
 item content. Picking models for the user. Changing models mid-batch.
 
 **Behaviour.** The user gives a list of targets, each an explicit
-`{machine, model}` pair, and an `assign` rule:
+`{machine, model}` pair, and an `assign` rule, **fixed at submit time**:
 
 | `assign` | Meaning |
 |---|---|
 | `round_robin` (default) | Item i goes to target i mod n |
 | `weights` | Targets get a share by user-set integer weights, for example 3 and 2 |
-| `when_free` | Opt-in. An item takes the next target that is free **at admission**. Once admitted it is bound to that pair, and a retry stays on the same pair |
 
-With `round_robin` and `weights` the pair is fixed at submit time. A down machine
-holds its own items, which retry on it (D-071 window) while the other machine
-carries on. Nothing is moved. Every item records its pair (P11). Items with a
-pinned `machine` or `model` of their own are not split. Interactive requests
-still go first (D-066).
+A down machine holds its own items, which retry on it (D-071 window) while the
+other machine carries on. Nothing is moved. Every item records its pair (P11).
+Items with a pinned `machine` or `model` of their own are not split. Interactive
+requests still go first (D-066).
 
-**API.** `POST /api/batches` gains `"split":{"assign":"...","targets":[{"machine","model","weight"}]}`
+**Future note (not in this version).** A `when_free` mode, where an item takes
+whichever machine is free at admission and is then bound to it, would balance
+speed differences better. It needs an owner wording change on P10 first, so it is
+left out (D-097).
+
+**API.** `POST /api/batches` gains `"split":{"assign":"round_robin|weights","targets":[{"machine","model","weight"}]}`
 and items need no routing fields. `GET /api/batches/{id}` gains per-target
 `done`, `running`, `waiting`, `failed`. Page: a "Split" option in the batch form
 and a per-machine progress bar. `pingpong batch submit --split mane:MODEL,firmino:MODEL`.
@@ -63,22 +68,19 @@ stores the split plan.
 buffers.
 
 **Tests.** Round-robin and weights counts. Each item runs on its assigned pair
-only. Down machine: its items wait and the other finishes, none move. `when_free`
-binds at admission and retries on the same pair. Pinned items are skipped by
-the splitter. Lanes still honoured.
+only. Down machine: its items wait and the other finishes, none move. Pinned
+items are skipped by the splitter. Lanes still honoured.
 
-**Guardrails.** P10 and D-059 (wait, do not reroute). `when_free` is an explicit
-user-chosen mode, so it is not silent substitution. **Flag for the owner:**
-confirm `when_free` is acceptable under P10 (item 1 in section "Constitution
-check").
+**Guardrails.** P10 and D-059 (wait, do not reroute). The split plan is an
+explicit user-chosen mode (proposed P9 wording, "Proposed constitution changes"
+item 1).
 
-**Open questions.** Is `when_free` wanted in the first cut, or only fixed
-assignment? Should results of mixed models in one batch carry a visible marker
-in the export (default: yes, columns for machine and model)?
+**Open questions.** Should the export mark mixed models with columns for machine
+and model (default: yes)?
 
 ---
 
-## V12: Answer checking (review or revise by a second model)
+## V7.2: Answer checking (review or revise by a second model)
 
 **Goal.** Run a request on one model, then have a second, deeper model check it.
 
@@ -91,11 +93,22 @@ steps and which model did each.
 based on the prompt or the answer. Loops of more than one review. Voting among
 several models.
 
-**Behaviour.** The user names the reviewer pair, so it is explicit (P9, P10).
+**Behaviour.** Turning on `check` is the user's explicit choice (P9, P10). The
+default pairing is **Mane drafts (fast), Firmino reviews (deep)**. A fixed,
+documented rule, not content-based:
+
+- Stage 1 uses the request's own routing fields. If it has none, it runs as
+  `fast`: Mane with its default model.
+- Stage 2 uses `check.machine` and `check.model`. If omitted, it runs as the
+  `heavy` role: Firmino with its default model.
+- The user can override either per job: pin stage 1 with the usual fields
+  (`machine`, `model`, `profile`), and stage 2 with `check.machine` and
+  `check.model`. The pairs are then used exactly (P10).
+
 Two stages, saved as two linked jobs (`parent_id`, `stage`):
 
-1. `answer`: the request as normal.
-2. `review`, run only after stage 1 is `done`, on the reviewer pair. `mode`:
+1. `answer`: the request, as above.
+2. `review`, run only after stage 1 is `done`. `mode`:
    - `review`: output is a verdict (`ok` or `problems`) and a short list of
      issues. The original answer is kept unchanged as the result.
    - `revise`: output is a corrected final answer. The draft is kept too.
@@ -108,7 +121,7 @@ on its own pair (D-071). If stage 2 fails, the result shows the answer as
 `unchecked` and the error. Stats and the log line are per stage.
 
 **API.** `POST /api/jobs` and batch items gain `"check":{"mode":"review|revise","machine","model"}`
-(all required). Job detail gains `stage`, `parent_id`, `children`. Page: a
+(`mode` required, `machine` and `model` optional, defaults above). Job detail gains `stage`, `parent_id`, `children`. Page: a
 "Check with" selector, and the result shows two panels (draft, review).
 `pingpong` batch items take the same field.
 
@@ -119,23 +132,22 @@ column. Doubles storage and run time for checked requests.
 
 **Memory.** None extra. Stages are ordinary jobs.
 
-**Tests.** Stage 2 starts only after stage 1 is `done`. Both stages pinned and
-never swapped. `CONTEXT_TOO_LARGE` on oversize. Stage 2 failure keeps stage 1
+**Tests.** Stage 2 starts only after stage 1 is `done`. Default pairing is
+Mane then Firmino. Overrides are honoured exactly and never swapped. `CONTEXT_TOO_LARGE` on oversize. Stage 2 failure keeps stage 1
 visible and `unchecked`. Cancel cancels both. Restart recovery resumes the right
 stage. A request without `check` is unchanged.
 
 **Guardrails.** P9 and P10: reviewer is user-chosen, there is no content-based
 decision. P11: both models shown. P16: the review prompt holds content, so it is
-only stored, never logged. **Flag:** item 2 in "Constitution check".
+only stored, never logged. Proposed P10 wording: "Proposed constitution changes" item 2.
 
-**Open questions.** Which pairing do you want as the habit: cheap draft on Mane,
-deep review on Firmino, or the reverse? A weak reviewer can miss errors, so
-should the page show the reviewer is smaller than the answerer? Should
-`revise` be allowed to differ in `num_predict`?
+**Open questions.** If the user overrides so the reviewer is smaller than the
+answerer, should the page show a note (proposed: yes)? Should `revise` be
+allowed its own `num_predict`?
 
 ---
 
-## V13: Prompt templates
+## V7.3: Prompt templates
 
 **Goal.** Save prompts with blanks and reuse them.
 
@@ -169,7 +181,7 @@ overridden by explicit fields, batch expansion, delete does not affect past jobs
 
 ---
 
-## V14: Results export
+## V7.4: Results export
 
 **Goal.** Download a finished batch as CSV or Markdown.
 
@@ -201,7 +213,7 @@ Markdown structure. `partial`. Large batch streams without growth in RSS. Host a
 
 ---
 
-## V8: Conversation threads
+## V7.5: Conversation threads
 
 **Goal.** Group requests into conversations that keep their history and survive
 the client.
@@ -242,17 +254,17 @@ default (proposed: no)? Replace the browser-held chat or keep both?
 
 ---
 
-## V15: File and document input (not RAG)
+## V7.6: File and document input (not RAG)
 
-**Goal.** Drop in a text or PDF file, split it into chunks, and process every
+**Goal.** Drop in a text or Markdown file, split it into chunks, and process every
 chunk as a batch.
 
 **Stories.** I upload a long report, ask "summarise each section in 3 bullets",
 and read the results in order, or export them.
 
-**In scope.** Text, Markdown and PDF with a text layer. Chunking. One batch job per
+**In scope.** Text and Markdown files. Chunking. One batch job per
 chunk, same instruction. Optional final `reduce` step. **Out of scope.**
-Embeddings, vector search, retrieval, an index, OCR, images, Word files, keeping
+**PDF (later, see below)**. Embeddings, vector search, retrieval, an index, OCR, images, Word files, keeping
 the uploaded file, answering questions over the whole document. (That would be
 RAG, a non-goal.)
 
@@ -260,96 +272,133 @@ RAG, a non-goal.)
 paragraph boundaries to at most `files.chunk_chars` each (default 6000, about
 1,500 tokens, so instruction plus chunk plus answer fits `num_ctx`), and one job
 per chunk is created from an instruction template with `{{chunk}}` and `{{index}}`
-(V13 templates work too). Chunks and their order are saved as ordinary job
+(V7.3 templates work too). Chunks and their order are saved as ordinary job
 prompts. The upload is not kept. `reduce` is optional and explicit: a final job
-(V12 stage mechanism) on a user-named pair that receives the chunk outputs in
+(V7.2 stage mechanism) on a user-named pair that receives the chunk outputs in
 order, refused with `CONTEXT_TOO_LARGE` if they do not fit. Chunks are processed
-with V11 split if the user asks. Failure of one chunk does not stop the others.
+with V7.1 split if the user asks. Failure of one chunk does not stop the others.
 
 **API.** `POST /api/batches/from-file` (multipart: file, instruction or
 template, routing fields, `chunk_chars`, optional `reduce`). Errors:
-`FILE_TOO_LARGE`, `FILE_TYPE_UNSUPPORTED`, `PDF_NO_TEXT`. Page: a drop zone on
+`FILE_TOO_LARGE`, `FILE_TYPE_UNSUPPORTED`. Page: a drop zone on
 the batch form, a preview of the chunk count before starting. 
-**Config.** `files.max_bytes` (default 10 MB, a separate larger body limit for this endpoint only),
-`files.max_pdf_pages` (default 200), `files.chunk_chars`.
+**Config.** `files.max_bytes` (default 2 MB of text, a separate larger body limit for this endpoint only),
+`files.chunk_chars`.
 **Data.** Chunk text as job prompts, 90-day retention. No file stored.
-**Memory.** The main risk. Extract and chunk as a stream, hold one chunk at a
-time, and cap bytes and pages. A pure-Go PDF reader is a new dependency to justify
-(P1, AGENTS rules) and its peak RSS **must be measured on Mane** against the 50
-MB budget before release. If it does not fit, PDF support is dropped and text
-and Markdown stay.
+**Memory.** Read and chunk as a stream and hold one chunk at a time. Plain text
+needs no new dependency.
+**Later: PDF.** Not in the first cut. It needs a new pure-Go PDF reader (a
+dependency to justify under P1) and its peak RSS **must be measured on Mane**
+against the 50 MB budget first. It would then also add a `PDF_NO_TEXT` error for
+scanned files and a `files.max_pdf_pages` cap. If it does not fit the budget, it
+is not built.
 **Tests.** Chunk boundaries and sizes. Order preserved. Oversize and wrong-type
-errors. Scanned PDF gives `PDF_NO_TEXT`. Peak memory test on a large file. One
-failed chunk leaves the rest. `reduce` size refusal.
+errors. A large text file does not grow RSS. One failed chunk leaves the rest.
+`reduce` size refusal.
 **Guardrails.** Constitution non-goal "RAG, document search or vector databases"
 and the implementation plan guardrail "no document features": **owner wording
-change needed (item 3 in "Constitution check")**. P4. P1 (dependency).
-**Open questions.** Is PDF in the first cut or text and Markdown only? Is `reduce`
-wanted in the first cut? What chunk size suits your documents?
+change proposed (item 3 in "Proposed constitution changes")**. P4.
+**Open questions.** Is `reduce` wanted in the first cut? What chunk size suits
+your documents?
 
 ---
 
-## V16: Scheduled jobs
+## V7.7: Scheduled jobs
 
-**Goal.** Run a saved job or batch on a schedule, for example nightly or weekly.
+**Goal.** Run a saved job or batch on a schedule, for example nightly or weekly,
+set up from the web page.
 
-**Stories.** Every night at 02:00 the router runs "summarise yesterday's notes"
-on Firmino, and I read the result in the morning.
+**Stories.** From the page I add "every night at 02:00, run `notes-summary` on
+Firmino". I pause it for a week, run it now to test, and read its past runs.
 
-**In scope.** Daily and weekly schedules defined in config. Run now. History of
-runs. **Out of scope.** Full cron syntax, calendar rules, dependencies between
-schedules, running while Mane is off, notifications (V10), a schedule editor in
-the page.
+**In scope.** Daily and weekly schedules created, edited, paused, run now and
+deleted from the page or the API. Run history. **Out of scope.** Full cron
+syntax, calendar rules, dependencies between schedules, running while Mane is
+off, notifications (V7.9), config-file schedules.
 
-**Behaviour.** Each schedule names a V13 template (or an inline prompt), its
-`vars` or `rows`, and routing fields, so the pair is explicit. At the due time
-the router submits a job or batch on the **batch lane**. Times use Mane's local
-time zone. `missed: skip` (default) ignores runs missed while Mane was off,
-`run_once` runs once at startup if the miss was within `grace`. `overlap: skip`
-(default) skips a run if the previous one is still active. Each run is recorded
-and links to its job or batch. No hot reload: change config and restart (D-069).
+**Behaviour.** A schedule names a V7.3 template (or an inline prompt), its
+`vars` or `rows`, and an explicit machine and model (required, P10). At the due
+time the router submits a job or batch on the **batch lane**. Times use Mane's
+local time zone. Rules per schedule: `missed: skip` (default) ignores runs missed
+while the router was off, `run_once` runs once at startup if the miss was within
+`schedules.grace` (default 1 hour). `overlap: skip` (default) skips a run while the
+previous run's job or batch is still waiting, running or retrying.
 
-**API.** `GET /api/schedules` (name, next run, last run, last status),
-`POST /api/schedules/{name}/run` (run now). Page: a Schedules list.
-**Config.**
-```yaml
-schedules:
-  nightly-notes:
-    at: "02:00"            # daily, local time
-    weekday: sat           # optional: weekly instead
-    template: notes-summary
-    vars: {days: "1"}
-    machine: firmino
-    model: <MODEL>
-    missed: skip
-    overlap: skip
-```
-**Data.** A `schedule_runs` table (name, due, started, job or batch id, status).
-Subject to the 90-day sweep. Job content is the usual stored content.
-**Memory.** One timer per schedule.
+**Persistence.** Schedules are stored in the SQLite store, so they survive a
+restart and are not in the config file. They are definitions: kept until
+deleted, not swept at 90 days. The next due time is recomputed at start from
+`last_due`, so a restart never double-runs. Run records (`schedule_runs`) follow
+the 90-day sweep.
+
+**Retry window.** A scheduled run is an ordinary job or batch, so the usual rules
+apply: if the machine is down at the due time it waits and retries every 2
+minutes for up to 3 hours, counted from its own first failure, then fails and the
+run shows `failed`. The due time does not extend the window. A model that is not
+installed fails the run with `MODEL_NOT_INSTALLED`, visible as failed. A long
+retry keeps `overlap: skip` active, so the next run is skipped until it ends.
+
+**API.** `GET /api/schedules` (name, rule, next run, last run, last status,
+enabled). `POST /api/schedules` (create), `PATCH /api/schedules/{id}` (edit,
+pause or resume with `enabled`), `DELETE /api/schedules/{id}`,
+`POST /api/schedules/{id}/run` (run now, ignores `overlap`),
+`GET /api/schedules/{id}/runs`. Validation: the machine exists, times parse, at
+most `schedules.max_count`.
+
+**UI.** A **Schedules** tab: a table (name, when, target, next run, last status,
+enabled toggle) with buttons **New**, **Edit**, **Pause/Resume**, **Run now**,
+**Runs** and **Delete**. The New/Edit form: name; daily or weekly and the time
+(and weekday); template or prompt; vars; machine and model (required); `missed`
+and `overlap` selects. Delete asks for confirmation. Runs open the linked job
+or batch.
+
+**Config.** `schedules.max_count` (default 50), `schedules.grace` (default `1h`).
+**Data.** `schedules` table (id, name, rule, template or prompt, vars, machine,
+model, missed, overlap, enabled, last_due, timestamps) and `schedule_runs` (id,
+schedule id, due, started, job or batch id, status). Prompts live here, so never
+logged (P16).
+**Memory.** One timer in the router for all schedules.
 **Tests.** Next-run maths including daylight-saving changes. `missed` and
-`overlap` rules. Run now. Restart does not double-run. Invalid config fails at
-start with a clear message. Pair always as configured.
-**Guardrails.** P10 (pair named in config), P14, P16. Retry rules unchanged.
-**Open questions.** Define schedules in config only (proposed), or also through
-the API? Should a failed scheduled run retry for the 3-hour window (proposed:
-yes, same as any job)?
+`overlap`. Run now. Restart neither loses nor double-runs. Create, edit, pause,
+delete via API. Validation errors. The pair is always as saved. Retry window
+for a run with the machine down.
+**Guardrails.** P10, P14, P16. **Risk:** the page has no login (D-079), so any
+tailnet device could create a schedule that runs unattended. The Tailscale ACL
+(D-081) limits that. The log records schedule name and outcome, never content.
+**Open questions.** Does editing a schedule apply from the next due time only
+(proposed: yes)?
 
 ---
 
-## Constitution check
+## Proposed constitution changes
 
-No principle is edited here. These need the owner's decision:
+For the owner to approve. **The constitution is not edited.** If approved, apply
+each as written and add a DECISIONS entry (its amendment rule).
 
-| # | Item | Why | Suggested wording, if the owner agrees |
-|---|---|---|---|
-| 1 | **P10, P9 and V11 `when_free`** | P10 says pinned means pinned and P9 lists the signals routing may use. `when_free` binds an item to a pair at admission, then never moves it. It is explicit and user-chosen, but it is a new kind of assignment | P9: "...flags, pinned names, what is installed where, and explicit user-chosen modes (split plan, review model)." P10: add "A pair chosen at admission under a user-chosen mode is pinned from then on." Or drop `when_free` |
-| 2 | **P10 and V12 review** | A second model touches the answer. It is a separate, visible, user-chosen step, not switching mid-task | P10: add "A second model used for checking is a separate visible step the user chose, not a switch." |
-| 3 | **Non-goals: "RAG, document search or vector databases" and V15** | File input chunks and processes a document. It has no retrieval, embeddings or index. The wording could be read to forbid it. IMPLEMENTATION-PLAN section 7 has the same issue ("no document features"), now reworded to say retrieval | Non-goals: "RAG, document search, embeddings, vector databases. Splitting a file into chunks to process as a batch is allowed." |
-| 4 | **Hard limit: retention of finished results, 90 days** | Templates and schedules are definitions with no expiry. Thread retention needs a rule | Add: "Templates and schedules are kept until deleted. Threads follow the same 90 days from last activity." |
-| 5 | **P4, 50 MB** | V15 (PDF) and V14 (large export) can break it if built carelessly | No change. The PRDs require streaming and a measurement on Mane |
+**1. P9 (split plan and review as explicit modes).**
+Before: "Routing follows simple, documented rules driven by clear signals: flags, pinned names, and what is installed where. The router does not read prompts to guess difficulty."
+After: "Routing follows simple, documented rules driven by clear signals: flags, pinned names, what is installed where, and explicit user-chosen modes (a batch split plan, a review step). The router does not read prompts to guess difficulty."
 
-No conflict found with P3 (all routing stays on Mane), P5 (Mane models stay at 8B
-or less: a split or review that targets Mane must name an 8B or smaller
-model), P6, P7, P8, P16, P17, or the hard limits on users, logins and public
-exposure.
+**2. P10 (checking is a visible step, not a switch).**
+Before: "If the user names a model or a machine, that is exactly what is used. No silent substitution, no switching mid-task. If it is unavailable, say so."
+After: "If the user names a model or a machine, that is exactly what is used. No silent substitution, no switching mid-task. A second model used to check an answer is a separate, visible step the user chose, not a switch. If it is unavailable, say so."
+
+**3. Non-goals (file input is not RAG).**
+Before: "- RAG, document search or vector databases."
+After: "- RAG, document search, embeddings or vector databases. Splitting a file into chunks to run as a batch is allowed."
+
+**4. Retention (templates, schedules, threads) and P16.**
+Before (hard limit): "| Retention of finished results (when stored) | 90 days |"
+After: "| Retention of finished results and thread content (when stored) | 90 days (threads: from last activity). Templates and schedules are definitions and are kept until deleted |"
+Before (P16, last sentence): "In V2 they are stored only in the saved-request store, for the retention period."
+After: "They are stored only in the saved-request store: results for the retention period, and templates and schedules until deleted."
+
+**5. P4 (50 MB): no change.** The PRDs require streaming, and a measurement on
+Mane for anything heavy.
+
+If a later `when_free` mode (V7.1 future note) is ever wanted, P10 would also
+need: "A pair chosen at admission under a user-chosen mode is pinned from then
+on." Not proposed now.
+
+No conflict found with P3, P5 (a split or review that targets Mane must name an
+8B or smaller model), P6, P7, P8, P17, or the hard limits on users, logins and
+public exposure.

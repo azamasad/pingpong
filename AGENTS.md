@@ -24,7 +24,7 @@ unclear or conflicting, stop and ask the owner, then fix the docs.
 
 **V1 to V7 are built and merged to `main`, and the router runs on the real machines** (Mane and Firmino). V3 lanes are D-066, V4 role choice is D-067, V5 presets are D-068, V6 operability is D-069, V7 aliases are D-070. After go-live the owner added test tooling: a Stress tab (D-075), a per-request log line with speeds (D-076) and `deploy/bench/` scripts (D-077).
 
-**Planned, owner-approved, not built until the owner says so:** V8 conversation threads, V11 batch split across machines, V12 answer checking, V13 prompt templates, V14 results export, V15 file input, V16 scheduled jobs. PRDs: [docs/NEXT-FEATURES-PRDS.md](docs/NEXT-FEATURES-PRDS.md). Build order is V11, V12, V13, V14, V8, V15, V16, one at a time. **Not approved:** V9 OpenAI-compatible API, V10 notifications, a login layer. Propose those in [docs/ROADMAP.md](docs/ROADMAP.md) and wait.
+**Planned, owner-approved, not built until the owner says so:** V7.1 batch split across machines, V7.2 answer checking, V7.3 prompt templates, V7.4 results export, V7.5 conversation threads, V7.6 file input (text and Markdown), V7.7 scheduled jobs (set up from the page). Versioning: minor steps (V7.x) for features, a new major only for a large change. PRDs: [docs/NEXT-FEATURES-PRDS.md](docs/NEXT-FEATURES-PRDS.md). Build order is V7.1, V7.2, V7.3, V7.4, V7.5, V7.6, V7.7, one at a time. **Not approved (proposed only):** V7.8 OpenAI-compatible API, V7.9 notifications, a login layer. Propose those in [docs/ROADMAP.md](docs/ROADMAP.md) and wait.
 
 | Milestone | Status |
 |---|---|
@@ -58,7 +58,7 @@ Run: `make test && make build`. Enable jobs with `storage.data_dir` in config (`
 - **Keep deferred items deferred.** Notifications, an OpenAI-compatible API,
   high availability and RAG are out of scope until the roadmap says otherwise.
   Conversation threads and file input (chunked batch, **not** RAG) are planned
-  (V8, V15) but not built until the owner says so.
+  (V7.5, V7.6) but not built until the owner says so.
 - **Routing is rule-based.** Never route by reading or classifying prompt
   content.
 - **Pinned means pinned.** Never substitute a different model or machine for a

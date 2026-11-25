@@ -178,7 +178,7 @@ No other new keys. `doctor`, `backup` and the status view need none.
 ## 8. Not in scope
 
 - Metrics systems (Prometheus, OpenTelemetry) and dashboards (P2).
-- Alerting and notifications. These are V10.
+- Alerting and notifications. These are V7.9.
 - Hot reload of config. A restart is a few seconds and now graceful.
 - Authentication. Access control stays in Tailscale (D-061).
 - Automatic backup schedules or off-machine copies.

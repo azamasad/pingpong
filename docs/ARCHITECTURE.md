@@ -106,12 +106,12 @@ One Ollama instance per machine. Mane runs models up to 8B. Firmino runs a
 and should be restricted to Mane by a Tailscale ACL (D-072). Mane's Ollama is
 local only.
 
-### Planned additions (V8, V11 to V16, not built)
+### Planned additions (V7.1 to V7.7, not built)
 
 All fit the existing shape: more saved-request tables and jobs, no new
-services. Threads (V8) group jobs. Split (V11), checking (V12) and file input
-(V15) create linked jobs with explicit machine and model pairs. Templates (V13)
-and schedules (V16) add definitions. Export (V14) streams rows. Details and
+services. Threads (V7.5) group jobs. Split (V7.1), checking (V7.2) and file input
+(V7.6) create linked jobs with explicit machine and model pairs. Templates (V7.3)
+and schedules (V7.7) add definitions. Export (V7.4) streams rows. Details and
 memory notes: [NEXT-FEATURES-PRDS.md](NEXT-FEATURES-PRDS.md).
 
 ### Saved-request store (V2)

@@ -35,10 +35,10 @@ See also the constitution.
 - Automatic prompt classification (deferred).
 - Profiles such as "fast / balanced / deep" (shipped in V5, D-068).
 - Model aliases (shipped in V7, D-070).
-- An OpenAI-compatible API (deferred, V9).
+- An OpenAI-compatible API (deferred, V7.8).
 - Conversation threads, batch split across machines, answer checking, prompt
-  templates, results export, file input and scheduled jobs: planned as V8 and
-  V11 to V16, not built. See [NEXT-FEATURES-PRDS.md](NEXT-FEATURES-PRDS.md).
+  templates, results export, file input and scheduled jobs: planned as
+  V7.1 to V7.7, not built. See [NEXT-FEATURES-PRDS.md](NEXT-FEATURES-PRDS.md).
 
 ## 4. User and context
 
@@ -210,13 +210,13 @@ Recorded here so they are not forgotten. See [ROADMAP.md](ROADMAP.md).
 | More machines (for example Mac Studio, DGX Spark) | Via the roles registry (V4). |
 | Several machines with the same role | Shipped as V4 (D-067). |
 | Model aliases (short names such as "small") | Shipped as V7 (D-070). See [V7-ALIASES.md](V7-ALIASES.md). |
-| Conversation threads stored on Mane | Planned as V8. PRD in [NEXT-FEATURES-PRDS.md](NEXT-FEATURES-PRDS.md). Not built |
-| Split a batch across both machines | Planned as V11. Not built |
-| Answer checking by a second model (explicit mode) | Planned as V12. Not built |
-| Prompt templates | Planned as V13. Not built |
-| Results export, CSV and Markdown | Planned as V14. Not built |
-| File and document input (chunked batch, not RAG) | Planned as V15. Not built |
-| Scheduled jobs | Planned as V16. Not built |
+| Conversation threads stored on Mane | Planned as V7.5. PRD in [NEXT-FEATURES-PRDS.md](NEXT-FEATURES-PRDS.md). Not built |
+| Split a batch across both machines | Planned as V7.1. Not built |
+| Answer checking by a second model (explicit mode) | Planned as V7.2. Not built |
+| Prompt templates | Planned as V7.3. Not built |
+| Results export, CSV and Markdown | Planned as V7.4. Not built |
+| File input, text and Markdown (chunked batch, not RAG). PDF later | Planned as V7.6. Not built |
+| Scheduled jobs, set up from the page | Planned as V7.7. Not built |
 | OpenAI-compatible endpoint | Would let other tools use Pingpong. Later, if wanted. |
 | High availability | Out of scope while both machines are assumed up. |
 
