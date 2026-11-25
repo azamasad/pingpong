@@ -71,6 +71,18 @@ func TestUnreachableMachineFails(t *testing.T) {
 	t.Fatal("expected failed")
 }
 
+func TestNotifyWebhookWarnsWhenInvalid(t *testing.T) {
+	cfg := baseCfg("http://127.0.0.1:1", "a")
+	cfg.Notify.WebhookURL = "not-a-url"
+	out := doctor.Run(context.Background(), cfg, nil, doctor.Options{
+		DiskFree: func(string) (uint64, error) { return 10 << 30, nil },
+	})
+	c, ok := find(out, "notify.webhook_url")
+	if !ok || c.Status != doctor.StatusWarn {
+		t.Fatalf("notify check %+v", c)
+	}
+}
+
 func TestDefaultModelMissingFails(t *testing.T) {
 	fs := &fakeollama.Server{Models: []string{"other:7b"}}
 	ts := fakeollama.NewHTTPTestServer(fs)

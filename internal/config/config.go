@@ -31,12 +31,19 @@ type Config struct {
 	Files     FilesConfig        `yaml:"files"`
 	Schedules SchedulesConfig    `yaml:"schedules"`
 	OpenAI    OpenAIConfig       `yaml:"openai"`
+	Notify    NotifyConfig       `yaml:"notify"`
 	Profiles  map[string]Profile `yaml:"profiles"`
 	Aliases   map[string]Alias   `yaml:"aliases"`
 }
 
 type OpenAIConfig struct {
 	Enabled bool `yaml:"enabled"`
+}
+
+type NotifyConfig struct {
+	WebhookURL string   `yaml:"webhook_url"`
+	Events     []string `yaml:"events"`
+	Timeout    Duration `yaml:"timeout"`
 }
 
 type BatchesConfig struct {
@@ -291,6 +298,12 @@ func (c *Config) applyDefaults() {
 	if c.Schedules.Grace.Duration == 0 {
 		c.Schedules.Grace = Duration{time.Hour}
 	}
+	if c.Notify.Timeout.Duration == 0 {
+		c.Notify.Timeout = Duration{10 * time.Second}
+	}
+	if len(c.Notify.Events) == 0 {
+		c.Notify.Events = []string{"batch_done", "schedule_failed", "job_failed"}
+	}
 	if len(c.Profiles) == 0 {
 		c.Profiles = map[string]Profile{
 			"fast":     {Fast: true},
@@ -418,6 +431,20 @@ func (c *Config) validate() ([]string, error) {
 			if _, ok := machineNames[p.Machine]; !ok {
 				return warnings, fmt.Errorf("profile %q: unknown machine %q", name, p.Machine)
 			}
+		}
+	}
+	if strings.TrimSpace(c.Notify.WebhookURL) != "" {
+		u, err := url.Parse(strings.TrimSpace(c.Notify.WebhookURL))
+		if err != nil || u.Host == "" || (u.Scheme != "http" && u.Scheme != "https") {
+			return warnings, errors.New("notify.webhook_url must be a valid http or https URL when set")
+		}
+	}
+	allowedEvents := map[string]struct{}{
+		"batch_done": {}, "schedule_failed": {}, "job_failed": {},
+	}
+	for _, e := range c.Notify.Events {
+		if _, ok := allowedEvents[e]; !ok {
+			return warnings, fmt.Errorf("notify.events: unknown event %q", e)
 		}
 	}
 	for name, a := range c.Aliases {

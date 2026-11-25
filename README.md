@@ -48,7 +48,7 @@ More machines can be added later. They are always controlled through Mane.
 | V7 | Model aliases. [Spec](docs/V7-ALIASES.md) |
 | V7.1 to V7.7 (planned, ready to build) | Batch split across machines, answer checking, templates, results export, threads, file input, scheduled jobs, in that order. [PRDs](docs/NEXT-FEATURES-PRDS.md), [build spec](docs/NEXT-FEATURES-BUILD-SPEC.md) |
 | V7.8 OpenAI-compatible `/v1` API (opt-in) | Built on the V7 branch stack |
-| V7.9 (planned) | Notifications (one optional webhook, no content) |
+| V7.9 | Notifications (one optional webhook, no content). Built on the V7 branch stack |
 | Test tooling | Stress tab (soak both machines), speed shown on the page and in the log, `deploy/bench/` scripts. See [docs/OPERATIONS.md](docs/OPERATIONS.md) sections 9 and 10 |
 
 See [docs/ROADMAP.md](docs/ROADMAP.md).

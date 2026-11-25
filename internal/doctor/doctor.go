@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/azamasad/pingpong/internal/config"
+	"github.com/azamasad/pingpong/internal/notify"
 	"github.com/azamasad/pingpong/internal/ollama"
 	"github.com/azamasad/pingpong/internal/route"
 )
@@ -46,6 +47,7 @@ func Run(ctx context.Context, cfg *config.Config, loadWarnings []string, opt Opt
 		})
 	}
 	out = append(out, storageChecks(cfg, opt)...)
+	out = append(out, notifyChecks(cfg)...)
 	for _, m := range cfg.Machines {
 		out = append(out, machineChecks(ctx, cfg, m)...)
 	}
@@ -55,6 +57,27 @@ func Run(ctx context.Context, cfg *config.Config, loadWarnings []string, opt Opt
 	// Alias warnings (V7) when aliases and model lists are available.
 	out = append(out, aliasWarnings(cfg)...)
 	return out
+}
+
+func notifyChecks(cfg *config.Config) []Check {
+	url := strings.TrimSpace(cfg.Notify.WebhookURL)
+	if url == "" {
+		return []Check{{
+			Name: "notify.webhook_url", Status: StatusOK,
+			Message: "notifications are off (webhook_url empty)",
+		}}
+	}
+	if !notify.ValidWebhookURL(url) {
+		return []Check{{
+			Name: "notify.webhook_url", Status: StatusWarn,
+			Message: "webhook_url is set but is not a valid http or https URL",
+			Hint:    "fix notify.webhook_url in the real config file; it is never logged or shown in the page",
+		}}
+	}
+	return []Check{{
+		Name: "notify.webhook_url", Status: StatusOK,
+		Message: "webhook_url shape looks valid (doctor does not send a test message)",
+	}}
 }
 
 func storageChecks(cfg *config.Config, opt Options) []Check {

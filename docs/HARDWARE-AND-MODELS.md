@@ -228,6 +228,7 @@ not a benchmark (D-077).
 |---|---|---|---|
 | V7.1 | 500-item split batch submit (default `max_items`) | ~35 MB in CI test binary (`TestBatchMaxItemsRSSGate`; not the production router) | **Pending** (10 MB gate on real router) |
 | V7.3 | 200-row template batch submit | ~5 MB in CI test binary (`TestTemplateBatchRSSGate`) | **Pending** (5 MB gate on real router) |
+| V7.9 | none (notifications off by default) | no measurable delta in CI | n/a |
 
 Each later V7.x pull request adds a row. The owner repeats on Mane.
 
