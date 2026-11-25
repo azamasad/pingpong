@@ -293,6 +293,7 @@ streamLoop:
 	}
 
 	stats := statsFromChunk(doneChunk, queueWait)
+	logRequestDone("chat", res, stats, time.Since(start))
 	cw := contextWarning(mc.NumCtx, doneChunk, stats)
 	_ = writeSafe(map[string]any{
 		"type": "done", "machine": res.Machine, "model": res.Model, "mode": res.Mode,
@@ -345,6 +346,7 @@ func (s *Server) chatNonStream(w http.ResponseWriter, r *http.Request, cb ChatBo
 		return
 	}
 	stats := statsFromChunk(ch, 0)
+	logRequestDone("chat", res, stats, 0)
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(map[string]any{
 		"route":           map[string]string{"machine": res.Machine, "model": res.Model, "mode": res.Mode},

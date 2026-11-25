@@ -33,8 +33,9 @@ No web UI and no extra services on Firmino or any other worker beyond what is
 needed to serve models, and what keeps the machine healthy and reachable.
 
 **P7. Local traffic stays local.**
-Mane talks to workers over the home LAN. Nothing between Mane and a worker
-goes via the internet.
+Mane talks to workers over a private path: the home LAN, or Tailscale when the
+machines sit on different subnets (D-072, owner-approved). Nothing between Mane
+and a worker goes via the public internet.
 
 **P8. Private by default.**
 Reachable only through Tailscale. Never exposed to the public internet.

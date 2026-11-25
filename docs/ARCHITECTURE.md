@@ -1,6 +1,6 @@
 # Architecture
 
-Status: draft v2. Language-neutral in the design. The chosen language (Go) is in
+Status: v3. Built and live. Language-neutral in the design. The chosen language (Go) is in
 [IMPLEMENTATION-PLAN.md](IMPLEMENTATION-PLAN.md).
 
 Related: [API.md](API.md), [CONFIGURATION.md](CONFIGURATION.md),
@@ -23,11 +23,11 @@ Related: [API.md](API.md), [CONFIGURATION.md](CONFIGURATION.md),
    |  - Ollama (<= 8B models)    |
    +--------------+--------------+
                   |
-                  |  Home LAN (Ethernet, no internet)
+                  |  Tailscale (private, no public internet)
                   v
    +-----------------------------+
    |  Firmino  (Ubuntu laptop)   |
-   |  - Ollama (14B and larger)  |
+   |  - Ollama (30B MoE model)   |
    |  - No UI, no router         |
    +-----------------------------+
 
@@ -67,7 +67,7 @@ machine. For each machine:
 | Field | Meaning |
 |---|---|
 | Name | For example `mane`, `firmino` |
-| Address | LAN address used for traffic |
+| Address | Private address used for traffic (Tailscale address for Firmino) |
 | Roles | For example `fast`, `heavy`. Rules refer to roles |
 | Default model | Used when none is pinned |
 | Installed models | Read from the machine's Ollama |
@@ -101,9 +101,10 @@ timeouts in CONFIGURATION.
 
 ### Inference servers (Ollama)
 
-One Ollama instance per machine. Mane runs models up to 8B. Firmino starts
-with a 14B model. Firmino's Ollama listens on the LAN, restricted by firewall
-to Mane's address only. Mane's Ollama is local only.
+One Ollama instance per machine. Mane runs models up to 8B. Firmino runs a
+30B mixture-of-experts model. Firmino's Ollama listens on its Tailscale address
+and should be restricted to Mane by a Tailscale ACL (D-072). Mane's Ollama is
+local only.
 
 ### Saved-request store (V2)
 
@@ -149,7 +150,7 @@ timeout on the call to Ollama must be at least `first_token_timeout`.
 | Path | Transport | Purpose |
 |---|---|---|
 | MacBook Air to Mane | Tailscale | The only client entry point |
-| Mane to Firmino | Home LAN | Inference traffic |
+| Mane to Firmino | Tailscale (LAN if on the same subnet) | Inference traffic |
 | Admin to Firmino | Tailscale SSH | Maintenance only, not inference |
 
 Details in [NETWORK-AND-SECURITY.md](NETWORK-AND-SECURITY.md).
@@ -177,6 +178,8 @@ Details in [NETWORK-AND-SECURITY.md](NETWORK-AND-SECURITY.md).
 ## 7. Logging
 
 - Logs go to the service's log output, with rotation handled by the host.
+  Besides errors, one metadata line is written per finished request or job
+  (speeds, outcome, never content), for tuning (D-076).
 - Log request metadata only, as one line per event with these fields and no
   others: time, level, event name, request ID (V2), mode, machine, model, state,
   duration, error code, and error message text from the router itself.

@@ -25,10 +25,13 @@
 | **Lane** | (V3) `interactive` (default) or `batch`. Interactive work on a machine is admitted before batch work |
 | **Batch** | (V3) A group of jobs submitted together on the batch lane, from `POST /api/batches` or `pingpong batch` |
 | **Profile** | (V5) A named preset such as `fast`, `balanced` or `deep` that fills `fast`, `model` and `machine` when a request leaves them unset |
-| **Alias** | (V7, planned) A short name for a real model, defined in config. It acts as a pin |
-| **Doctor** | (V6, planned) `pingpong doctor`, a command that checks config, storage and machines |
+| **Alias** | (V7) A short name for a real model, defined in config. It acts as a pin |
+| **Doctor** | (V6) `pingpong doctor`, a command that checks config, storage and machines. `--chat` also sends a tiny real request. Its speed is a 2-token sample, not a benchmark |
+| **Stress run** | A server-side soak, started from the Stress tab, that keeps short batch jobs flowing to Mane, Firmino or both for up to 2 hours |
+| **Mixture-of-experts (MoE)** | A model with many parameters in total but only a few used per token (the Firmino model has 30B in total and about 3.3B active). Much faster on CPU than a dense model of the same size |
+| **Dense model** | A model that uses all its parameters for every token (for example `qwen2.5:14b`). Slower on CPU |
 | **Tailnet** | The private Tailscale network the owner's devices are on |
-| **LAN** | The home local network linking Mane and Firmino |
+| **LAN** | The home local network. Mane and Firmino are on different subnets of it and talk over Tailscale instead (D-072) |
 | **Ollama** | The program on each machine that runs models and serves them over HTTP |
 | **Model name** | The exact Ollama name, typically `name:tag` |
 | **Quantization** | Compressing a model (for example 4-bit) so it uses less memory |
@@ -39,4 +42,4 @@
 | **Context window** | How much text a model can consider at once. Larger uses more memory |
 | **RAG** | Retrieval over documents. Out of scope here |
 | **NDJSON** | Newline-delimited JSON. One JSON object per line. Used for streaming |
-| **V1 to V7** | Release stages. V1 to V5 are built. V6 and V7 are planned. See [ROADMAP.md](ROADMAP.md) |
+| **V1 to V7** | Release stages. All are built and running. See [ROADMAP.md](ROADMAP.md) |

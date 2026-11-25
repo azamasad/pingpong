@@ -35,6 +35,7 @@ type Server struct {
 	startedAt    time.Time
 	shutdown     context.CancelFunc
 	once         sync.Once
+	stress       stressRun
 }
 
 func NewServer(cfg *config.Config, reg *registry.Registry, g *gate.Gate, jobSvc *jobs.Service) *Server {
@@ -47,7 +48,10 @@ func NewServer(cfg *config.Config, reg *registry.Registry, g *gate.Gate, jobSvc 
 }
 
 // BeginShutdown refuses new mutating API requests until exit.
-func (s *Server) BeginShutdown() { s.shuttingDown.Store(true) }
+func (s *Server) BeginShutdown() {
+	s.shuttingDown.Store(true)
+	s.stopStress()
+}
 
 func (s *Server) routes() {
 	static, _ := fs.Sub(webFS, "web")
@@ -67,6 +71,9 @@ func (s *Server) routes() {
 	s.Mux.HandleFunc("DELETE /api/jobs/{id}", s.handleJobDelete)
 	s.Mux.HandleFunc("POST /api/batches", s.handleBatchCreate)
 	s.Mux.HandleFunc("GET /api/batches/{id}", s.handleBatchGet)
+	s.Mux.HandleFunc("GET /api/stress", s.handleStressGet)
+	s.Mux.HandleFunc("POST /api/stress", s.handleStressStart)
+	s.Mux.HandleFunc("DELETE /api/stress", s.handleStressStop)
 }
 
 func (s *Server) Handler() http.Handler {

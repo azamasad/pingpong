@@ -401,6 +401,7 @@ func (s *Service) execute(id string) {
 				j.OutputThinking = think.String()
 				j.UpdatedAt = s.clk.Now().UTC()
 				_ = s.store.UpdateJob(ctx, j)
+				logJob(j, "done", "", nil)
 				s.emit(ctx, id, "done", map[string]any{"machine": res.Machine, "model": res.Model, "mode": res.Mode})
 			}
 			return
@@ -432,9 +433,15 @@ func (s *Service) execute(id string) {
 			j.OutputThinking = think.String()
 			j.UpdatedAt = s.clk.Now().UTC()
 			_ = s.store.UpdateJob(ctx, j)
-			s.emit(ctx, id, "done", map[string]any{
+			doneEv := map[string]any{
 				"machine": res.Machine, "model": res.Model, "mode": res.Mode,
-			})
+			}
+			stats := streamStats(ch)
+			if len(stats) > 0 {
+				doneEv["stats"] = stats
+			}
+			logJob(j, "done", "", stats)
+			s.emit(ctx, id, "done", doneEv)
 			return
 		}
 	}
@@ -462,6 +469,7 @@ func (s *Service) markRetry(j *store.Job, code, msg string, now time.Time) {
 		j.ErrorMessage = msg
 		j.UpdatedAt = now
 		_ = s.store.UpdateJob(ctx, j)
+		logJob(j, "failed", code, nil)
 		s.emit(ctx, j.ID, "error", map[string]any{"code": code, "message": msg, "retryable": false})
 		return
 	}
@@ -475,6 +483,7 @@ func (s *Service) markRetry(j *store.Job, code, msg string, now time.Time) {
 	j.NextAttemptAt = &na
 	j.UpdatedAt = now
 	_ = s.store.UpdateJob(ctx, j) // keeps partial output_text when set
+	logJob(j, "retrying", code, nil)
 	s.emit(ctx, j.ID, "status", map[string]any{
 		"state": "retrying", "attempt": j.Attempt, "next_attempt_at": na.Format(time.RFC3339),
 	})
@@ -520,6 +529,7 @@ func (s *Service) finishStopped(j *store.Job) {
 	j.UpdatedAt = s.clk.Now().UTC()
 	ctx := context.Background()
 	_ = s.store.UpdateJob(ctx, j)
+	logJob(j, "cancelled", "", nil)
 	s.emit(ctx, j.ID, "status", map[string]any{"state": "cancelled"})
 }
 
