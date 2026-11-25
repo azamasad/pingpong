@@ -1,6 +1,6 @@
 # Implementation Plan
 
-Status: v2. V1 to V7 are built and live. Written for whoever builds this (including an AI coding
+Status: v3. V1 to V7 are built and live. V7.1 to V7.9 are specified (section 5c). Written for whoever builds this (including an AI coding
 agent). Read the [constitution](../CONSTITUTION.md) and [PRD](PRD.md) first.
 This document says what to build, in what order, and how to know each step is
 done. It does not contain code.
@@ -43,9 +43,10 @@ This is the short version of what V1 must do.
 
 ## 1. Ground rules
 
-- **Build only what the owner has approved.** V1 to V7 are built. Later items
-  in the roadmap are specified or proposed so they do not get blocked, not so
-  they get built early.
+- **Build only what the owner has approved.** V1 to V7 are built. V7.1 to V7.7
+  are approved and specified, built one at a time in the order of section 5c.
+  V7.8 and V7.9 are drafts that wait for the owner's answers. Anything else in
+  the roadmap is not to be built early.
 - **Smallest thing that works.** No frameworks, brokers or abstractions that
   the docs do not call for.
 - **Respect the RAM budget** (50 MB working budget for the router on Mane).
@@ -180,6 +181,52 @@ real machines, and are done in effect: `doctor --chat` passes on both machines
 per-request log line were added afterwards (D-075 to D-077) and are not
 numbered milestones.
 
+## 5c. Ready for build: V7.1 to V7.9
+
+Verdict of the readiness review (D-106): **V7.1 to V7.7 are ready to build.
+V7.8 and V7.9 are drafts that wait for the owner's answers** (build spec section 12).
+The contract for all of them is [NEXT-FEATURES-BUILD-SPEC.md](NEXT-FEATURES-BUILD-SPEC.md).
+Intent and scope: [NEXT-FEATURES-PRDS.md](NEXT-FEATURES-PRDS.md). Tests: [TESTING.md](TESTING.md) section 2.10.
+
+**Start here.**
+
+1. Read, in order: [CONSTITUTION.md](../CONSTITUTION.md), this section, the build spec sections 0 and 1, then the section for the version you are building.
+2. Branch `cursor/<name>-<suffix>` from the current `main`. One version per pull request. Do not start the next version before the previous one is merged and its done list is ticked.
+3. First pull request (V7.1) begins with the test tooling in build spec 1.9 (fake Ollama records calls and replies per call), then the `batches` table, atomic submit, the paged batch view, the Batches tab, and split.
+4. Run `make lint && make test && make build` before every push.
+
+| Milestone | Version | Needs | Done when |
+|---|---|---|---|
+| M21 | V7.1 split, `batches`, Batches tab | none | Build spec section 2 acceptance and the common done list |
+| M22 | V7.2 answer checking | M21 | Section 3 |
+| M23 | V7.3 templates | none | Section 4 |
+| M24 | V7.4 export | M21, M22 | Section 5 |
+| M25 | V7.5 threads | none | Section 6 |
+| M26 | V7.6 file input and reduce | M21, M22, M23 | Section 7 |
+| M27 | V7.7 schedules | M21, M23 | Section 8 |
+| M28 | V7.8 OpenAI endpoint (draft) | owner answer Q1 | Section 9 |
+| M29 | V7.9 notifications (draft) | M21, M27, owner answers Q2 and Q3 | Section 10 |
+
+**Per-milestone done (the common list, build spec section 0).** Lint, tests and
+build pass. Smoke run of the real binary against two stand-in Ollama servers.
+Router RSS measured and recorded, under 50 MB, growth within the section's limit.
+No content in logs. No substitution, no rerouting. Docs updated in the same
+pull request with a DECISIONS entry for anything new. Config example updated
+with placeholders only. Owner's real-machine checks listed in TESTING 4b.
+
+**Guardrails that apply to every one of them.** Never log prompts or outputs
+(new log fields only through the `logx` whitelist). A pinned or stored pair is
+used exactly, a down machine means wait and retry on it (3 hours, every 2
+minutes), never reroute. Routing is rule-based and never reads content, and
+the router never parses a model's answer to decide anything. No new service,
+broker, framework or dependency without a written reason (P1, P2), and none is
+expected for V7.1 to V7.7. Budget 50 MB (P4). No real addresses, keys or
+webhook URLs in the repository (P17). Machine setup and real-hardware checks
+stay with the owner.
+
+**If something is unclear**, ask the owner. If you cannot, choose the simplest
+option that obeys the constitution, record it in DECISIONS (D-053).
+
 ## 6. Things to decide early in implementation
 
 Record each in [DECISIONS.md](DECISIONS.md).
@@ -193,9 +240,9 @@ Record each in [DECISIONS.md](DECISIONS.md).
 
 ## 7. Guardrails (do not do these)
 
-- Do not add RAG, embeddings, vector search or document retrieval. (Chunking a file to run as a batch is planned as V7.6 and is allowed once the owner approves the build. Awaiting owner wording on the constitution non-goal, see [NEXT-FEATURES-PRDS.md](NEXT-FEATURES-PRDS.md).)
+- Do not add RAG, embeddings, vector search or document retrieval. Chunking a text file to run as a batch (V7.6) is allowed: the constitution non-goal was reworded for it (D-101).
 - Do not add logins, users, or accounts.
-- Do not add notifications or automatic task classification. (The queue and profiles are built, V3 and V5.)
+- Do not add notifications (V7.9 is a draft that waits for the owner and a constitution change), an OpenAI endpoint (V7.8 draft, waits for the owner), or automatic task classification. (The queue and profiles are built, V3 and V5.)
 - Do not put any UI or router on Firmino.
 - Do not route by reading prompts.
 - Do not substitute for pinned requests.

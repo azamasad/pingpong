@@ -130,7 +130,8 @@ The web page shows reachability. Anything deeper is out of scope for now.
 - Optional: copy the saved data elsewhere now and then if it becomes valuable.
   Stop the router first, or wait for `pingpong backup` in V6
   ([V6-OPERABILITY.md](V6-OPERABILITY.md)), which copies safely while it runs.
-- The data holds prompts and outputs. Treat copies as private.
+- The data holds prompts and outputs, and from V7.3 on also templates, threads and schedules (and from V7.7 the prompts they run). Treat copies as private.
+- From V7.1, large batches (up to 1000 items) and V7.6 uploads make the file grow faster. Check its size now and then and prefer `pingpong backup` before an upgrade.
 
 ## 7. Adding a machine (V4)
 
@@ -178,7 +179,8 @@ launch agent). It never logs prompts or outputs (D-032). Events:
 |---|---|---|
 | `route_error` | A request could not be routed | `error_code`, `message` |
 | `request_done` | A live chat finished | `machine`, `model`, `mode`, `output_tokens_per_s`, `prompt_tokens_per_s`, `load_ms`, `queue_wait_ms`, `duration_ms` |
-| `job_done`, `job_retrying`, `job_failed`, `job_cancelled` | A saved job attempt ended | the same, plus `request_id`, `lane`, `error_code` |
+| `job_done`, `job_retrying`, `job_failed`, `job_cancelled` | A saved job attempt ended | the same, plus `request_id`, `lane`, `error_code` (and from V7.1 `batch_id`, from V7.2 `stage`) |
+| `batch_submitted`, `export_done`, `schedule_run`, `check_created`, `check_failed`, `reduce_created` | Planned, V7.1 to V7.7 | `batch_id`, `items`, `source`, `schedule` (a name), `outcome`, `error_code`. Never content ([NEXT-FEATURES-BUILD-SPEC.md](NEXT-FEATURES-BUILD-SPEC.md) section 1.5) |
 
 Useful questions to ask of it: which machine is slowest, how often jobs retry
 (and with which `error_code`), how long requests queue, and whether model

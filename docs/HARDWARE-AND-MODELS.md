@@ -224,6 +224,10 @@ Stress tab for a long soak. See [OPERATIONS.md](OPERATIONS.md) section 9.
 Note that `pingpong doctor --chat` reports speeds from a 2-token reply and is
 not a benchmark (D-077).
 
+Planned: each V7.1 to V7.7 pull request adds a row here for the router's RSS
+under the load named in its build-spec section (idle, then the load). The
+owner repeats it on Mane.
+
 ## 9. Future machines
 
 Possible additions such as a Mac Studio or DGX Spark would be registered by

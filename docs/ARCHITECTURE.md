@@ -106,13 +106,25 @@ One Ollama instance per machine. Mane runs models up to 8B. Firmino runs a
 and should be restricted to Mane by a Tailscale ACL (D-072). Mane's Ollama is
 local only.
 
-### Planned additions (V7.1 to V7.7, not built)
+### Planned additions (V7.1 to V7.9, not built)
 
 All fit the existing shape: more saved-request tables and jobs, no new
 services. Threads (V7.5) group jobs. Split (V7.1), checking (V7.2) and file input
 (V7.6) create linked jobs with explicit machine and model pairs. Templates (V7.3)
 and schedules (V7.7) add definitions. Export (V7.4) streams rows. Details and
-memory notes: [NEXT-FEATURES-PRDS.md](NEXT-FEATURES-PRDS.md).
+memory notes: [NEXT-FEATURES-PRDS.md](NEXT-FEATURES-PRDS.md). Exact tables,
+columns and endpoints: [NEXT-FEATURES-BUILD-SPEC.md](NEXT-FEATURES-BUILD-SPEC.md).
+
+| Addition | Where it lives | New moving part |
+|---|---|---|
+| `batches`, `templates`, `threads`, `schedules`, `schedule_runs` tables, and extra `jobs` columns (`parent_id`, `stage`, `check_pending`, `thread_id`, `turn`) | The existing SQLite file | None. Additive migrations |
+| Stage jobs (check, reduce) | Created by a hook when a job or the last job of a batch reaches a final state, and re-created at start if a restart interrupted it | A small function in the job service, not a new service |
+| Scheduler | One timer goroutine in the router | One timer for all schedules |
+| Upload and export | HTTP handlers that stream one chunk or one row at a time | None |
+| OpenAI endpoint (V7.8, draft) | Another handler over the same engine as `POST /api/chat` | None |
+| Webhook (V7.9, draft) | One outbound HTTP call per event, best effort | None. Needs owner approval first |
+
+Nothing of ours runs on Firmino for any of them.
 
 ### Saved-request store (V2)
 
