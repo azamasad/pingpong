@@ -563,7 +563,7 @@ Approved by the owner (D-116). Opt-in: `openai.enabled` (default `false`). When 
 
 **Behaviour.** Same engine and wait rules as `POST /api/chat`: connection-tied, disconnect cancels (D-064), no saved record, no retry. State this in the docs: a long wait on Firmino may exceed the client's own timeout. No new storage, no new dependency, no log content.
 
-**Acceptance.** [ ] SSE framing and `[DONE]`. [ ] Non-stream shape and `usage` from Ollama stats. [ ] Each rejected field. [ ] `machine/model` pin, alias, `pingpong-fast`. [ ] Disconnect cancels upstream. [ ] Disabled by default returns 404. [ ] The official `curl` examples of the OpenAI docs work with only the base URL and a dummy key changed.
+**Acceptance.** [x] SSE framing and `[DONE]`. [x] Non-stream shape and `usage` from Ollama stats. [x] Each rejected field. [x] `machine/model` pin, alias, `pingpong-fast`. [x] Disconnect cancels upstream. [x] Disabled by default returns 404. [ ] The official `curl` examples of the OpenAI docs work with only the base URL and a dummy key changed (owner on real machines).
 
 **Owner on real machines.** Point one OpenAI-compatible client at `https://MANE_TAILNET_NAME/v1` and chat.
 

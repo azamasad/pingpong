@@ -190,7 +190,7 @@ independent of each other and useful to all.
 | V7.5 | Conversation threads | Medium | Context growth, retention rule |
 | V7.6 | File input (text and Markdown) | Lower | Non-goal wording. PDF is later, needs a measured memory check |
 | V7.7 | Scheduled jobs, set up from the page | Lower | Missed runs, daylight-saving time, anyone on the tailnet can create schedules |
-| V7.8 | OpenAI-compatible endpoint | Owner approved (D-116) | Connection-tied, no tools |
+| V7.8 | OpenAI-compatible endpoint | Built (M28, V7 branch) | Connection-tied, no tools |
 | V7.9 | Notifications | Owner approved (D-116, D-117) | Outbound call from Mane. Public webhook host accepted, no content sent |
 
 The owner approved four constitution wording changes (D-101). They are applied
@@ -216,7 +216,7 @@ applied".
 | Task-specific routing refinements | After real usage shows the need |
 | Model aliases | Shipped as V7 (D-070) |
 | Conversation threads on Mane | Planned as V7.5, PRD written ([NEXT-FEATURES-PRDS.md](NEXT-FEATURES-PRDS.md)) |
-| OpenAI-compatible endpoint | So other tools can use Pingpong. Planned as V7.8 |
+| OpenAI-compatible endpoint | Shipped as V7.8 (M28, opt-in `/v1`) |
 | Batch split, answer checking, templates, export, file input, schedules | Planned as V7.1 to V7.7, PRDs written |
 
 ## Explicitly excluded

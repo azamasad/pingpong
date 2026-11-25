@@ -27,7 +27,7 @@ unclear or conflicting, stop and ask the owner, then fix the docs.
 
 **V1 to V7 are built and merged to `main`, and the router runs on the real machines** (Mane and Firmino). V3 lanes are D-066, V4 role choice is D-067, V5 presets are D-068, V6 operability is D-069, V7 aliases are D-070. After go-live the owner added test tooling: a Stress tab (D-075), a per-request log line with speeds (D-076) and `deploy/bench/` scripts (D-077).
 
-**V7.1 (M21) through V7.4 (M24) are built on the V7 branch stack.** Still planned for M25–M29: V7.5 conversation threads, V7.6 file input (text and Markdown), V7.7 scheduled jobs (set up from the page), V7.8 OpenAI-compatible API (opt-in), V7.9 notifications (one optional webhook, no content). Versioning: minor steps (V7.x) for features, a new major only for a large change. PRDs: [docs/NEXT-FEATURES-PRDS.md](docs/NEXT-FEATURES-PRDS.md). Contract: [docs/NEXT-FEATURES-BUILD-SPEC.md](docs/NEXT-FEATURES-BUILD-SPEC.md). Build order is V7.1 to V7.9 in numeric order, one pull request each, one at a time. The owner answered all open questions (D-116) and the constitution was amended for notifications (D-117). A login layer is not planned. Propose anything else in [docs/ROADMAP.md](docs/ROADMAP.md) and wait.
+**V7.1 (M21) through V7.8 (M28) are built on the V7 branch stack.** Still planned: V7.9 notifications (one optional webhook, no content). Versioning: minor steps (V7.x) for features, a new major only for a large change. PRDs: [docs/NEXT-FEATURES-PRDS.md](docs/NEXT-FEATURES-PRDS.md). Contract: [docs/NEXT-FEATURES-BUILD-SPEC.md](docs/NEXT-FEATURES-BUILD-SPEC.md). Build order is V7.1 to V7.9 in numeric order, one pull request each, one at a time. The owner answered all open questions (D-116) and the constitution was amended for notifications (D-117). A login layer is not planned. Propose anything else in [docs/ROADMAP.md](docs/ROADMAP.md) and wait.
 
 | Milestone | Status |
 |---|---|
@@ -42,7 +42,8 @@ unclear or conflicting, stop and ask the owner, then fix the docs.
 | M25 V7.5 conversation threads | Done (V7 branch) |
 | M26 V7.6 file input and reduce | Done (V7 branch) |
 | M27 V7.7 scheduled jobs | Done (V7 branch) |
-| V7.8 to V7.9 (M28 to M29) | Specified, ready to build. Not started |
+| M28 V7.8 OpenAI endpoint | Done (V7 branch) |
+| M29 V7.9 notifications | Specified, ready to build. Not started |
 | Go-live on real machines (M8b, M9b, M10 in effect) | Done. `doctor --chat` passes on both |
 | Stress tab, speed log line, bench scripts | Done |
 | Automated tests | `docs/TESTING.md` §2 in CI, plus a smoke run of the real binary against stand-in Ollama servers |

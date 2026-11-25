@@ -17,7 +17,8 @@ Related: [ROUTING.md](ROUTING.md), [JOBS-AND-RETRIES.md](JOBS-AND-RETRIES.md),
 - Streaming by default for generation.
 - The router is stateless about conversations in V1: the client sends the
   full message history every time.
-- Not an OpenAI-compatible API. That is deferred (planned as V7.8, see PRD section 10).
+- An opt-in OpenAI-compatible `/v1` API (V7.8) uses the same routing engine as
+  `POST /api/chat` but speaks SSE and the OpenAI JSON shapes. Off by default.
 
 Base URL: `https://<mane-tailnet-name>`, served by Tailscale Serve, which
 forwards to the router on localhost (see [SETUP-GUIDE.md](SETUP-GUIDE.md)
@@ -372,7 +373,6 @@ file as each version is built. All need `storage.data_dir` unless noted.
 | `POST/GET /api/threads`, `GET/PATCH/DELETE /api/threads/{id}`, `POST /api/threads/{id}/messages` | V7.5 | Saved conversations |
 | `POST /api/batches/from-file` | V7.6 | Upload a text file, chunk it, run as a batch, optional reduce |
 | `GET/POST /api/schedules`, `GET/PATCH/DELETE /api/schedules/{id}`, `POST /api/schedules/{id}/run`, `GET /api/schedules/{id}/runs` | V7.7 | Scheduled jobs |
-| `GET /v1/models`, `POST /v1/chat/completions` | V7.8 | OpenAI-compatible, opt-in. Needs `openai.enabled`. Works without `storage.data_dir` |
 
 New error codes: `CONTEXT_TOO_LARGE` (a job error, no HTTP status),
 `THREAD_TOO_LONG` (409), `THREAD_BUSY` (409), `TEMPLATE_VARS_MISSING` (400),
@@ -380,6 +380,42 @@ New error codes: `CONTEXT_TOO_LARGE` (a job error, no HTTP status),
 (415), `PDF_NO_TEXT` (reserved, not built). Duplicate names and count limits use
 the existing `CONFLICT` (409). `POST /api/chat` rejects `check`, `template` and
 `split` with `BAD_REQUEST`.
+
+### 4.3b V7.8 OpenAI-compatible API (built)
+
+Opt-in: set `openai.enabled` (default `false`). When off, `/v1/*` returns
+`404 NOT_FOUND`. Works without `storage.data_dir`. Host and Origin checks apply
+as for `/api/*`. The `Authorization` header is accepted and ignored (clients may
+send a dummy key).
+
+| Method and path | Purpose |
+|---|---|
+| `GET /v1/models` | Lists installed model names, aliases, `pingpong-auto` and `pingpong-fast` |
+| `POST /v1/chat/completions` | Chat completion in OpenAI shape (JSON or SSE) |
+
+**Model names.** `pingpong-auto` is auto routing; `pingpong-fast` sets the fast
+flag. `<machine>/<model>` pins both when the prefix is a registered machine
+name. Any other value pins a model (aliases allowed). Ambiguous or missing models
+return errors in the OpenAI error shape.
+
+**Request fields used:** `model`, `messages` (string content or an array of
+`{"type":"text","text"}` parts joined with no separator), `stream` (default
+`false`), `temperature`, `top_p`, `max_tokens` (maps to `num_predict`), `stop`,
+`seed`. Ignored: `user`, `presence_penalty`, `frequency_penalty`. Rejected with
+`400 BAD_REQUEST`: `n` other than 1, `tools`, `functions`, `response_format`,
+`logprobs`, image parts, unknown roles.
+
+**Non-stream response:** standard `chat.completion` object with `usage` from
+Ollama stats and a `pingpong` object `{"machine","mode"}`.
+
+**Stream:** `Content-Type: text/event-stream`, `data: {...}\n\n` chunks with
+`delta.content`, a final chunk with `finish_reason`, then `data: [DONE]\n\n`.
+While waiting, `: ping\n\n` every `heartbeat_interval`. Thinking text is dropped.
+
+**Errors:** `{"error":{"message","type":"invalid_request_error|server_error","param":null,"code":"<router code>"}}` with the router's HTTP status.
+
+Connection-tied like `/api/chat`: disconnect cancels upstream, no saved record,
+no retry.
 
 ### 4.4 Stress test (test tooling)
 
