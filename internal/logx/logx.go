@@ -2,12 +2,20 @@ package logx
 
 import (
 	"encoding/json"
+	"io"
 	"log"
 	"os"
 	"time"
 )
 
 var std = log.New(os.Stderr, "", 0)
+
+// SetOutput redirects structured logs (for tests). The restore func puts stderr back.
+func SetOutput(w io.Writer) (restore func()) {
+	prev := std
+	std = log.New(w, "", 0)
+	return func() { std = prev }
+}
 
 var allowed = map[string]struct{}{
 	"machine": {}, "model": {}, "mode": {}, "state": {}, "error_code": {},

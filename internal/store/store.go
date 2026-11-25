@@ -169,6 +169,13 @@ CREATE INDEX IF NOT EXISTS idx_jobs_batch ON jobs(batch_id);
 CREATE INDEX IF NOT EXISTS idx_jobs_parent ON jobs(parent_id);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_jobs_parent_stage ON jobs(parent_id, stage)
   WHERE parent_id IS NOT NULL AND parent_id != '';
+CREATE TABLE IF NOT EXISTS templates (
+  name TEXT PRIMARY KEY,
+  body TEXT NOT NULL,
+  defaults_json TEXT NOT NULL DEFAULT '',
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
 `)
 	return err
 }

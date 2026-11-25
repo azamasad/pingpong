@@ -76,6 +76,14 @@ func (s *Server) handleChat(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, apperrors.New("BAD_REQUEST", "check is not allowed on /api/chat"))
 		return
 	}
+	if _, ok := raw["template"]; ok {
+		writeErr(w, apperrors.New("BAD_REQUEST", "template is not allowed on /api/chat"))
+		return
+	}
+	if _, ok := raw["split"]; ok {
+		writeErr(w, apperrors.New("BAD_REQUEST", "split is not allowed on /api/chat"))
+		return
+	}
 	var cb ChatBody
 	if err := json.Unmarshal(body, &cb); err != nil {
 		writeErr(w, apperrors.New("BAD_REQUEST", "invalid json"))

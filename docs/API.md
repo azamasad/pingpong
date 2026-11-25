@@ -300,9 +300,9 @@ sequence number.
 
 | Method and path | Purpose |
 |---|---|
-| `POST /api/jobs` | Optional `"lane":"interactive"` (default) or `"batch"` |
+| `POST /api/jobs` | Optional `"lane":"interactive"` (default) or `"batch"`. V7.3: `"template"` and `"vars"` instead of `prompt` (see 4.3b) |
 | `GET /api/jobs` | Also filters `lane` and `batch_id` |
-| `POST /api/batches` | Body `{"items":[ <job body>, ... ], "split"?:{...}}`. All items run on the batch lane (up to `batches.max_items`, default 500). Optional `split` with `assign` `round_robin` or `weights` and two or more `{machine, model, weight?}` targets on **different** machines. Returns `202` `{"id","job_ids","split"?,"not_split"}` |
+| `POST /api/batches` | Body `{"items":[ <job body>, ... ], "split"?:{...}}` or V7.3 `{"template","vars"?,"rows":[...], "split"?:{...}}` (`items` and `rows` together is `BAD_REQUEST`). All items run on the batch lane (up to `batches.max_items`, default 500). Optional `split` with `assign` `round_robin` or `weights` and two or more `{machine, model, weight?}` targets on **different** machines. Returns `202` `{"id","job_ids","split"?,"not_split","warnings"?}` |
 | `GET /api/batches` | Recent batches: `[{"id","kind","created_at","total","counts":{...}}]`. Query `limit` (default 50), `before` |
 | `GET /api/batches/{id}` | Batch view. Query `limit` (default 200, max 1000), `offset`. Fields: `id`, `kind`, `created_at`, `total`, `pending`, `counts`, `split` (per-target progress or null), `jobs`, `next_offset` |
 | `POST /api/batches/{id}/cancel` | Cancel every waiting, running and retrying job. Returns `200` `{"cancelled":N}` |
@@ -317,6 +317,24 @@ Terminal: `pingpong batch submit|get|cancel` (see [JOBS-AND-RETRIES.md](JOBS-AND
 
 The request field `profile` is described in section 2.1. An explicit `fast`,
 `model` or `machine` always wins over the preset.
+
+### 4.3b V7.3 templates (built)
+
+Needs `storage.data_dir`. Template names are `[a-z0-9_-]{1,64}`. A blank is `{{name}}` with `name` matching `[a-z0-9_]+`. Values are plain strings, substituted once with no re-scan. Unused `vars` keys are listed in `"warnings"` on submit. Saved jobs store the final `prompt` and the template name for display; deleting a template does not change past jobs.
+
+| Method and path | Purpose |
+|---|---|
+| `POST /api/templates` | Create `{"name","body","defaults"?}`. `201` returns the template. Duplicate name or count over `templates.max_count` is `CONFLICT`. Body over `templates.max_bytes` is `BAD_REQUEST` |
+| `GET /api/templates` | List `[{"name","vars","bytes","defaults","created_at","updated_at"}]` (no bodies) |
+| `GET /api/templates/{name}` | One template including `body`. Missing name is `NOT_FOUND` |
+| `PUT /api/templates/{name}` | Replace `body` and optional `defaults`. Name cannot change |
+| `DELETE /api/templates/{name}` | `204`. Past jobs unchanged |
+
+`defaults` may set `profile`, `fast`, `model`, `machine`, `lane`, `check`, `options`, `think` (profile and machine are validated at save; model installation is not). Explicit fields on a job or batch request beat defaults.
+
+`POST /api/jobs` accepts `"template":"<name>"` and `"vars":{...}` instead of `prompt` or `messages`. `POST /api/batches` with a template uses `"rows":[{...},...]`; each row supplies per-blank values and overrides shared `vars` for that item. `split` and `check` work as for plain items.
+
+Errors: `TEMPLATE_VARS_MISSING` (400, body lists `missing` names), `TEMPLATE_NOT_FOUND` (404 when using an unknown template name).
 
 ### 4.3 V6 and V7 (built)
 
@@ -340,9 +358,6 @@ file as each version is built. All need `storage.data_dir` unless noted.
 
 | Method and path | Version | Purpose |
 |---|---|---|
-| `check` on `POST /api/jobs` and batch items | V7.2 | Review or revise by a second model. Job detail gains `stage`, `parent_id`, `children`, `check` |
-| `POST/GET/PUT/DELETE /api/templates` | V7.3 | Saved prompts with `{{blanks}}` |
-| `template`, `vars`, `rows` on `POST /api/jobs` and `POST /api/batches` | V7.3 | Use a template |
 | `GET /api/batches/{id}/export`, `GET /api/jobs/export` | V7.4 | CSV or Markdown download |
 | `POST/GET /api/threads`, `GET/PATCH/DELETE /api/threads/{id}`, `POST /api/threads/{id}/messages` | V7.5 | Saved conversations |
 | `POST /api/batches/from-file` | V7.6 | Upload a text file, chunk it, run as a batch, optional reduce |
