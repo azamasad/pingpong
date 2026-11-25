@@ -203,7 +203,7 @@ Intent and scope: [NEXT-FEATURES-PRDS.md](NEXT-FEATURES-PRDS.md). Tests: [TESTIN
 | M23 | V7.3 templates | none | Section 4 |
 | M24 | V7.4 export | M21, M22 | Section 5 |
 | M25 | V7.5 threads | none | Section 6 |
-| M26 | V7.6 file input and reduce | M21, M22, M23 | Section 7 |
+| M26 | V7.6 file input and reduce | M21, M22, M23 | Section 7 — built |
 | M27 | V7.7 schedules | M21, M23 | Section 8 |
 | M28 | V7.8 OpenAI endpoint | M27 merged | Section 9 |
 | M29 | V7.9 notifications | M21, M27 | Section 10 |

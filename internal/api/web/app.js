@@ -263,6 +263,7 @@ async function refreshHealth() {
     if (jobsOn) {
       refreshJobs();
       fillBatchModelSelects();
+      fillBatchReduceSelectors();
       fillCheckSelectors();
     }
   } catch (_) {}
@@ -415,6 +416,30 @@ async function fillCheckSelectors() {
   } catch (_) {}
 }
 
+async function fillBatchReduceSelectors() {
+  try {
+    const machines = await fetch('/api/machines').then((r) => r.json());
+    const models = await fetch('/api/models').then((r) => r.json());
+    const ms = $('batch-reduce-machine');
+    const md = $('batch-reduce-model');
+    if (!ms || !md) return;
+    ms.innerHTML = '<option value="">—</option>';
+    md.innerHTML = '<option value="">—</option>';
+    (machines || []).forEach((m) => {
+      const o = document.createElement('option');
+      o.value = m.name;
+      o.textContent = m.name;
+      ms.appendChild(o);
+    });
+    (models || []).forEach((m) => {
+      const o = document.createElement('option');
+      o.value = m.name;
+      o.textContent = m.name;
+      md.appendChild(o);
+    });
+  } catch (_) {}
+}
+
 function fillBatchModelSelects() {
   fetch('/api/models').then((r) => r.json()).then((models) => {
     document.querySelectorAll('.batch-model').forEach((sel) => {
@@ -460,7 +485,11 @@ function progressPct(counts) {
 function renderBatchView(b) {
   $('batch-detail').classList.remove('hidden');
   $('batch-view-id').textContent = b.id.slice(0, 8) + '…';
-  $('batch-view-meta').textContent = `${b.kind} · ${b.pending} pending · ${b.total} items`;
+  let meta = `${b.kind} · ${b.pending} pending · ${b.total} items`;
+  if (b.reduce) {
+    meta += ` · reduce ${b.reduce.status || 'pending'}`;
+  }
+  $('batch-view-meta').textContent = meta;
   const overall = $('batch-overall-bar').firstElementChild;
   overall.style.width = `${progressPct(b.counts || {})}%`;
   const tb = $('batch-target-bars');
@@ -891,6 +920,80 @@ $('stress-start').onclick = async () => {
 $('stress-stop').onclick = async () => {
   const res = await fetch('/api/stress', { method: 'DELETE' });
   renderStress(await res.json());
+};
+
+function setBatchFormMode(mode) {
+  const file = mode === 'file';
+  $('batch-lines-mode').classList.toggle('hidden', file);
+  $('batch-file-mode').classList.toggle('hidden', !file);
+  $('batch-submit').classList.toggle('hidden', file);
+  $('batch-file-start').classList.toggle('hidden', !file);
+}
+
+$('batch-mode-lines').onchange = () => setBatchFormMode('lines');
+$('batch-mode-file').onchange = () => setBatchFormMode('file');
+
+function fileBatchForm(extra) {
+  const fd = new FormData();
+  const f = $('batch-file').files[0];
+  if (!f) throw new Error('Choose a file');
+  fd.append('file', f);
+  const inst = $('batch-file-instruction').value.trim();
+  if (!inst.includes('{{chunk}}')) throw new Error('Instruction needs {{chunk}}');
+  fd.append('instruction', inst);
+  const cc = Number($('batch-chunk-chars').value);
+  if (cc >= 500 && cc <= 20000) fd.append('chunk_chars', String(cc));
+  const red = $('batch-reduce-instruction').value.trim();
+  const rm = $('batch-reduce-machine').value;
+  const rmod = $('batch-reduce-model').value;
+  if (red || rm || rmod) {
+    if (!red.includes('{{results}}') || !rm || !rmod) {
+      throw new Error('Reduce needs instruction with {{results}}, machine and model');
+    }
+    fd.append('reduce', JSON.stringify({ instruction: red, machine: rm, model: rmod }));
+  }
+  const assign = $('batch-assign').value;
+  if (assign) {
+    const targets = [];
+    document.querySelectorAll('.batch-target').forEach((row) => {
+      const machine = row.dataset.machine;
+      const model = row.querySelector('.batch-model').value;
+      const weight = Number(row.querySelector('.batch-weight').value) || 1;
+      if (model) targets.push({ machine, model, weight });
+    });
+    if (targets.length) fd.append('split', JSON.stringify({ assign, targets }));
+  }
+  if (extra) Object.entries(extra).forEach(([k, v]) => fd.append(k, v));
+  return fd;
+}
+
+$('batch-file-preview').onclick = async () => {
+  $('batch-file-preview-state').textContent = 'Previewing…';
+  try {
+    const fd = fileBatchForm({ dry_run: '1' });
+    const res = await fetch('/api/batches/from-file', { method: 'POST', body: fd });
+    const j = await res.json();
+    if (!res.ok) throw new Error(j.error?.message || res.statusText);
+    $('batch-file-preview-state').textContent = `${j.chunks} chunks, ${j.chars} chars`;
+  } catch (e) {
+    $('batch-file-preview-state').textContent = e.message;
+  }
+};
+
+$('batch-file-start').onclick = async () => {
+  $('batch-submit-state').textContent = 'Uploading…';
+  try {
+    const fd = fileBatchForm();
+    const res = await fetch('/api/batches/from-file', { method: 'POST', body: fd });
+    const j = await res.json();
+    if (!res.ok) throw new Error(j.error?.message || res.statusText);
+    $('batch-submit-state').textContent = `Created ${j.id.slice(0, 8)}… (${j.chunks} chunks)`;
+    $('batch-file').value = '';
+    refreshBatchesList();
+    openBatchView(j.id);
+  } catch (e) {
+    $('batch-submit-state').textContent = e.message;
+  }
 };
 
 $('batch-submit').onclick = async () => {

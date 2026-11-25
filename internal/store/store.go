@@ -198,7 +198,13 @@ CREATE TABLE IF NOT EXISTS threads (
 		return err
 	}
 	_, err = s.db.Exec(`CREATE INDEX IF NOT EXISTS idx_jobs_thread ON jobs(thread_id, turn)`)
-	return err
+	if err != nil {
+		return err
+	}
+	if err := s.addColumn("batches", "reduce_json", `ALTER TABLE batches ADD COLUMN reduce_json TEXT NOT NULL DEFAULT ''`); err != nil {
+		return err
+	}
+	return s.addColumn("batches", "reduce_job_id", `ALTER TABLE batches ADD COLUMN reduce_job_id TEXT NOT NULL DEFAULT ''`)
 }
 
 func (s *Store) addColumn(table, name, stmt string) error {
