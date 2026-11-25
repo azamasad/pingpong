@@ -37,7 +37,9 @@ func TestTemplateBatchRSSGate(t *testing.T) {
 	if res.StatusCode != http.StatusAccepted {
 		t.Fatalf("status %d", res.StatusCode)
 	}
-	var created struct{ ID string `json:"id"` }
+	var created struct {
+		ID string `json:"id"`
+	}
 	_ = decodeJSON(res, &created)
 	after, _ := rssKB()
 	deltaMB := float64(after-before) / 1024
