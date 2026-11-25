@@ -124,6 +124,8 @@ Interfaces are specified in [API.md](API.md), settings in
 | F31 | The request can pass a small allow-list of generation options and a `think` setting, and can ask for a single non-streamed reply (`stream:false`). | V1 |
 | F32 | Read-only endpoints list machines (with reachable and busy), installed models, and overall health. | V1 |
 | F33 | The router rejects requests with an unexpected `Host` or `Origin`, and bodies over a size limit. | V1 |
+| F34 | With saved jobs on, the Chat tab continues one saved thread. New starts a blank chat on the next message. An existing thread can be selected and continued. The machine and model are fixed when the chat starts. | V7.10 |
+| F35 | The page shows a small hardware card for each machine, refreshed every 5 seconds: CPU, memory, temperature when the OS exposes it, network rate and load. This host is read locally. Another machine is read only from its configured stats address. | V7.10 |
 
 ### Machines
 

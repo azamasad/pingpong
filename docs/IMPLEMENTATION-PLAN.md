@@ -207,6 +207,7 @@ Intent and scope: [NEXT-FEATURES-PRDS.md](NEXT-FEATURES-PRDS.md). Tests: [TESTIN
 | M27 | V7.7 schedules | M21, M23 | Section 8 — built |
 | M28 | V7.8 OpenAI endpoint | M27 merged | Section 9 — built |
 | M29 | V7.9 notifications | M21, M27 | Section 10 — built |
+| M30 | V7.10 chat continuity and hardware cards | M25 | D-122 — built |
 
 **Per-milestone done (the common list, build spec section 0).** Lint, tests and
 build pass. Smoke run of the real binary against two stand-in Ollama servers.

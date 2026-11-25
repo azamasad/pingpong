@@ -144,6 +144,29 @@ notify:
 	}
 }
 
+func TestStatsAddressRejectsUserInfo(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "c.yaml")
+	content := `
+machines:
+  - name: a
+    address: "http://127.0.0.1:11434"
+    stats_address: "http://user:pass@10.0.0.8:8788"
+    roles: [fast]
+    default_model: "m:8b"
+routing:
+  auto_role: fast
+  fast_role: fast
+`
+	if err := os.WriteFile(path, []byte(content), 0600); err != nil {
+		t.Fatal(err)
+	}
+	_, _, err := Load(path)
+	if err == nil || !strings.Contains(err.Error(), "stats_address") {
+		t.Fatalf("expected stats_address error: %v", err)
+	}
+}
+
 func TestRefreshOnMissDefaultsOn(t *testing.T) {
 	var h HealthConfig
 	if !h.RefreshOnMiss() {

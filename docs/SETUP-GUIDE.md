@@ -125,6 +125,24 @@ port. `ufw` here protects the LAN side.
 - [ ] Reboot Firmino. Confirm Ollama is back without any action.
 - [ ] Optional: unplug power briefly and confirm it stays up on battery.
 
+### 2.8 Hardware counters (for the cards on the page)
+
+The page reads Mane's CPU, memory, temperature and network inside the router.
+Firmino's numbers come from a small extra process, `pingpong hoststats`. It
+serves counters only. It has no page.
+
+- [ ] Copy the same `pingpong` binary you installed on Mane to Firmino (the
+      Linux build).
+- [ ] Run it bound to Firmino's Tailscale address, not `0.0.0.0`:
+      `pingpong hoststats --listen <FIRMINO_TAILSCALE_IP>:8788`
+- [ ] Keep it running across reboots with a systemd unit whose
+      `ExecStart` is that command.
+- [ ] On Mane's config, set Firmino's `stats_address` to
+      `http://<FIRMINO_TAILSCALE_IP>:8788` and restart the router.
+- [ ] The Tailscale ACL must allow Mane to reach that port. The example in
+      [NETWORK-AND-SECURITY.md](NETWORK-AND-SECURITY.md) includes 8788 next to
+      11434. From the MacBook Air, port 8788 on Firmino must be refused.
+
 ## 3. Mane (Mac mini)
 
 ### 3.1 Basics
