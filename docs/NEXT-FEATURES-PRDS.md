@@ -2,7 +2,7 @@
 
 Status: **planned, owner-approved as roadmap items, not built.** Nothing here is
 built until the owner says so (AGENTS.md). Versions and order are in
-[ROADMAP.md](ROADMAP.md). Decisions: D-086 to D-100.
+[ROADMAP.md](ROADMAP.md). Decisions: D-086 to D-105.
 Versioning: minor steps after the last built version (V7.1, V7.2, ...). A new
 major only for a large change (D-095).
 
@@ -51,7 +51,7 @@ requests still go first (D-066).
 
 **Future note (not in this version).** A `when_free` mode, where an item takes
 whichever machine is free at admission and is then bound to it, would balance
-speed differences better. It needs an owner wording change on P10 first, so it is
+speed differences better. It would need a P10 wording change first, so it is
 left out (D-097).
 
 **API.** `POST /api/batches` gains `"split":{"assign":"round_robin|weights","targets":[{"machine","model","weight"}]}`
@@ -72,8 +72,7 @@ only. Down machine: its items wait and the other finishes, none move. Pinned
 items are skipped by the splitter. Lanes still honoured.
 
 **Guardrails.** P10 and D-059 (wait, do not reroute). The split plan is an
-explicit user-chosen mode (proposed P9 wording, "Proposed constitution changes"
-item 1).
+explicit user-chosen mode (P9 as amended, D-101).
 
 **Open questions.** Should the export mark mixed models with columns for machine
 and model (default: yes)?
@@ -139,7 +138,7 @@ stage. A request without `check` is unchanged.
 
 **Guardrails.** P9 and P10: reviewer is user-chosen, there is no content-based
 decision. P11: both models shown. P16: the review prompt holds content, so it is
-only stored, never logged. Proposed P10 wording: "Proposed constitution changes" item 2.
+only stored, never logged. P10 as amended (D-101).
 
 **Open questions.** If the user overrides so the reviewer is smaller than the
 answerer, should the page show a note (proposed: yes)? Should `revise` be
@@ -242,14 +241,14 @@ reading from the server instead of the browser (the browser-held history of V1
 remains for unsaved chat).
 **Config.** `threads.max_turns` (default 200).
 **Data.** A `threads` table and a `thread_id` and `turn` on jobs. Retention: 90
-days from last activity, then removed.
+days after the last message, then removed (D-103).
 **Memory.** History is loaded only when a turn is built, and is bounded by
 `num_ctx`.
 **Tests.** History order and exclusion of failed turns. Pin kept across turns.
 Explicit pin change. `THREAD_TOO_LONG` and `trim`. Parallel turns in one thread
 are refused (one active turn). Retention sweep. Restart recovery.
 **Guardrails.** P10 (no silent switching), P16, P14.
-**Open questions.** Retention from last activity, or from creation? Turn on `trim` by
+**Open questions.** Turn on `trim` by
 default (proposed: no)? Replace the browser-held chat or keep both?
 
 ---
@@ -263,7 +262,7 @@ chunk as a batch.
 and read the results in order, or export them.
 
 **In scope.** Text and Markdown files. Chunking. One batch job per
-chunk, same instruction. Optional final `reduce` step. **Out of scope.**
+chunk, same instruction. Final `reduce` step (combine all chunk results into one summary). **Out of scope.**
 **PDF (later, see below)**. Embeddings, vector search, retrieval, an index, OCR, images, Word files, keeping
 the uploaded file, answering questions over the whole document. (That would be
 RAG, a non-goal.)
@@ -273,7 +272,7 @@ paragraph boundaries to at most `files.chunk_chars` each (default 6000, about
 1,500 tokens, so instruction plus chunk plus answer fits `num_ctx`), and one job
 per chunk is created from an instruction template with `{{chunk}}` and `{{index}}`
 (V7.3 templates work too). Chunks and their order are saved as ordinary job
-prompts. The upload is not kept. `reduce` is optional and explicit: a final job
+prompts. The upload is not kept. `reduce` is in the first cut (D-104), explicit and opt-in per request: a final job
 (V7.2 stage mechanism) on a user-named pair that receives the chunk outputs in
 order, refused with `CONTEXT_TOO_LARGE` if they do not fit. Chunks are processed
 with V7.1 split if the user asks. Failure of one chunk does not stop the others.
@@ -296,10 +295,8 @@ is not built.
 errors. A large text file does not grow RSS. One failed chunk leaves the rest.
 `reduce` size refusal.
 **Guardrails.** Constitution non-goal "RAG, document search or vector databases"
-and the implementation plan guardrail "no document features": **owner wording
-change proposed (item 3 in "Proposed constitution changes")**. P4.
-**Open questions.** Is `reduce` wanted in the first cut? What chunk size suits
-your documents?
+and the implementation plan guardrail "no document features": non-goal wording amended (D-101). P4.
+**Open questions.** What chunk size suits your documents?
 
 ---
 
@@ -361,43 +358,28 @@ logged (P16).
 `overlap`. Run now. Restart neither loses nor double-runs. Create, edit, pause,
 delete via API. Validation errors. The pair is always as saved. Retry window
 for a run with the machine down.
-**Guardrails.** P10, P14, P16. **Risk:** the page has no login (D-079), so any
-tailnet device could create a schedule that runs unattended. The Tailscale ACL
-(D-081) limits that. The log records schedule name and outcome, never content.
+**Guardrails.** P10, P14, P16. **Accepted risk (D-102):** the page has no login
+(D-079), so any tailnet device could create a schedule that runs unattended.
+The owner accepts this: only the owner's devices are on the tailnet, and the
+Tailscale ACL (D-081) limits it. The log records schedule name and outcome, never content.
 **Open questions.** Does editing a schedule apply from the next due time only
 (proposed: yes)?
 
 ---
 
-## Proposed constitution changes
+## Constitution changes applied
 
-For the owner to approve. **The constitution is not edited.** If approved, apply
-each as written and add a DECISIONS entry (its amendment rule).
+The owner approved these four changes (D-101) and they are applied to
+[CONSTITUTION.md](../CONSTITUTION.md) as written here.
 
-**1. P9 (split plan and review as explicit modes).**
-Before: "Routing follows simple, documented rules driven by clear signals: flags, pinned names, and what is installed where. The router does not read prompts to guess difficulty."
-After: "Routing follows simple, documented rules driven by clear signals: flags, pinned names, what is installed where, and explicit user-chosen modes (a batch split plan, a review step). The router does not read prompts to guess difficulty."
+1. **P9:** "...flags, pinned names, what is installed where, and explicit user-chosen modes (a batch split plan, a review step)..."
+2. **P10:** adds "A second model used to check an answer is a separate, visible step the user chose, not a switch."
+3. **Non-goal:** "RAG, document search, embeddings or vector databases. Splitting a file into chunks to run as a batch is allowed."
+4. **Retention and P16:** the hard limit reads "Retention of finished results and thread content (when stored): 90 days (threads: from the last message). Templates and schedules are definitions and are kept until deleted". P16 reads "They are stored only in the saved-request store: results for the retention period, and templates and schedules until deleted."
 
-**2. P10 (checking is a visible step, not a switch).**
-Before: "If the user names a model or a machine, that is exactly what is used. No silent substitution, no switching mid-task. If it is unavailable, say so."
-After: "If the user names a model or a machine, that is exactly what is used. No silent substitution, no switching mid-task. A second model used to check an answer is a separate, visible step the user chose, not a switch. If it is unavailable, say so."
-
-**3. Non-goals (file input is not RAG).**
-Before: "- RAG, document search or vector databases."
-After: "- RAG, document search, embeddings or vector databases. Splitting a file into chunks to run as a batch is allowed."
-
-**4. Retention (templates, schedules, threads) and P16.**
-Before (hard limit): "| Retention of finished results (when stored) | 90 days |"
-After: "| Retention of finished results and thread content (when stored) | 90 days (threads: from last activity). Templates and schedules are definitions and are kept until deleted |"
-Before (P16, last sentence): "In V2 they are stored only in the saved-request store, for the retention period."
-After: "They are stored only in the saved-request store: results for the retention period, and templates and schedules until deleted."
-
-**5. P4 (50 MB): no change.** The PRDs require streaming, and a measurement on
-Mane for anything heavy.
-
-If a later `when_free` mode (V7.1 future note) is ever wanted, P10 would also
-need: "A pair chosen at admission under a user-chosen mode is pinned from then
-on." Not proposed now.
+P4 (50 MB) is unchanged: the PRDs require streaming and a measurement on Mane.
+A later `when_free` mode (V7.1 future note) would also need: "A pair chosen at
+admission under a user-chosen mode is pinned from then on." Not approved.
 
 No conflict found with P3, P5 (a split or review that targets Mane must name an
 8B or smaller model), P6, P7, P8, P17, or the hard limits on users, logins and

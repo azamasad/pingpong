@@ -190,9 +190,9 @@ independent of each other and useful to all.
 | V7.8 | OpenAI-compatible endpoint | Proposed | Not specified |
 | V7.9 | Notifications | Proposed | Not specified |
 
-Proposed constitution wording changes (before and after) are in the PRD file
-under "Proposed constitution changes", for the owner to approve. The
-constitution is not edited.
+The owner approved four constitution wording changes (D-101). They are applied
+in CONSTITUTION.md and listed in the PRD file under "Constitution changes
+applied".
 
 ## Tech debt and future work
 
