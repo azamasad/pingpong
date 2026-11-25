@@ -12,6 +12,7 @@ import (
 	"github.com/azamasad/pingpong/internal/clock"
 	"github.com/azamasad/pingpong/internal/config"
 	"github.com/azamasad/pingpong/internal/gate"
+	"github.com/azamasad/pingpong/internal/notify"
 	"github.com/azamasad/pingpong/internal/ollama"
 	"github.com/azamasad/pingpong/internal/registry"
 	"github.com/azamasad/pingpong/internal/route"
@@ -30,12 +31,15 @@ type Service struct {
 	gate  *gate.Gate
 	clk   clock.Clock
 
-	mu           sync.Mutex
-	cancels      map[string]context.CancelFunc
-	holdMu       sync.Mutex
-	holding      map[string]int
-	shuttingDown atomic.Bool
-	scheduler    *Scheduler
+	mu            sync.Mutex
+	cancels       map[string]context.CancelFunc
+	holdMu        sync.Mutex
+	holding       map[string]int
+	shuttingDown  atomic.Bool
+	scheduler     *Scheduler
+	notify        *notify.Client
+	batchNotifyMu sync.Mutex
+	batchNotified map[string]struct{}
 }
 
 func New(cfg *config.Config, st *store.Store, reg *registry.Registry, g *gate.Gate, clk clock.Clock) *Service {
@@ -45,6 +49,7 @@ func New(cfg *config.Config, st *store.Store, reg *registry.Registry, g *gate.Ga
 	svc := &Service{
 		cfg: cfg, store: st, reg: reg, gate: g, clk: clk,
 		cancels: map[string]context.CancelFunc{}, holding: map[string]int{},
+		notify: notify.New(cfg.Notify), batchNotified: map[string]struct{}{},
 	}
 	svc.scheduler = NewScheduler(svc)
 	return svc
@@ -505,6 +510,7 @@ func (s *Service) markRetry(j *store.Job, code, msg string, now time.Time) {
 		s.clearCheckOnTerminal(ctx, j)
 		logJob(j, "failed", code, nil)
 		s.onBatchItemTerminal(ctx, j)
+		s.maybeNotifyJobFailed(j, code)
 		s.emit(ctx, j.ID, "error", map[string]any{"code": code, "message": msg, "retryable": false})
 		return
 	}

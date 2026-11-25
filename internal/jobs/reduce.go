@@ -37,10 +37,12 @@ func parseReduceSpec(raw string) (*ReduceSpec, error) {
 }
 
 func (s *Service) onBatchItemTerminal(ctx context.Context, j *store.Job) {
-	if j.BatchID == "" || j.Stage == store.StageReduce {
-		return
+	if j.BatchID != "" && j.Stage != store.StageReduce {
+		_ = s.maybeCreateReduce(ctx, j.BatchID)
 	}
-	_ = s.maybeCreateReduce(ctx, j.BatchID)
+	if j.BatchID != "" {
+		s.maybeNotifyBatchTerminal(ctx, j.BatchID)
+	}
 }
 
 func (s *Service) recoverPendingReduces(ctx context.Context) {

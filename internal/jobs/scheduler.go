@@ -228,6 +228,9 @@ func (sc *Scheduler) executeDue(ctx context.Context, sch *store.Schedule, due ti
 	}
 	_ = sc.svc.store.UpdateScheduleRun(ctx, run)
 	sc.logRun(sch.Name, outcome, errCode, jobID, batchID)
+	if outcome == "failed" {
+		sc.svc.notifyScheduleFailed(sch.Name, errCode)
+	}
 	sc.Notify()
 	return run, nil
 }

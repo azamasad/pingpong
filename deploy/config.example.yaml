@@ -99,3 +99,9 @@ health:
 # V7.8 OpenAI-compatible /v1 API (optional). Default is off.
 # openai:
 #   enabled: true
+
+# V7.9 outbound notifications (optional). Default is off. Put a real URL only in the local config file.
+# notify:
+#   webhook_url: ""
+#   events: [batch_done, schedule_failed, job_failed]
+#   timeout: 10s

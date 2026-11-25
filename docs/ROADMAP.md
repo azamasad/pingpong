@@ -42,7 +42,7 @@ Built so far: V1 to V7. Everything numbered V7.x below is planned and not built,
 | 7.6 | V7.6: file input (planned) | Text and Markdown, chunked, run as a batch. Not RAG. PDF later |
 | 7.7 | V7.7: scheduled jobs (planned) | Nightly or weekly runs, set up from the page |
 | 7.8 | V7.8: OpenAI-compatible endpoint (planned) | Opt-in `/v1` |
-| 7.9 | V7.9: notifications (planned) | One optional webhook, no content |
+| 7.9 | V7.9: notifications | One optional webhook, no content (built) |
 | 7+ | Test tooling (not a numbered version) | Stress tab, bench scripts, per-request log line (D-075, D-076) |
 
 ## Who does what
@@ -191,7 +191,7 @@ independent of each other and useful to all.
 | V7.6 | File input (text and Markdown) | Lower | Non-goal wording. PDF is later, needs a measured memory check |
 | V7.7 | Scheduled jobs, set up from the page | Lower | Missed runs, daylight-saving time, anyone on the tailnet can create schedules |
 | V7.8 | OpenAI-compatible endpoint | Built (M28, V7 branch) | Connection-tied, no tools |
-| V7.9 | Notifications | Owner approved (D-116, D-117) | Outbound call from Mane. Public webhook host accepted, no content sent |
+| V7.9 | Notifications | Built (M29, D-120) | Outbound call from Mane. Public webhook host accepted, no content sent |
 
 The owner approved four constitution wording changes (D-101). They are applied
 in CONSTITUTION.md and listed in the PRD file under "Constitution changes
