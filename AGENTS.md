@@ -24,7 +24,7 @@ unclear or conflicting, stop and ask the owner, then fix the docs.
 
 **V1 to V7 are built and merged to `main`, and the router runs on the real machines** (Mane and Firmino). V3 lanes are D-066, V4 role choice is D-067, V5 presets are D-068, V6 operability is D-069, V7 aliases are D-070. After go-live the owner added test tooling: a Stress tab (D-075), a per-request log line with speeds (D-076) and `deploy/bench/` scripts (D-077).
 
-Anything beyond that (V8 threads, V9 OpenAI-compatible API, V10 notifications, a login layer) is **not approved**. Propose it in [docs/ROADMAP.md](docs/ROADMAP.md) and wait.
+**Planned, owner-approved, not built until the owner says so:** V8 conversation threads, V11 batch split across machines, V12 answer checking, V13 prompt templates, V14 results export, V15 file input, V16 scheduled jobs. PRDs: [docs/NEXT-FEATURES-PRDS.md](docs/NEXT-FEATURES-PRDS.md). Build order is V11, V12, V13, V14, V8, V15, V16, one at a time. **Not approved:** V9 OpenAI-compatible API, V10 notifications, a login layer. Propose those in [docs/ROADMAP.md](docs/ROADMAP.md) and wait.
 
 | Milestone | Status |
 |---|---|
@@ -55,9 +55,10 @@ Run: `make test && make build`. Enable jobs with `storage.data_dir` in config (`
 - **Do not add features that are not in the PRD.** If something seems useful,
   propose it by adding to the backlog in [docs/ROADMAP.md](docs/ROADMAP.md).
   Do not build it.
-- **Keep deferred items deferred.** Notifications, conversation threads, an
-  OpenAI-compatible API, high availability and RAG are out of scope until the
-  roadmap says otherwise.
+- **Keep deferred items deferred.** Notifications, an OpenAI-compatible API,
+  high availability and RAG are out of scope until the roadmap says otherwise.
+  Conversation threads and file input (chunked batch, **not** RAG) are planned
+  (V8, V15) but not built until the owner says so.
 - **Routing is rule-based.** Never route by reading or classifying prompt
   content.
 - **Pinned means pinned.** Never substitute a different model or machine for a
