@@ -183,11 +183,30 @@ storage:          # V2
 Also built: `router.shutdown_grace` (V6, default `10s`) and `aliases` (V7). See
 [V6-OPERABILITY.md](V6-OPERABILITY.md) and [V7-ALIASES.md](V7-ALIASES.md).
 
-Planned keys, not built (see [NEXT-FEATURES-PRDS.md](NEXT-FEATURES-PRDS.md)):
-`batches.max_items` (V7.1), `templates.max_bytes` and `templates.max_count`
-(V7.3), `threads.max_turns` (V7.5), `files.max_bytes` and `files.chunk_chars` (V7.6), and
-`schedules.max_count` and `schedules.grace` (V7.7). Schedules themselves are
-created from the page and stored in the database, not in the config file.
+Planned keys, not built (full contract in
+[NEXT-FEATURES-BUILD-SPEC.md](NEXT-FEATURES-BUILD-SPEC.md)). All are optional,
+and all except `openai` and `notify` need `storage.data_dir`. Schedules, templates
+and threads are stored in the database, never in the config file.
+
+| Key | Version | Default | Meaning |
+|---|---|---|---|
+| `batches.max_items` | V7.1 | `1000` | Most items in one batch. Replaces the fixed 100 in the code. Falls back to 500 if the memory gate fails |
+| `templates.max_bytes` | V7.3 | `16384` | Largest template body |
+| `templates.max_count` | V7.3 | `200` | Most templates |
+| `threads.max_turns` | V7.5 | `200` | Most turns in one thread |
+| `files.max_bytes` | V7.6 | `2097152` | Largest uploaded text file (the upload endpoint has its own body limit of this plus 64 KB) |
+| `files.chunk_chars` | V7.6 | `6000` | Default chunk size in characters (a request may use 500 to 20000) |
+| `schedules.max_count` | V7.7 | `50` | Most schedules |
+| `schedules.grace` | V7.7 | `1h` | How late a missed run may still run once (`missed: run_once`) |
+| `openai.enabled` | V7.8 | `false` | Turns on `/v1/models` and `/v1/chat/completions` |
+| `notify.webhook_url` | V7.9 | empty (off) | One outbound URL. Real value only in the real config file, never committed or logged |
+| `notify.events` | V7.9 | `[batch_done, schedule_failed, job_failed]` | Which events send a message |
+| `notify.timeout` | V7.9 | `10s` | Per message |
+
+Validation to add with each key: integers above 0, `files.chunk_chars` within
+500 to 20000, `schedules.grace` a positive duration, `notify.webhook_url` an
+`http` or `https` URL when set. A key that needs storage while `data_dir` is
+unset is a startup error naming the key.
 
 ## 6. Rules for changes
 

@@ -1,8 +1,12 @@
-# Next features: PRDs for V7.1 to V7.7
+# Next features: PRDs for V7.1 to V7.9
 
 Status: **planned, owner-approved as roadmap items, not built.** Nothing here is
 built until the owner says so (AGENTS.md). Versions and order are in
-[ROADMAP.md](ROADMAP.md). Decisions: D-086 to D-105.
+[ROADMAP.md](ROADMAP.md). Decisions: D-086 to D-105 (product) and D-106 to D-117
+(build detail). **Exact payloads, storage, config, errors, UI and acceptance
+lists are in [NEXT-FEATURES-BUILD-SPEC.md](NEXT-FEATURES-BUILD-SPEC.md), which
+wins over this file where they differ.** This file keeps the intent, stories and
+scope. V7.8 and V7.9 are specified in the build spec (sections 9 and 10) and approved (D-116).
 Versioning: minor steps after the last built version (V7.1, V7.2, ...). A new
 major only for a large change (D-095).
 
@@ -17,9 +21,9 @@ Every feature below inherits these rules, so they are not repeated:
 | P16 | Content only in the saved-request store. Logs get metadata only (D-076). New log fields go through the `logx` whitelist |
 | Retention | Results and thread content: 90 days. Templates and schedules are definitions, kept until deleted |
 | Storage | All of it needs `storage.data_dir`. Schema changes are additive SQLite migrations |
-| Out of scope for all | Logins, multi-user, notifications (V7.9), OpenAI endpoint (V7.8), RAG |
+| Out of scope for all | Logins, multi-user, RAG. (V7.8 OpenAI endpoint and V7.9 notifications are separate versions, specified in the build spec) |
 
-Build order: **V7.1, V7.2, V7.3, V7.4, V7.5, V7.6, V7.7.**
+Build order: **V7.1, V7.2, V7.3, V7.4, V7.5, V7.6, V7.7**, then V7.8 and V7.9.
 
 ---
 
@@ -57,12 +61,11 @@ left out (D-097).
 **API.** `POST /api/batches` gains `"split":{"assign":"round_robin|weights","targets":[{"machine","model","weight"}]}`
 and items need no routing fields. `GET /api/batches/{id}` gains per-target
 `done`, `running`, `waiting`, `failed`. Page: a "Split" option in the batch form
-and a per-machine progress bar. `pingpong batch submit --split mane:MODEL,firmino:MODEL`.
+and a per-machine progress bar (there is no batch form today: the new **Batches** tab is built in this version). `pingpong batch submit --split mane:MODEL,firmino:MODEL`.
 
-**Config.** `batches.max_items` (default 1000, a safety cap).
+**Config.** `batches.max_items` (default 1000, a safety cap, replaces the fixed 100 in the code; 500 if the memory gate in the build spec 1.8 fails, D-116).
 
-**Data.** Nothing new. Each job already stores machine and model. The batch row
-stores the split plan.
+**Data.** A new `batches` table (there is no batch row today, only `batch_id` on jobs) stores the split plan. Each job already stores machine and model.
 
 **Memory.** Assignment is computed per item at submit or admission. No new
 buffers.
@@ -74,8 +77,7 @@ items are skipped by the splitter. Lanes still honoured.
 **Guardrails.** P10 and D-059 (wait, do not reroute). The split plan is an
 explicit user-chosen mode (P9 as amended, D-101).
 
-**Open questions.** Should the export mark mixed models with columns for machine
-and model (default: yes)?
+**Decided (D-107).** The export has machine and model columns (yes). Targets must be on different machines.
 
 ---
 
@@ -127,7 +129,7 @@ on its own pair (D-071). If stage 2 fails, the result shows the answer as
 **Config.** None.
 
 **Data.** Two job rows per checked request, linked. A `stage` and `parent_id`
-column. Doubles storage and run time for checked requests.
+column, and a `check_pending` flag for restart recovery. Doubles storage and run time for checked requests.
 
 **Memory.** None extra. Stages are ordinary jobs.
 
@@ -140,9 +142,7 @@ stage. A request without `check` is unchanged.
 decision. P11: both models shown. P16: the review prompt holds content, so it is
 only stored, never logged. P10 as amended (D-101).
 
-**Open questions.** If the user overrides so the reviewer is smaller than the
-answerer, should the page show a note (proposed: yes)? Should `revise` be
-allowed its own `num_predict`?
+**Decided (D-108).** The page shows a note when the reviewer is smaller than the answerer. Stage 2 may carry its own `options` (`check.options`), including `num_predict`.
 
 ---
 
@@ -176,7 +176,7 @@ so never logged. Not subject to the 90-day sweep.
 overridden by explicit fields, batch expansion, delete does not affect past jobs
 (they store the final prompt).
 **Guardrails.** P9: substitution does not read content for routing. P16.
-**Open questions.** Allow `{{` escaping? Keep a version history of edits (default: no)?
+**Decided (D-109).** No escaping (pass a literal `{{name}}` as a value). No version history.
 
 ---
 
@@ -208,7 +208,7 @@ so it is private data. It is not a log.
 **Tests.** CSV quoting with commas, quotes and newlines. Formula guard and `raw`.
 Markdown structure. `partial`. Large batch streams without growth in RSS. Host and Origin checks apply.
 **Guardrails.** P16 (an export is not a log), P17 (no sample content in the repo).
-**Open questions.** Spreadsheet-friendly BOM option? Include the split pair columns by default (yes)?
+**Decided (D-110).** BOM is opt-in (`bom=1`). Machine and model columns are always included.
 
 ---
 
@@ -248,8 +248,7 @@ days after the last message, then removed (D-103).
 Explicit pin change. `THREAD_TOO_LONG` and `trim`. Parallel turns in one thread
 are refused (one active turn). Retention sweep. Restart recovery.
 **Guardrails.** P10 (no silent switching), P16, P14.
-**Open questions.** Turn on `trim` by
-default (proposed: no)? Replace the browser-held chat or keep both?
+**Decided (D-111).** `trim` is off unless asked per message. The browser-held chat stays, and threads are a new tab.
 
 ---
 
@@ -296,7 +295,7 @@ errors. A large text file does not grow RSS. One failed chunk leaves the rest.
 `reduce` size refusal.
 **Guardrails.** Constitution non-goal "RAG, document search or vector databases"
 and the implementation plan guardrail "no document features": non-goal wording amended (D-101). P4.
-**Open questions.** What chunk size suits your documents?
+**Open for real use (D-112).** The default is 6000 characters. The owner reports what suits real documents after the first test (build spec section 7).
 
 ---
 
@@ -362,14 +361,13 @@ for a run with the machine down.
 (D-079), so any tailnet device could create a schedule that runs unattended.
 The owner accepts this: only the owner's devices are on the tailnet, and the
 Tailscale ACL (D-081) limits it. The log records schedule name and outcome, never content.
-**Open questions.** Does editing a schedule apply from the next due time only
-(proposed: yes)?
+**Decided (D-113).** Editing applies from the next due time only.
 
 ---
 
 ## Constitution changes applied
 
-The owner approved these four changes (D-101) and they are applied to
+The owner approved the first four changes (D-101) and they are applied to
 [CONSTITUTION.md](../CONSTITUTION.md) as written here.
 
 1. **P9:** "...flags, pinned names, what is installed where, and explicit user-chosen modes (a batch split plan, a review step)..."
@@ -380,6 +378,13 @@ The owner approved these four changes (D-101) and they are applied to
 P4 (50 MB) is unchanged: the PRDs require streaming and a measurement on Mane.
 A later `when_free` mode (V7.1 future note) would also need: "A pair chosen at
 admission under a user-chosen mode is pinned from then on." Not approved.
+
+**Fifth change, for V7.9 (D-117).** P8 gains "Outbound calls from Mane are
+limited to the workers' Ollama and, if the owner configures it, one notification
+webhook". The non-goal "Notifications (deferred)" now reads "Notifications,
+other than one optional short message per finished batch, failed schedule run or
+failed job, sent to one webhook the owner configures. It never contains prompts
+or outputs." V7.8 needs no constitution change.
 
 No conflict found with P3, P5 (a split or review that targets Mane must name an
 8B or smaller model), P6, P7, P8, P17, or the hard limits on users, logins and
