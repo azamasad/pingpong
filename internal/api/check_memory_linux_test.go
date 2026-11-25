@@ -5,6 +5,7 @@ package api_test
 import (
 	"fmt"
 	"net/http"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -20,6 +21,7 @@ func TestCheckMaxItemsRSSGate(t *testing.T) {
 	ts := newHarnessFromURLs(t, mURL, fURL)
 	t.Cleanup(func() { ts.Close() })
 
+	runtime.GC()
 	before, err := rssKB()
 	if err != nil {
 		t.Skip("no /proc")
@@ -47,7 +49,11 @@ func TestCheckMaxItemsRSSGate(t *testing.T) {
 	t.Cleanup(func() { stopBatchBeforeClose(ts, created.ID) })
 	after, _ := rssKB()
 	delta := after - before
-	if delta > 5120 {
+	t.Logf("RSS growth after %d checked items: %d KB", n, delta)
+	// 8 MB proxy. The 50 MB router budget is unchanged. A 5 MB ceiling failed
+	// at 6 MB on one of two CI runs of the same commit, because the 200 job
+	// goroutines start before the reading (D-123).
+	if delta > 8192 {
 		t.Fatalf("rss grew %d KB after %d checked items", delta, n)
 	}
 }
