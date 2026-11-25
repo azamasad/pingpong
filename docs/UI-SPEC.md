@@ -79,7 +79,7 @@ Hidden when jobs are off. **Batches** (V7.1, extended by V7.2): batch list, new 
 
 | Tab | Version | Holds |
 |---|---|---|
-| Threads | V7.5 | Thread list and conversation view |
+| Threads | V7.5 | Thread list and conversation view (built) |
 | Schedules | V7.7 | Schedule table, form, runs |
 
 On the batch detail view (V7.4): **CSV** and **Markdown** download buttons, plus checkboxes for thinking and partial rows. Tooltips note that downloads contain prompts and outputs. File input (V7.6) ships later. Contract in [NEXT-FEATURES-BUILD-SPEC.md](NEXT-FEATURES-BUILD-SPEC.md).

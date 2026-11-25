@@ -633,6 +633,7 @@ func (s *Service) retentionLoop(ctx context.Context) {
 		case <-t.C:
 			before := s.clk.Now().Add(-time.Duration(s.cfg.Storage.RetentionDays) * 24 * time.Hour)
 			_, _ = s.store.PurgeOlderThan(ctx, before)
+			_, _ = s.store.PurgeOldThreads(ctx, before)
 		}
 	}
 }

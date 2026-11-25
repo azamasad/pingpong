@@ -401,13 +401,13 @@ Missing batch `NOT_FOUND`. Bad `format` `BAD_REQUEST`. Needs `storage.data_dir`.
 
 **Acceptance.**
 
-- [ ] History order, exclusion of failed and cancelled turns, thinking excluded (assert on the fake's recorded `messages`).
-- [ ] Pair stored at creation and used for every turn even if the config default changes. Explicit pin change recorded and applied from the next turn only.
-- [ ] `THREAD_TOO_LONG` with numbers, `trim` drops oldest whole turns and reports them, turn cap reached gives `THREAD_TOO_LONG`.
-- [ ] Parallel message, patch or delete while active gives `THREAD_BUSY`.
-- [ ] Thread turn jobs survive the job sweep at 91 days while the thread is active, and the whole thread is removed 91 days after the last message (fake clock).
-- [ ] Restart with an active turn resumes it. Cancel leaves history clean.
-- [ ] Delete removes thread and jobs.
+- [x] History order, exclusion of failed and cancelled turns, thinking excluded (assert on the fake's recorded `messages`).
+- [x] Pair stored at creation and used for every turn even if the config default changes. Explicit pin change recorded and applied from the next turn only.
+- [x] `THREAD_TOO_LONG` with numbers, `trim` drops oldest whole turns and reports them, turn cap reached gives `THREAD_TOO_LONG`.
+- [x] Parallel message, patch or delete while active gives `THREAD_BUSY`.
+- [x] Thread turn jobs survive the job sweep at 91 days while the thread is active, and the whole thread is removed 91 days after the last message (fake clock).
+- [x] Restart with an active turn resumes it. Cancel leaves history clean.
+- [x] Delete removes thread and jobs.
 
 **Smoke.** Create a thread, send three messages, `GET` the thread.
 

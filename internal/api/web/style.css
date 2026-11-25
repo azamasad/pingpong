@@ -35,4 +35,13 @@ button:disabled { opacity: 0.5; }
 .progress { height: 0.5rem; background: #e8e8e8; border-radius: 3px; overflow: hidden; margin: 0.35rem 0; }
 .progress > div { height: 100%; background: #2a7; width: 0; transition: width 0.2s; }
 .target-bar { font-size: 0.8rem; margin-bottom: 0.35rem; }
-@media (max-width: 480px) { body { margin: 0.5rem; } }
+.threads-layout { display: flex; flex-wrap: wrap; gap: 1rem; }
+.threads-list-pane { flex: 1 1 10rem; min-width: 10rem; }
+.threads-view { flex: 2 1 16rem; min-width: 16rem; }
+#threads-list { list-style: none; padding: 0; margin: 0; }
+#threads-list li { padding: 0.35rem 0; border-bottom: 1px solid #eee; cursor: pointer; font-size: 0.85rem; }
+#threads-list li.selected { font-weight: 600; background: #f9f9f9; }
+.thread-turns { max-height: 20rem; overflow: auto; margin: 0.5rem 0; border: 1px solid #eee; padding: 0.5rem; border-radius: 4px; font-size: 0.85rem; }
+.thread-turn { margin-bottom: 0.75rem; border-bottom: 1px solid #f0f0f0; padding-bottom: 0.5rem; }
+.thread-turn pre { white-space: pre-wrap; margin: 0.25rem 0; background: #fafafa; padding: 0.35rem; }
+@media (max-width: 480px) { body { margin: 0.5rem; } .threads-layout { flex-direction: column; } }

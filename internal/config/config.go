@@ -27,6 +27,7 @@ type Config struct {
 	Storage  StorageConfig      `yaml:"storage"`
 	Batches   BatchesConfig   `yaml:"batches"`
 	Templates TemplatesConfig `yaml:"templates"`
+	Threads   ThreadsConfig   `yaml:"threads"`
 	Profiles map[string]Profile `yaml:"profiles"`
 	Aliases  map[string]Alias   `yaml:"aliases"`
 }
@@ -38,6 +39,10 @@ type BatchesConfig struct {
 type TemplatesConfig struct {
 	MaxBytes int `yaml:"max_bytes"`
 	MaxCount int `yaml:"max_count"`
+}
+
+type ThreadsConfig struct {
+	MaxTurns int `yaml:"max_turns"`
 }
 
 // Alias maps a short name to a real model and optional machine (V7).
@@ -250,6 +255,12 @@ func (c *Config) applyDefaults() {
 	}
 	if c.Templates.MaxCount == 0 {
 		c.Templates.MaxCount = 200
+	}
+	if c.Threads.MaxTurns == 0 {
+		c.Threads.MaxTurns = 200
+	}
+	if c.Threads.MaxTurns < 1 {
+		c.Threads.MaxTurns = 1
 	}
 	if len(c.Profiles) == 0 {
 		c.Profiles = map[string]Profile{

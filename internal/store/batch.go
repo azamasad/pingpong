@@ -123,11 +123,11 @@ func (s *Store) InsertJobTx(ctx context.Context, tx *sql.Tx, j *Job) error {
 	}
 	_, err := tx.ExecContext(ctx, `INSERT INTO jobs (
 id, created_at, updated_at, status, request_json, machine, model, mode, attempt, lane, batch_id,
-parent_id, stage, check_pending, prompt_tokens, output_tokens
-) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+parent_id, stage, check_pending, prompt_tokens, output_tokens, thread_id, turn
+) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
 		j.ID, j.CreatedAt.UTC().Format(time.RFC3339), j.UpdatedAt.UTC().Format(time.RFC3339),
 		j.Status, j.RequestJSON, j.Machine, j.Model, j.Mode, j.Attempt, lane, j.BatchID,
-		j.ParentID, j.Stage, j.CheckPending, j.PromptTokens, j.OutputTokens)
+		j.ParentID, j.Stage, j.CheckPending, j.PromptTokens, j.OutputTokens, j.ThreadID, j.Turn)
 	return err
 }
 

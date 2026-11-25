@@ -15,6 +15,7 @@
       <button type="button" id="tab-stress">Stress</button>
       <button type="button" id="tab-batches" class="hidden">Batches</button>
       <button type="button" id="tab-templates" class="hidden">Templates</button>
+      <button type="button" id="tab-threads" class="hidden">Threads</button>
     </nav>
     <p id="machines" class="machines">Loading machines…</p>
   </header>
@@ -163,6 +164,36 @@
         <label><input type="checkbox" id="batch-export-partial"> Partial</label>
       </div>
       <ul id="batch-jobs-list"></ul>
+    </div>
+  </section>
+  <section id="panel-threads" class="hidden">
+    <p>Saved conversations with history. Trim oldest is off unless you check it for one message.</p>
+    <div class="threads-layout">
+      <aside class="threads-list-pane">
+        <h2>Threads</h2>
+        <ul id="threads-list"></ul>
+        <div class="actions">
+          <button type="button" id="thread-new">New thread</button>
+        </div>
+      </aside>
+      <div id="threads-view" class="threads-view hidden">
+        <h2 id="thread-title">Thread</h2>
+        <p id="thread-meta" class="job-meta"></p>
+        <div id="thread-turns" class="thread-turns"></div>
+        <textarea id="thread-message" rows="3" placeholder="Message…"></textarea>
+        <div class="controls">
+          <label><input type="checkbox" id="thread-trim"> Trim oldest if too long</label>
+          <label>Pin machine <select id="thread-pin-machine"><option value="">—</option></select></label>
+          <label>Pin model <select id="thread-pin-model"><option value="">—</option></select></label>
+        </div>
+        <div class="actions">
+          <button type="button" id="thread-send">Send</button>
+          <button type="button" id="thread-rename">Rename</button>
+          <button type="button" id="thread-apply-pin">Apply pin</button>
+          <button type="button" id="thread-delete">Delete</button>
+          <span id="thread-state"></span>
+        </div>
+      </div>
     </div>
   </section>
   <section id="panel-templates" class="hidden">
