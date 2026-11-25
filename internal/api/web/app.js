@@ -15,6 +15,9 @@ let selectedThreadId = null;
 let threadEventSource = null;
 let scheduleTimer = null;
 let selectedScheduleId = null;
+let currentChatThreadId = null;
+let streamTarget = null;
+let chatReady = false;
 
 async function refreshMeta() {
   try {
@@ -95,7 +98,7 @@ function applyStreamEvent(ev, answerRef) {
     }
   } else if (ev.type === 'token') {
     answerRef.text += ev.text;
-    $('out').textContent = answerRef.text;
+    (streamTarget || $('out')).textContent = answerRef.text;
     $('state').textContent = 'Running';
   } else if (ev.type === 'thinking') {
     $('thinking').textContent = ($('thinking').textContent || '') + ev.text;
@@ -149,18 +152,24 @@ function stopWatching() {
   if (aborter) aborter.abort();
 }
 
-async function watchJobEvents(id, { addToHistory = false } = {}) {
+async function watchJobEvents(id, { addToHistory = false, reloadChat = false } = {}) {
   stopWatching();
   activeJobId = id;
   aborter = new AbortController();
   $('stop').disabled = false;
-  const answerRef = { text: $('out').textContent || '', addToHistory };
+  if (streamTarget) streamTarget.textContent = '';
+  const answerRef = { text: streamTarget ? '' : ($('out').textContent || ''), addToHistory };
   try {
     const res = await fetch(`/api/jobs/${id}/events?from=1`, { signal: aborter.signal });
     if (!res.ok) throw new Error('Could not attach to job');
     await consumeNDJSON(res, answerRef);
     refreshJobs();
     if (selectedJobId === id) openJob(id);
+    if (reloadChat && currentChatThreadId) {
+      const openID = currentChatThreadId;
+      streamTarget = null;
+      await openChatThread(openID, { attach: false });
+    }
   } catch (e) {
     if (e.name !== 'AbortError') {
       $('err').textContent = e.message;
@@ -263,11 +272,23 @@ async function refreshHealth() {
     $('check-wrap').classList.toggle('hidden', !jobsOn);
     $('check-machine-wrap').classList.toggle('hidden', !jobsOn);
     $('check-model-wrap').classList.toggle('hidden', !jobsOn);
+    $('chat-threadbar').classList.toggle('hidden', !jobsOn);
+    $('chat-log').classList.toggle('hidden', !jobsOn);
+    $('chat-trim-wrap').classList.toggle('hidden', !jobsOn);
+    $('chat-route-hint').classList.toggle('hidden', !jobsOn);
+    syncChatOut();
     if (jobsOn) {
       refreshJobs();
       fillBatchModelSelects();
       fillBatchReduceSelectors();
       fillCheckSelectors();
+      if (!chatReady) {
+        chatReady = true;
+        const saved = sessionStorage.getItem('pingpong.chatThread');
+        await refreshChatThreads();
+        if (saved) await openChatThread(saved, { attach: true });
+        else startNewChat();
+      }
     }
   } catch (_) {}
 }
@@ -306,6 +327,10 @@ $('job-delete').onclick = async () => {
 $('send').onclick = async () => {
   const text = $('prompt').value.trim();
   if (!text) return;
+  if (jobsOn && !$('batch-lane').checked) {
+    await sendChatThread(text);
+    return;
+  }
   history.push({ role: 'user', content: text });
   $('prompt').value = '';
   $('out').textContent = '';
@@ -657,6 +682,9 @@ function showTab(which) {
     clearInterval(statusTimer);
     statusTimer = null;
   }
+  if (which === 'chat' && jobsOn && currentChatThreadId && !activeJobId) {
+    openChatThread(currentChatThreadId, { attach: true });
+  }
   if (which === 'status') {
     refreshStatus();
     statusTimer = setInterval(refreshStatus, 5000);
@@ -911,6 +939,8 @@ function fillThreadPinSelects() {
 
 async function openThread(id) {
   selectedThreadId = id;
+  currentChatThreadId = id;
+  sessionStorage.setItem('pingpong.chatThread', id);
   $('threads-view').classList.remove('hidden');
   try {
     const t = await fetch(`/api/threads/${id}`).then((r) => r.json());
@@ -976,6 +1006,7 @@ $('thread-new').onclick = async () => {
     return;
   }
   await refreshThreadsList();
+  refreshChatThreads();
   openThread(j.id);
 };
 
@@ -1039,10 +1070,13 @@ $('thread-apply-pin').onclick = async () => {
 $('thread-delete').onclick = async () => {
   if (!selectedThreadId) return;
   if (!confirm('Delete this thread and all its turns?')) return;
+  const gone = selectedThreadId;
   await fetch(`/api/threads/${selectedThreadId}`, { method: 'DELETE' });
   selectedThreadId = null;
   $('threads-view').classList.add('hidden');
+  if (gone === currentChatThreadId) startNewChat();
   refreshThreadsList();
+  refreshChatThreads();
 };
 
 function fmtTps(n) {
@@ -1358,6 +1392,229 @@ $('template-run-batch').onclick = async () => {
   showTab('batches');
   openBatchView(j.id);
 };
+
+function syncChatOut() {
+  const batch = jobsOn && $('batch-lane').checked;
+  $('out').classList.toggle('hidden', jobsOn && !batch);
+}
+
+function startNewChat() {
+  currentChatThreadId = null;
+  sessionStorage.removeItem('pingpong.chatThread');
+  streamTarget = null;
+  $('chat-log').textContent = '';
+  $('chat-thread-meta').textContent = 'New chat. The next message starts it.';
+  if ($('chat-thread')) $('chat-thread').value = '';
+  $('out').textContent = '';
+  $('provenance').textContent = '';
+}
+
+async function refreshChatThreads() {
+  if (!jobsOn || !$('chat-thread')) return;
+  try {
+    const list = await fetch('/api/threads').then((r) => r.json());
+    const sel = $('chat-thread');
+    const cur = currentChatThreadId || '';
+    sel.innerHTML = '';
+    const neu = document.createElement('option');
+    neu.value = '';
+    neu.textContent = 'New chat';
+    sel.appendChild(neu);
+    (list || []).forEach((t) => {
+      const o = document.createElement('option');
+      o.value = t.id;
+      o.textContent = t.title || 'Untitled';
+      sel.appendChild(o);
+    });
+    sel.value = cur;
+    if (sel.value !== cur) sel.value = '';
+  } catch (_) {}
+}
+
+function appendChatTurn(box, turn) {
+  const div = document.createElement('div');
+  div.className = 'chat-turn';
+  const h = document.createElement('div');
+  h.textContent = `Turn ${turn.turn} · ${turn.status} · ${turn.machine || ''}`;
+  const user = document.createElement('pre');
+  user.className = 'chat-user';
+  user.textContent = turn.prompt || '';
+  const out = document.createElement('pre');
+  out.className = 'chat-out';
+  out.textContent = turn.output || '';
+  div.append(h, user, out);
+  box.appendChild(div);
+}
+
+async function openChatThread(id, { attach = true } = {}) {
+  const res = await fetch(`/api/threads/${id}`);
+  if (!res.ok) {
+    startNewChat();
+    await refreshChatThreads();
+    return;
+  }
+  const t = await res.json();
+  currentChatThreadId = id;
+  sessionStorage.setItem('pingpong.chatThread', id);
+  selectedThreadId = id;
+  $('chat-thread-meta').textContent = `Continuing on ${t.machine}, ${t.model}`;
+  const box = $('chat-log');
+  box.textContent = '';
+  (t.turns || []).forEach((turn) => appendChatTurn(box, turn));
+  box.scrollTop = box.scrollHeight;
+  await refreshChatThreads();
+  const active = (t.turns || []).find((x) => ['waiting', 'running', 'retrying'].includes(x.status));
+  if (attach && active && !activeJobId) {
+    const outs = box.querySelectorAll('.chat-out');
+    streamTarget = outs.length ? outs[outs.length - 1] : null;
+    watchJobEvents(active.job_id, { addToHistory: false, reloadChat: true });
+  }
+}
+
+async function sendChatThread(text) {
+  $('err').classList.add('hidden');
+  $('warn').classList.add('hidden');
+  $('state').textContent = 'Sending…';
+  $('provenance').textContent = '';
+  t0 = Date.now();
+  clearInterval(elapsedTimer);
+  elapsedTimer = setInterval(setElapsed, 500);
+  try {
+    let id = currentChatThreadId;
+    if (!id) {
+      const createBody = {};
+      if ($('profile').value) createBody.profile = $('profile').value;
+      if ($('fast').checked && !$('machine').value && !$('model').value) createBody.fast = true;
+      if ($('model').value) createBody.model = $('model').value;
+      if ($('machine').value) createBody.machine = $('machine').value;
+      const res = await fetch('/api/threads', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(createBody),
+      });
+      const j = await res.json();
+      if (!res.ok) throw new Error(j.error?.message || 'Could not start chat');
+      id = j.id;
+      currentChatThreadId = id;
+      sessionStorage.setItem('pingpong.chatThread', id);
+    }
+    const body = { content: text };
+    if ($('chat-trim').checked) {
+      body.trim = 'oldest';
+      $('chat-trim').checked = false;
+    }
+    const cm = $('check-mode');
+    if (cm && cm.value) {
+      body.check = { mode: cm.value };
+      if ($('check-machine').value) body.check.machine = $('check-machine').value;
+      if ($('check-model').value) body.check.model = $('check-model').value;
+    }
+    const res = await fetch(`/api/threads/${id}/messages`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    const j = await res.json();
+    if (!res.ok) throw new Error(j.error?.message || 'Send failed');
+    $('prompt').value = '';
+    if (j.dropped_turns) {
+      $('warn').textContent = `Dropped ${j.dropped_turns} old turns to fit.`;
+      $('warn').classList.remove('hidden');
+    }
+    await openChatThread(id, { attach: false });
+    const outs = $('chat-log').querySelectorAll('.chat-out');
+    streamTarget = outs.length ? outs[outs.length - 1] : null;
+    await watchJobEvents(j.job_id, { addToHistory: false, reloadChat: true });
+  } catch (e) {
+    if (e.name !== 'AbortError') {
+      $('err').textContent = e.message;
+      $('err').classList.remove('hidden');
+      $('state').textContent = 'Failed';
+    } else {
+      $('state').textContent = 'Stopped';
+    }
+  } finally {
+    clearInterval(elapsedTimer);
+    streamTarget = null;
+  }
+}
+
+function fmtPct(n) {
+  return n == null ? '—' : `${Math.round(n)}%`;
+}
+
+function fmtBps(n) {
+  if (n == null) return '—';
+  if (n < 1024) return `${Math.round(n)} B/s`;
+  if (n < 1048576) return `${(n / 1024).toFixed(1)} KB/s`;
+  return `${(n / 1048576).toFixed(1)} MB/s`;
+}
+
+function fmtTemp(s) {
+  if (s.temp_c != null) return `${Math.round(s.temp_c)}°C`;
+  if (s.thermal_level != null) return `level ${s.thermal_level}`;
+  return '—';
+}
+
+function fmtRAM(s) {
+  if (s.ram_percent == null) return '—';
+  const pct = `${Math.round(s.ram_percent)}%`;
+  if (s.ram_used_bytes == null || s.ram_total_bytes == null) return pct;
+  const gb = (n) => (n / 1073741824).toFixed(1);
+  return `${pct} · ${gb(s.ram_used_bytes)}/${gb(s.ram_total_bytes)} GB`;
+}
+
+function addHostRow(dl, name, value) {
+  const dt = document.createElement('dt');
+  dt.textContent = name;
+  const dd = document.createElement('dd');
+  dd.textContent = value;
+  dl.append(dt, dd);
+}
+
+async function refreshHost() {
+  const box = $('host-cards');
+  if (!box) return;
+  try {
+    const data = await fetch('/api/host').then((r) => r.json());
+    box.textContent = '';
+    (data.machines || []).forEach((m) => {
+      const card = document.createElement('div');
+      card.className = 'host-card';
+      const h = document.createElement('h2');
+      h.textContent = m.name;
+      card.appendChild(h);
+      const s = m.sample || {};
+      if (!s.ok) {
+        const p = document.createElement('p');
+        p.textContent = s.error === 'not_configured' ? 'Not set up' : 'No report';
+        card.appendChild(p);
+      } else {
+        const dl = document.createElement('dl');
+        addHostRow(dl, 'CPU', fmtPct(s.cpu_percent));
+        addHostRow(dl, 'RAM', fmtRAM(s));
+        addHostRow(dl, 'Temp', fmtTemp(s));
+        addHostRow(dl, 'Down', fmtBps(s.net_rx_bps));
+        addHostRow(dl, 'Up', fmtBps(s.net_tx_bps));
+        addHostRow(dl, 'Load', s.load_1 == null ? '—' : Number(s.load_1).toFixed(2));
+        card.appendChild(dl);
+      }
+      box.appendChild(card);
+    });
+  } catch (_) {
+    box.textContent = 'No report';
+  }
+}
+
+$('chat-new').onclick = () => startNewChat();
+$('chat-thread').onchange = () => {
+  const id = $('chat-thread').value;
+  if (!id) startNewChat();
+  else openChatThread(id, { attach: true });
+};
+$('batch-lane').onchange = () => syncChatOut();
+refreshHost();
+setInterval(refreshHost, 5000);
 
 $('tab-chat').onclick = () => showTab('chat');
 $('tab-status').onclick = () => showTab('status');

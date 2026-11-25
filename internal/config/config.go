@@ -105,6 +105,7 @@ type RouterConfig struct {
 type Machine struct {
 	Name          string   `yaml:"name"`
 	Address       string   `yaml:"address"`
+	StatsAddress  string   `yaml:"stats_address"`
 	Roles         []string `yaml:"roles"`
 	DefaultModel  string   `yaml:"default_model"`
 	MaxConcurrent int      `yaml:"max_concurrent"`
@@ -212,6 +213,7 @@ func (c *Config) applyDefaults() {
 	}
 	for i := range c.Machines {
 		m := &c.Machines[i]
+		m.StatsAddress = strings.TrimSpace(m.StatsAddress)
 		if m.MaxConcurrent == 0 {
 			m.MaxConcurrent = 1
 		}
@@ -385,6 +387,9 @@ func (c *Config) validate() ([]string, error) {
 		if err != nil || u.Scheme != "http" || u.Host == "" {
 			return warnings, fmt.Errorf("machine %q: address must be a valid http URL", m.Name)
 		}
+		if err := validateStatsAddress(m.Name, m.StatsAddress); err != nil {
+			return warnings, err
+		}
 	}
 	if !roleExists(c, c.Routing.AutoRole) {
 		return warnings, fmt.Errorf("auto_role %q: no machine has this role", c.Routing.AutoRole)
@@ -467,6 +472,18 @@ func (c *Config) validate() ([]string, error) {
 		}
 	}
 	return warnings, nil
+}
+
+func validateStatsAddress(name, raw string) error {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return nil
+	}
+	u, err := url.Parse(raw)
+	if err != nil || u.Host == "" || (u.Scheme != "http" && u.Scheme != "https") || u.User != nil {
+		return fmt.Errorf("machine %q: stats_address must be an http or https URL with no user info", name)
+	}
+	return nil
 }
 
 func roleExists(c *Config, role string) bool {
