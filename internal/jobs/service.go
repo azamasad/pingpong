@@ -35,17 +35,22 @@ type Service struct {
 	holdMu       sync.Mutex
 	holding      map[string]int
 	shuttingDown atomic.Bool
+	scheduler    *Scheduler
 }
 
 func New(cfg *config.Config, st *store.Store, reg *registry.Registry, g *gate.Gate, clk clock.Clock) *Service {
 	if clk == nil {
 		clk = clock.Real{}
 	}
-	return &Service{
+	svc := &Service{
 		cfg: cfg, store: st, reg: reg, gate: g, clk: clk,
 		cancels: map[string]context.CancelFunc{}, holding: map[string]int{},
 	}
+	svc.scheduler = NewScheduler(svc)
+	return svc
 }
+
+func (s *Service) Scheduler() *Scheduler { return s.scheduler }
 
 func (s *Service) Store() *store.Store { return s.store }
 
@@ -606,6 +611,7 @@ func (s *Service) BeginShutdown() {
 
 func (s *Service) Start(ctx context.Context) {
 	go s.retentionLoop(ctx)
+	s.scheduler.Start(ctx)
 	s.recoverPendingChecks(ctx)
 	s.recoverPendingReduces(ctx)
 	jobs, _ := s.store.ActiveJobs(ctx)
@@ -638,6 +644,7 @@ func (s *Service) retentionLoop(ctx context.Context) {
 			before := s.clk.Now().Add(-time.Duration(s.cfg.Storage.RetentionDays) * 24 * time.Hour)
 			_, _ = s.store.PurgeOlderThan(ctx, before)
 			_, _ = s.store.PurgeOldThreads(ctx, before)
+			_, _ = s.store.PurgeOldScheduleRuns(ctx, before)
 		}
 	}
 }

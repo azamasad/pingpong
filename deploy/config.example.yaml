@@ -84,6 +84,11 @@ health:
 
 # V7.3 prompt templates (optional). Defaults: max_bytes 16384, max_count 200.
 
+# V7.7 scheduled jobs (optional). Defaults: max_count 50, grace 1h.
+# schedules:
+#   max_count: 50
+#   grace: 1h
+
 # V7.5 conversation threads (optional). Default max_turns is 200.
 # threads:
 #   max_turns: 200

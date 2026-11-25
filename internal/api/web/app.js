@@ -13,6 +13,8 @@ let templateUseVars = [];
 let threadTimer = null;
 let selectedThreadId = null;
 let threadEventSource = null;
+let scheduleTimer = null;
+let selectedScheduleId = null;
 
 async function refreshMeta() {
   try {
@@ -257,6 +259,7 @@ async function refreshHealth() {
     $('tab-batches').classList.toggle('hidden', !jobsOn);
     $('tab-templates').classList.toggle('hidden', !jobsOn);
     $('tab-threads').classList.toggle('hidden', !jobsOn);
+    $('tab-schedules').classList.toggle('hidden', !jobsOn);
     $('check-wrap').classList.toggle('hidden', !jobsOn);
     $('check-machine-wrap').classList.toggle('hidden', !jobsOn);
     $('check-model-wrap').classList.toggle('hidden', !jobsOn);
@@ -646,7 +649,7 @@ function templateUseBody(batchMode) {
 }
 
 function showTab(which) {
-  for (const name of ['chat', 'status', 'stress', 'batches', 'templates', 'threads']) {
+  for (const name of ['chat', 'status', 'stress', 'batches', 'templates', 'threads', 'schedules']) {
     $('panel-' + name).classList.toggle('hidden', name !== which);
     $('tab-' + name).classList.toggle('active', name === which);
   }
@@ -694,7 +697,191 @@ function showTab(which) {
       if (selectedThreadId) openThread(selectedThreadId);
     }, 4000);
   }
+  if (scheduleTimer) {
+    clearInterval(scheduleTimer);
+    scheduleTimer = null;
+  }
+  if (which === 'schedules') {
+    refreshSchedulesList();
+    fillScheduleSelectors();
+    scheduleTimer = setInterval(refreshSchedulesList, 8000);
+  }
 }
+
+async function refreshSchedulesList() {
+  if (!jobsOn) return;
+  try {
+    const list = await fetch('/api/schedules').then((r) => r.json());
+    const ul = $('schedules-list');
+    ul.innerHTML = '';
+    (list || []).forEach((s) => {
+      const li = document.createElement('li');
+      const when = s.rule?.every === 'week'
+        ? `${s.rule.weekday} ${s.rule.at}`
+        : `daily ${s.rule?.at}`;
+      li.textContent = `${s.name} · ${when} · ${s.machine}/${s.model} · next: ${s.next_due || '—'} · last: ${s.last_state || '—'} · ${s.enabled ? 'on' : 'paused'}`;
+      const edit = document.createElement('button');
+      edit.type = 'button';
+      edit.textContent = 'Edit';
+      edit.onclick = () => openScheduleEditor(s);
+      const run = document.createElement('button');
+      run.type = 'button';
+      run.textContent = 'Run now';
+      run.onclick = async () => {
+        await fetch(`/api/schedules/${s.id}/run`, { method: 'POST' });
+        refreshSchedulesList();
+      };
+      const runs = document.createElement('button');
+      runs.type = 'button';
+      runs.textContent = 'Runs';
+      runs.onclick = () => openScheduleRuns(s);
+      const tog = document.createElement('button');
+      tog.type = 'button';
+      tog.textContent = s.enabled ? 'Pause' : 'Resume';
+      tog.onclick = async () => {
+        await fetch(`/api/schedules/${s.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ enabled: !s.enabled }),
+        });
+        refreshSchedulesList();
+      };
+      li.appendChild(document.createTextNode(' '));
+      li.appendChild(edit);
+      li.appendChild(run);
+      li.appendChild(runs);
+      li.appendChild(tog);
+      ul.appendChild(li);
+    });
+  } catch (_) {}
+}
+
+function fillScheduleSelectors() {
+  ['schedule-machine', 'schedule-model'].forEach((id) => {
+    const sel = $(id);
+    const prev = sel.value;
+    if (id.endsWith('machine')) {
+      sel.innerHTML = '<option value="">—</option>';
+      document.querySelectorAll('#machine option').forEach((o) => {
+        if (!o.value) return;
+        const c = o.cloneNode(true);
+        sel.appendChild(c);
+      });
+    } else {
+      sel.innerHTML = '<option value="">—</option>';
+      document.querySelectorAll('#model option').forEach((o) => {
+        if (!o.value) return;
+        sel.appendChild(o.cloneNode(true));
+      });
+    }
+    if (prev) sel.value = prev;
+  });
+}
+
+function openScheduleEditor(s) {
+  selectedScheduleId = s?.id || null;
+  $('schedule-editor').classList.remove('hidden');
+  $('schedule-runs').classList.add('hidden');
+  $('schedule-editor-title').textContent = s ? 'Edit schedule' : 'New schedule';
+  $('schedule-name').value = s?.name || '';
+  $('schedule-every').value = s?.rule?.every || 'day';
+  $('schedule-weekday').classList.toggle('hidden', $('schedule-every').value !== 'week');
+  if (s?.rule?.weekday) $('schedule-weekday').value = s.rule.weekday;
+  $('schedule-at').value = s?.rule?.at || '02:00';
+  $('schedule-machine').value = s?.machine || '';
+  $('schedule-model').value = s?.model || '';
+  $('schedule-template').value = s?.template || '';
+  $('schedule-prompt').value = s?.prompt || '';
+  $('schedule-vars').value = s?.vars ? JSON.stringify(s.vars) : '';
+  $('schedule-rows').value = s?.rows ? JSON.stringify(s.rows) : '';
+  $('schedule-missed').value = s?.missed || 'skip';
+  $('schedule-overlap').value = s?.overlap || 'skip';
+  $('schedule-enabled').checked = s?.enabled !== false;
+  $('schedule-delete').classList.toggle('hidden', !s);
+  $('schedule-run-now').classList.toggle('hidden', !s);
+}
+
+async function openScheduleRuns(s) {
+  $('schedule-runs').classList.remove('hidden');
+  $('schedule-editor').classList.add('hidden');
+  $('schedule-runs-name').textContent = s.name;
+  const runs = await fetch(`/api/schedules/${s.id}/runs`).then((r) => r.json());
+  const ul = $('schedule-runs-list');
+  ul.innerHTML = '';
+  (runs || []).forEach((r) => {
+    const li = document.createElement('li');
+    li.textContent = `${r.due} · ${r.status} · ${r.state || ''} ${r.error_code || ''}`.trim();
+    ul.appendChild(li);
+  });
+}
+
+function schedulePayloadFromForm() {
+  const every = $('schedule-every').value;
+  const rule = { every, at: $('schedule-at').value };
+  if (every === 'week') rule.weekday = $('schedule-weekday').value;
+  const body = {
+    name: $('schedule-name').value.trim(),
+    rule,
+    machine: $('schedule-machine').value,
+    model: $('schedule-model').value,
+    missed: $('schedule-missed').value,
+    overlap: $('schedule-overlap').value,
+    enabled: $('schedule-enabled').checked,
+  };
+  const tpl = $('schedule-template').value.trim();
+  const prompt = $('schedule-prompt').value.trim();
+  if (tpl) body.template = tpl;
+  else if (prompt) body.prompt = prompt;
+  const vars = $('schedule-vars').value.trim();
+  if (vars) body.vars = JSON.parse(vars);
+  const rows = $('schedule-rows').value.trim();
+  if (rows) body.rows = JSON.parse(rows);
+  return body;
+}
+
+$('schedule-every').onchange = () => {
+  $('schedule-weekday').classList.toggle('hidden', $('schedule-every').value !== 'week');
+};
+
+$('schedule-new').onclick = () => openScheduleEditor(null);
+$('schedule-cancel').onclick = () => $('schedule-editor').classList.add('hidden');
+$('schedule-runs-back').onclick = () => $('schedule-runs').classList.add('hidden');
+
+$('schedule-save').onclick = async () => {
+  $('schedule-editor-state').classList.add('hidden');
+  let body;
+  try {
+    body = schedulePayloadFromForm();
+  } catch (_) {
+    $('schedule-editor-state').textContent = 'Invalid JSON in vars or rows';
+    $('schedule-editor-state').classList.remove('hidden');
+    return;
+  }
+  const url = selectedScheduleId ? `/api/schedules/${selectedScheduleId}` : '/api/schedules';
+  const method = selectedScheduleId ? 'PATCH' : 'POST';
+  const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  const j = await res.json();
+  if (!res.ok) {
+    $('schedule-editor-state').textContent = j.error?.message || 'Save failed';
+    $('schedule-editor-state').classList.remove('hidden');
+    return;
+  }
+  $('schedule-editor').classList.add('hidden');
+  refreshSchedulesList();
+};
+
+$('schedule-delete').onclick = async () => {
+  if (!selectedScheduleId || !confirm('Delete this schedule and its run history?')) return;
+  await fetch(`/api/schedules/${selectedScheduleId}`, { method: 'DELETE' });
+  $('schedule-editor').classList.add('hidden');
+  refreshSchedulesList();
+};
+
+$('schedule-run-now').onclick = async () => {
+  if (!selectedScheduleId) return;
+  await fetch(`/api/schedules/${selectedScheduleId}/run`, { method: 'POST' });
+  refreshSchedulesList();
+};
 
 async function refreshThreadsList() {
   if (!jobsOn) return;
@@ -1178,3 +1365,4 @@ $('tab-stress').onclick = () => showTab('stress');
 $('tab-batches').onclick = () => showTab('batches');
 $('tab-templates').onclick = () => showTab('templates');
 $('tab-threads').onclick = () => showTab('threads');
+$('tab-schedules').onclick = () => showTab('schedules');

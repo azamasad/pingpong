@@ -204,7 +204,42 @@ CREATE TABLE IF NOT EXISTS threads (
 	if err := s.addColumn("batches", "reduce_json", `ALTER TABLE batches ADD COLUMN reduce_json TEXT NOT NULL DEFAULT ''`); err != nil {
 		return err
 	}
-	return s.addColumn("batches", "reduce_job_id", `ALTER TABLE batches ADD COLUMN reduce_job_id TEXT NOT NULL DEFAULT ''`)
+	if err := s.addColumn("batches", "reduce_job_id", `ALTER TABLE batches ADD COLUMN reduce_job_id TEXT NOT NULL DEFAULT ''`); err != nil {
+		return err
+	}
+	_, err = s.db.Exec(`
+CREATE TABLE IF NOT EXISTS schedules (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL UNIQUE,
+  rule_json TEXT NOT NULL,
+  template TEXT,
+  prompt TEXT,
+  vars_json TEXT,
+  rows_json TEXT,
+  machine TEXT NOT NULL,
+  model TEXT NOT NULL,
+  missed TEXT NOT NULL DEFAULT 'skip',
+  overlap TEXT NOT NULL DEFAULT 'skip',
+  enabled INTEGER NOT NULL DEFAULT 1,
+  last_due TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS schedule_runs (
+  id TEXT PRIMARY KEY,
+  schedule_id TEXT NOT NULL,
+  due TEXT NOT NULL,
+  started TEXT NOT NULL,
+  kind TEXT,
+  job_id TEXT,
+  batch_id TEXT,
+  status TEXT NOT NULL,
+  error_code TEXT,
+  FOREIGN KEY(schedule_id) REFERENCES schedules(id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS idx_schedule_runs ON schedule_runs(schedule_id, due);
+`)
+	return err
 }
 
 func (s *Store) addColumn(table, name, stmt string) error {
