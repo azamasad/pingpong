@@ -21,6 +21,10 @@ func (s *Service) JobDetail(ctx context.Context, j *store.Job) map[string]any {
 	if j.Stage == "" {
 		out["stage"] = nil
 	}
+	if j.ThreadID != "" {
+		out["thread_id"] = j.ThreadID
+		out["turn"] = j.Turn
+	}
 	var cb map[string]any
 	_ = json.Unmarshal([]byte(j.RequestJSON), &cb)
 	delete(cb, "messages")

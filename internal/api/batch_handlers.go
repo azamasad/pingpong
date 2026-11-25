@@ -22,29 +22,93 @@ func (s *Server) handleBatchCreate(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, apperrors.New("BAD_REQUEST", "invalid body"))
 		return
 	}
-	var req struct {
-		Items []json.RawMessage `json:"items"`
-		Split *jobs.SplitPlan   `json:"split"`
-	}
-	if err := json.Unmarshal(body, &req); err != nil || len(req.Items) == 0 {
-		writeErr(w, apperrors.New("BAD_REQUEST", "items required"))
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal(body, &raw); err != nil {
+		writeErr(w, apperrors.New("BAD_REQUEST", "invalid json"))
 		return
 	}
-	bodies := make([]string, len(req.Items))
-	for i, raw := range req.Items {
-		bodies[i] = string(raw)
+	_, hasTemplate := raw["template"]
+	_, hasItems := raw["items"]
+	_, hasRows := raw["rows"]
+	if hasItems && hasRows {
+		writeErr(w, apperrors.New("BAD_REQUEST", "rows and items cannot be used together"))
+		return
 	}
-	res, err := s.Jobs.SubmitBatch(r.Context(), bodies, req.Split)
+	if hasTemplate && !hasRows {
+		writeErr(w, apperrors.New("BAD_REQUEST", "rows required with template"))
+		return
+	}
+	if hasRows && !hasTemplate {
+		writeErr(w, apperrors.New("BAD_REQUEST", "template required with rows"))
+		return
+	}
+	var plan *jobs.SplitPlan
+	if v, ok := raw["split"]; ok {
+		plan = &jobs.SplitPlan{}
+		if err := json.Unmarshal(v, plan); err != nil {
+			writeErr(w, apperrors.New("BAD_REQUEST", "invalid split"))
+			return
+		}
+	}
+	var warnings []string
+	var bodies []string
+	source := ""
+	if hasTemplate {
+		var tplName string
+		_ = json.Unmarshal(raw["template"], &tplName)
+		vars, err := parseTemplateVars(raw)
+		if err != nil {
+			writeErr(w, apperrors.New("BAD_REQUEST", "invalid vars"))
+			return
+		}
+		rawRows, _ := raw["rows"]
+		var rowsRaw []json.RawMessage
+		if err := json.Unmarshal(rawRows, &rowsRaw); err != nil || len(rowsRaw) == 0 {
+			writeErr(w, apperrors.New("BAD_REQUEST", "rows required"))
+			return
+		}
+		rows, err := parseTemplateRows(rowsRaw)
+		if err != nil {
+			writeErr(w, apperrors.New("BAD_REQUEST", "invalid rows"))
+			return
+		}
+		bodies, warnings, err = s.Jobs.ExpandTemplateBatch(r.Context(), jobs.TemplateBatchInput{
+			Template: tplName, Vars: vars, Rows: rows, Split: plan,
+			Overlay: templateOverlayFromRaw(raw),
+		})
+		if err != nil {
+			if writeJobErr(w, err) {
+				return
+			}
+			writeErr(w, apperrors.New("INTERNAL", "could not expand template"))
+			return
+		}
+		source = tplName
+	} else {
+		var req struct {
+			Items []json.RawMessage `json:"items"`
+		}
+		if err := json.Unmarshal(body, &req); err != nil || len(req.Items) == 0 {
+			writeErr(w, apperrors.New("BAD_REQUEST", "items required"))
+			return
+		}
+		bodies = make([]string, len(req.Items))
+		for i, rawItem := range req.Items {
+			bodies[i] = string(rawItem)
+		}
+	}
+	res, err := s.Jobs.SubmitBatch(r.Context(), bodies, plan, source)
 	if err != nil {
-		var re *jobs.RouteRejectedError
-		if errors.As(err, &re) {
-			writeErr(w, apperrors.New(re.Code, routeMessages(re.Code)))
+		if writeJobErr(w, err) {
 			return
 		}
 		writeErr(w, apperrors.New("INTERNAL", "could not create batch"))
 		return
 	}
 	out := map[string]any{"id": res.ID, "job_ids": res.JobIDs, "not_split": res.NotSplit}
+	if len(warnings) > 0 {
+		out["warnings"] = warnings
+	}
 	if res.Split != nil {
 		out["split"] = res.Split
 	}
@@ -142,6 +206,23 @@ func (s *Server) handleBatchGet(w http.ResponseWriter, r *http.Request) {
 		"id": id, "kind": kind, "created_at": createdAt,
 		"total": total, "pending": pending,
 		"counts": counts, "checks": checks, "jobs": jobsOut,
+	}
+	if batchErr == nil && batch != nil {
+		if batch.ReduceJSON != "" {
+			reduce := map[string]any{"job_id": nil, "status": "pending"}
+			if batch.ReduceJobID != "" {
+				if rj, err := st.GetJob(r.Context(), batch.ReduceJobID); err == nil {
+					reduce["job_id"] = rj.ID
+					reduce["status"] = string(rj.Status)
+				}
+			} else if rj, err := st.ReduceJobByBatch(r.Context(), id); err == nil {
+				reduce["job_id"] = rj.ID
+				reduce["status"] = string(rj.Status)
+			} else if terminal, _, anyDone, _ := st.BatchChunkJobsTerminal(r.Context(), id); terminal && !anyDone {
+				reduce["status"] = "skipped"
+			}
+			resp["reduce"] = reduce
+		}
 	}
 	var plan jobs.SplitPlan
 	if batchErr == nil && batch != nil && batch.PlanJSON != "" {

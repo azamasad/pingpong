@@ -71,19 +71,22 @@ The page has three tabs: **Chat** (everything above), **Status** and **Stress**.
 | Status | Machines (reachable, models, in flight), job counts by status and lane, oldest waiting job age, router memory and uptime. Reads `GET /api/status`. Never shows prompts or outputs |
 | Stress | Pick a target (mane, firmino, both) and a duration (1 to 7200 seconds), then Start or Stop. Shows remaining time and, per machine, done and failed counts and median, minimum and maximum speeds. The run is on the server and survives closing the page. Reads `/api/stress` |
 
-## 3b. Planned tabs (V7.1 to V7.7, not built)
+## 3b. Batches and Templates tabs (V7.1 to V7.3, built)
 
-Plain HTML and JavaScript like the rest. Hidden when jobs are off. Contract in
-[NEXT-FEATURES-BUILD-SPEC.md](NEXT-FEATURES-BUILD-SPEC.md) section 1.6.
+Hidden when jobs are off. **Batches** (V7.1, extended by V7.2): batch list, new batch form with split and check, batch view with per-machine progress and cancel. **Templates** (V7.3): list with new, edit, delete, and a Use panel (one field per blank, routing selectors, run one job or run as batch with one JSON object per line). The Chat tab has a "Check with" selector (V7.2).
+
+## 3c. Job tabs (built V7.1 to V7.7)
+
+Built: Batches (V7.1+), Templates (V7.3), Threads (V7.5), Schedules (V7.7).
+
+## 3d. Former planned tabs (reference)
 
 | Tab | Version | Holds |
 |---|---|---|
-| Batches | V7.1, extended by V7.2, V7.4, V7.6 | Batch list, New batch form (with Split, Check, From file and Reduce), batch view with per-machine bars, export buttons |
-| Templates | V7.3 | List, edit, Use panel |
-| Threads | V7.5 | Thread list and conversation view |
+| Threads | V7.5 | Thread list and conversation view (built) |
 | Schedules | V7.7 | Schedule table, form, runs |
 
-The Chat tab gains a "Check with" selector (V7.2).
+On the batch detail view (V7.4): **CSV** and **Markdown** download buttons, plus checkboxes for thinking and partial rows. Tooltips note that downloads contain prompts and outputs. File input (V7.6) ships later. Contract in [NEXT-FEATURES-BUILD-SPEC.md](NEXT-FEATURES-BUILD-SPEC.md).
 
 ## 4. Not included
 

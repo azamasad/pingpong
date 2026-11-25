@@ -76,3 +76,32 @@ health:
 # V7.1 batch limits (optional). Default max_items is 500 (D-118); set 1000 only after RSS check on Mane.
 # batches:
 #   max_items: 500
+
+# V7.6 file upload (optional). Defaults: max_bytes 2097152, chunk_chars 6000.
+# files:
+#   max_bytes: 2097152
+#   chunk_chars: 6000
+
+# V7.3 prompt templates (optional). Defaults: max_bytes 16384, max_count 200.
+
+# V7.7 scheduled jobs (optional). Defaults: max_count 50, grace 1h.
+# schedules:
+#   max_count: 50
+#   grace: 1h
+
+# V7.5 conversation threads (optional). Default max_turns is 200.
+# threads:
+#   max_turns: 200
+# templates:
+#   max_bytes: 16384
+#   max_count: 200
+
+# V7.8 OpenAI-compatible /v1 API (optional). Default is off.
+# openai:
+#   enabled: true
+
+# V7.9 outbound notifications (optional). Default is off. Put a real URL only in the local config file.
+# notify:
+#   webhook_url: ""
+#   events: [batch_done, schedule_failed, job_failed]
+#   timeout: 10s

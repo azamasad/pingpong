@@ -217,10 +217,10 @@ Recorded here so they are not forgotten. See [ROADMAP.md](ROADMAP.md).
 | Several machines with the same role | Shipped as V4 (D-067). |
 | Model aliases (short names such as "small") | Shipped as V7 (D-070). See [V7-ALIASES.md](V7-ALIASES.md). |
 | Conversation threads stored on Mane | Planned as V7.5. PRD in [NEXT-FEATURES-PRDS.md](NEXT-FEATURES-PRDS.md). Not built |
-| Split a batch across both machines | Planned as V7.1. Not built |
-| Answer checking by a second model (explicit mode) | Planned as V7.2. Not built |
-| Prompt templates | Planned as V7.3. Not built |
-| Results export, CSV and Markdown | Planned as V7.4. Not built |
+| Split a batch across both machines | V7.1 on V7 branch. Not on `main` yet |
+| Answer checking by a second model (explicit mode) | V7.2 on V7 branch. Not on `main` yet |
+| Prompt templates | V7.3 on V7 branch. Not on `main` yet |
+| Results export, CSV and Markdown | V7.4 on V7 branch. Not on `main` yet |
 | File input, text and Markdown (chunked batch, not RAG). PDF later | Planned as V7.6. Not built |
 | Scheduled jobs, set up from the page | Planned as V7.7. Not built |
 | OpenAI-compatible endpoint | Planned as V7.8 (opt-in, `/v1`) |

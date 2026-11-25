@@ -14,6 +14,9 @@
       <button type="button" id="tab-status">Status</button>
       <button type="button" id="tab-stress">Stress</button>
       <button type="button" id="tab-batches" class="hidden">Batches</button>
+      <button type="button" id="tab-templates" class="hidden">Templates</button>
+      <button type="button" id="tab-threads" class="hidden">Threads</button>
+      <button type="button" id="tab-schedules" class="hidden">Schedules</button>
     </nav>
     <p id="machines" class="machines">Loading machines…</p>
   </header>
@@ -117,8 +120,30 @@
     <h2>Recent batches</h2>
     <ul id="batches-list"></ul>
     <h2>New batch</h2>
+    <div class="actions">
+      <label><input type="radio" name="batch-mode" id="batch-mode-lines" value="lines" checked> Line prompts</label>
+      <label><input type="radio" name="batch-mode" id="batch-mode-file" value="file"> From file</label>
+    </div>
+    <div id="batch-lines-mode">
     <p class="hint">One prompt per line (batch lane). Pick split only when each machine should take a share.</p>
     <textarea id="batch-prompts" rows="6" placeholder="Line one&#10;Line two"></textarea>
+    </div>
+    <div id="batch-file-mode" class="hidden">
+      <p class="hint">Text or Markdown only. Instruction must include <code>{{chunk}}</code>.</p>
+      <label>File <input type="file" id="batch-file" accept=".txt,.md,.markdown,text/plain"></label>
+      <label>Instruction <textarea id="batch-file-instruction" rows="3" placeholder="Summarise each part: {{chunk}}"></textarea></label>
+      <label>Chunk size (chars) <input type="number" id="batch-chunk-chars" min="500" max="20000" value="6000"></label>
+      <fieldset>
+        <legend>Reduce (optional)</legend>
+        <label>Instruction <textarea id="batch-reduce-instruction" rows="2" placeholder="Combine: {{results}}"></textarea></label>
+        <label>Machine <select id="batch-reduce-machine"><option value="">—</option></select></label>
+        <label>Model <select id="batch-reduce-model"><option value="">—</option></select></label>
+      </fieldset>
+      <div class="actions">
+        <button type="button" id="batch-file-preview">Preview chunks</button>
+        <span id="batch-file-preview-state"></span>
+      </div>
+    </div>
     <div class="controls">
       <label>Assign
         <select id="batch-assign">
@@ -147,6 +172,7 @@
     </label>
     <div class="actions">
       <button type="button" id="batch-submit">Submit batch</button>
+      <button type="button" id="batch-file-start" class="hidden">Start from file</button>
       <span id="batch-submit-state"></span>
     </div>
     <div id="batch-detail" class="batch-detail hidden">
@@ -156,8 +182,120 @@
       <div id="batch-target-bars"></div>
       <div class="actions">
         <button type="button" id="batch-cancel">Cancel batch</button>
+        <button type="button" id="batch-export-csv" title="Downloads prompts and outputs">CSV</button>
+        <button type="button" id="batch-export-md" title="Downloads prompts and outputs">Markdown</button>
+        <label><input type="checkbox" id="batch-export-thinking"> Thinking</label>
+        <label><input type="checkbox" id="batch-export-partial"> Partial</label>
       </div>
       <ul id="batch-jobs-list"></ul>
+    </div>
+  </section>
+  <section id="panel-threads" class="hidden">
+    <p>Saved conversations with history. Trim oldest is off unless you check it for one message.</p>
+    <div class="threads-layout">
+      <aside class="threads-list-pane">
+        <h2>Threads</h2>
+        <ul id="threads-list"></ul>
+        <div class="actions">
+          <button type="button" id="thread-new">New thread</button>
+        </div>
+      </aside>
+      <div id="threads-view" class="threads-view hidden">
+        <h2 id="thread-title">Thread</h2>
+        <p id="thread-meta" class="job-meta"></p>
+        <div id="thread-turns" class="thread-turns"></div>
+        <textarea id="thread-message" rows="3" placeholder="Message…"></textarea>
+        <div class="controls">
+          <label><input type="checkbox" id="thread-trim"> Trim oldest if too long</label>
+          <label>Pin machine <select id="thread-pin-machine"><option value="">—</option></select></label>
+          <label>Pin model <select id="thread-pin-model"><option value="">—</option></select></label>
+        </div>
+        <div class="actions">
+          <button type="button" id="thread-send">Send</button>
+          <button type="button" id="thread-rename">Rename</button>
+          <button type="button" id="thread-apply-pin">Apply pin</button>
+          <button type="button" id="thread-delete">Delete</button>
+          <span id="thread-state"></span>
+        </div>
+      </div>
+    </div>
+  </section>
+  <section id="panel-schedules" class="hidden">
+    <p class="warn">Anyone on your tailnet can create or change schedules. Keep access limited to your own devices.</p>
+    <h2>Schedules</h2>
+    <ul id="schedules-list"></ul>
+    <div class="actions">
+      <button type="button" id="schedule-new">New schedule</button>
+    </div>
+    <div id="schedule-editor" class="hidden">
+      <h3 id="schedule-editor-title">Edit schedule</h3>
+      <label>Name <input type="text" id="schedule-name" pattern="[a-z0-9_-]+" maxlength="64"></label>
+      <label>Every
+        <select id="schedule-every"><option value="day">Daily</option><option value="week">Weekly</option></select>
+      </label>
+      <label>Weekday <select id="schedule-weekday" class="hidden">
+        <option value="mon">Mon</option><option value="tue">Tue</option><option value="wed">Wed</option>
+        <option value="thu">Thu</option><option value="fri">Fri</option><option value="sat">Sat</option><option value="sun">Sun</option>
+      </select></label>
+      <label>At (local time) <input type="time" id="schedule-at" value="02:00"></label>
+      <label>Machine <select id="schedule-machine"><option value="">—</option></select></label>
+      <label>Model <select id="schedule-model"><option value="">—</option></select></label>
+      <label>Template <input type="text" id="schedule-template" placeholder="template name"></label>
+      <label>Or prompt <textarea id="schedule-prompt" rows="2" placeholder="Literal prompt (if no template)"></textarea></label>
+      <label>Vars JSON <textarea id="schedule-vars" rows="2" placeholder='{"words":"50"}'></textarea></label>
+      <label>Rows JSON <textarea id="schedule-rows" rows="2" placeholder='[{"text":"..."}] (optional batch)'></textarea></label>
+      <label>Missed <select id="schedule-missed"><option value="skip">Skip</option><option value="run_once">Run once</option></select></label>
+      <label>Overlap <select id="schedule-overlap"><option value="skip">Skip</option><option value="allow">Allow</option></select></label>
+      <label><input type="checkbox" id="schedule-enabled" checked> Enabled</label>
+      <div class="actions">
+        <button type="button" id="schedule-save">Save</button>
+        <button type="button" id="schedule-cancel">Cancel</button>
+        <button type="button" id="schedule-run-now" class="hidden">Run now</button>
+        <button type="button" id="schedule-delete" class="hidden">Delete</button>
+      </div>
+      <p id="schedule-editor-state" class="warn hidden"></p>
+    </div>
+    <div id="schedule-runs" class="hidden">
+      <h3>Runs for <span id="schedule-runs-name"></span></h3>
+      <ul id="schedule-runs-list"></ul>
+      <button type="button" id="schedule-runs-back">Back</button>
+    </div>
+  </section>
+  <section id="panel-templates" class="hidden">
+    <p>Saved prompts with <code>{{blanks}}</code>. Values are plain text only; nothing here is logged.</p>
+    <h2>Templates</h2>
+    <ul id="templates-list"></ul>
+    <div class="actions">
+      <button type="button" id="template-new">New template</button>
+    </div>
+    <div id="template-editor" class="hidden">
+      <h3 id="template-editor-title">Edit template</h3>
+      <label>Name <input type="text" id="template-name" pattern="[a-z0-9_-]+" maxlength="64"></label>
+      <textarea id="template-body" rows="8" placeholder="Summarise {{text}} in {{words}} words."></textarea>
+      <textarea id="template-defaults" rows="3" placeholder='Optional defaults JSON, e.g. {"profile":"fast"}'></textarea>
+      <div class="actions">
+        <button type="button" id="template-save">Save</button>
+        <button type="button" id="template-cancel-edit">Cancel</button>
+        <button type="button" id="template-delete" class="hidden">Delete</button>
+      </div>
+      <p id="template-editor-state" class="warn hidden"></p>
+    </div>
+    <div id="template-use" class="hidden">
+      <h3>Use <span id="template-use-name"></span></h3>
+      <div id="template-vars"></div>
+      <div class="controls">
+        <label>Profile <select id="template-use-profile"><option value="">—</option></select></label>
+        <label><input type="checkbox" id="template-use-fast"> Fast (Mane)</label>
+        <label>Model <select id="template-use-model"><option value="">—</option></select></label>
+        <label>Machine <select id="template-use-machine"><option value="">—</option></select></label>
+      </div>
+      <textarea id="template-batch-rows" rows="4" class="hidden" placeholder='One JSON object per line, e.g. {"text":"chapter one"}'></textarea>
+      <div class="actions">
+        <button type="button" id="template-run-one">Run one job</button>
+        <button type="button" id="template-run-batch">Run as batch</button>
+        <button type="button" id="template-use-back">Back</button>
+      </div>
+      <p id="template-use-state"></p>
     </div>
   </section>
   <script src="app.js"></script>

@@ -17,7 +17,8 @@ Related: [ROUTING.md](ROUTING.md), [JOBS-AND-RETRIES.md](JOBS-AND-RETRIES.md),
 - Streaming by default for generation.
 - The router is stateless about conversations in V1: the client sends the
   full message history every time.
-- Not an OpenAI-compatible API. That is deferred (planned as V7.8, see PRD section 10).
+- An opt-in OpenAI-compatible `/v1` API (V7.8) uses the same routing engine as
+  `POST /api/chat` but speaks SSE and the OpenAI JSON shapes. Off by default.
 
 Base URL: `https://<mane-tailnet-name>`, served by Tailscale Serve, which
 forwards to the router on localhost (see [SETUP-GUIDE.md](SETUP-GUIDE.md)
@@ -300,9 +301,9 @@ sequence number.
 
 | Method and path | Purpose |
 |---|---|
-| `POST /api/jobs` | Optional `"lane":"interactive"` (default) or `"batch"` |
+| `POST /api/jobs` | Optional `"lane":"interactive"` (default) or `"batch"`. V7.3: `"template"` and `"vars"` instead of `prompt` (see 4.3b) |
 | `GET /api/jobs` | Also filters `lane` and `batch_id` |
-| `POST /api/batches` | Body `{"items":[ <job body>, ... ], "split"?:{...}}`. All items run on the batch lane (up to `batches.max_items`, default 500). Optional `split` with `assign` `round_robin` or `weights` and two or more `{machine, model, weight?}` targets on **different** machines. Returns `202` `{"id","job_ids","split"?,"not_split"}` |
+| `POST /api/batches` | Body `{"items":[ <job body>, ... ], "split"?:{...}}` or V7.3 `{"template","vars"?,"rows":[...], "split"?:{...}}` (`items` and `rows` together is `BAD_REQUEST`). All items run on the batch lane (up to `batches.max_items`, default 500). Optional `split` with `assign` `round_robin` or `weights` and two or more `{machine, model, weight?}` targets on **different** machines. Returns `202` `{"id","job_ids","split"?,"not_split","warnings"?}` |
 | `GET /api/batches` | Recent batches: `[{"id","kind","created_at","total","counts":{...}}]`. Query `limit` (default 50), `before` |
 | `GET /api/batches/{id}` | Batch view. Query `limit` (default 200, max 1000), `offset`. Fields: `id`, `kind`, `created_at`, `total`, `pending`, `counts`, `split` (per-target progress or null), `jobs`, `next_offset` |
 | `POST /api/batches/{id}/cancel` | Cancel every waiting, running and retrying job. Returns `200` `{"cancelled":N}` |
@@ -318,6 +319,35 @@ Terminal: `pingpong batch submit|get|cancel` (see [JOBS-AND-RETRIES.md](JOBS-AND
 The request field `profile` is described in section 2.1. An explicit `fast`,
 `model` or `machine` always wins over the preset.
 
+### 4.3b V7.3 templates (built)
+
+Needs `storage.data_dir`. Template names are `[a-z0-9_-]{1,64}`. A blank is `{{name}}` with `name` matching `[a-z0-9_]+`. Values are plain strings, substituted once with no re-scan. Unused `vars` keys are listed in `"warnings"` on submit. Saved jobs store the final `prompt` and the template name for display; deleting a template does not change past jobs.
+
+| Method and path | Purpose |
+|---|---|
+| `POST /api/templates` | Create `{"name","body","defaults"?}`. `201` returns the template. Duplicate name or count over `templates.max_count` is `CONFLICT`. Body over `templates.max_bytes` is `BAD_REQUEST` |
+| `GET /api/templates` | List `[{"name","vars","bytes","defaults","created_at","updated_at"}]` (no bodies) |
+| `GET /api/templates/{name}` | One template including `body`. Missing name is `NOT_FOUND` |
+| `PUT /api/templates/{name}` | Replace `body` and optional `defaults`. Name cannot change |
+| `DELETE /api/templates/{name}` | `204`. Past jobs unchanged |
+
+`defaults` may set `profile`, `fast`, `model`, `machine`, `lane`, `check`, `options`, `think` (profile and machine are validated at save; model installation is not). Explicit fields on a job or batch request beat defaults.
+
+`POST /api/jobs` accepts `"template":"<name>"` and `"vars":{...}` instead of `prompt` or `messages`. `POST /api/batches` with a template uses `"rows":[{...},...]`; each row supplies per-blank values and overrides shared `vars` for that item. `split` and `check` work as for plain items.
+
+Errors: `TEMPLATE_VARS_MISSING` (400, body lists `missing` names), `TEMPLATE_NOT_FOUND` (404 when using an unknown template name).
+
+### 4.3c V7.4 results export (built)
+
+Needs `storage.data_dir`. Streams one row at a time. Query `format=csv` or `format=md`. Optional `include_thinking=1`, `partial=1`, `raw=1` (CSV only, turns off the formula guard), `bom=1` (CSV UTF-8 BOM). Missing batch or batch with no jobs: `NOT_FOUND`. Bad `format`: `BAD_REQUEST`.
+
+| Method and path | Purpose |
+|---|---|
+| `GET /api/batches/{id}/export?format=csv\|md[&...]` | Download one batch. Filename `pingpong-batch-<first 8 of id>-<YYYYMMDD>.<ext>` |
+| `GET /api/jobs/export?ids=a,b,c&format=...` | Download up to 200 jobs by id (unknown ids skipped; count in `X-Pingpong-Skipped`). Filename `pingpong-jobs-<YYYYMMDD>.<ext>` |
+
+Response `Content-Type` is `text/csv; charset=utf-8` or `text/markdown; charset=utf-8`, with `Content-Disposition: attachment` and `Cache-Control: no-store`. CSV columns: `index`, `status`, `machine`, `model`, `lane`, `stage`, `prompt`, `output`, `output_tokens`, `output_tokens_per_s`, `error_code`, `finished_at`, and `thinking` when requested. Text cells that would inject spreadsheet formulas are prefixed with `'` unless `raw=1`. Completion is logged as `export_done` (counts only, no content).
+
 ### 4.3 V6 and V7 (built)
 
 | Method and path | Version | Purpose |
@@ -332,22 +362,16 @@ optional `alias` field appears on the `route` event and job detail (V7).
 
 Terminal: `pingpong doctor [--chat] [--json]` and `pingpong backup`.
 
-### 4.3a Planned, not built (V7.1 to V7.9)
+### 4.3a V7.5 threads, V7.6 file input, V7.7 schedules (built)
 
-Do not depend on these. Payloads, validation and errors are in
-[NEXT-FEATURES-BUILD-SPEC.md](NEXT-FEATURES-BUILD-SPEC.md), which moves into this
-file as each version is built. All need `storage.data_dir` unless noted.
+All need `storage.data_dir`. Payloads, validation and errors are in
+[NEXT-FEATURES-BUILD-SPEC.md](NEXT-FEATURES-BUILD-SPEC.md) sections 6 to 8.
 
 | Method and path | Version | Purpose |
 |---|---|---|
-| `check` on `POST /api/jobs` and batch items | V7.2 | Review or revise by a second model. Job detail gains `stage`, `parent_id`, `children`, `check` |
-| `POST/GET/PUT/DELETE /api/templates` | V7.3 | Saved prompts with `{{blanks}}` |
-| `template`, `vars`, `rows` on `POST /api/jobs` and `POST /api/batches` | V7.3 | Use a template |
-| `GET /api/batches/{id}/export`, `GET /api/jobs/export` | V7.4 | CSV or Markdown download |
 | `POST/GET /api/threads`, `GET/PATCH/DELETE /api/threads/{id}`, `POST /api/threads/{id}/messages` | V7.5 | Saved conversations |
 | `POST /api/batches/from-file` | V7.6 | Upload a text file, chunk it, run as a batch, optional reduce |
 | `GET/POST /api/schedules`, `GET/PATCH/DELETE /api/schedules/{id}`, `POST /api/schedules/{id}/run`, `GET /api/schedules/{id}/runs` | V7.7 | Scheduled jobs |
-| `GET /v1/models`, `POST /v1/chat/completions` | V7.8 | OpenAI-compatible, opt-in. Needs `openai.enabled`. Works without `storage.data_dir` |
 
 New error codes: `CONTEXT_TOO_LARGE` (a job error, no HTTP status),
 `THREAD_TOO_LONG` (409), `THREAD_BUSY` (409), `TEMPLATE_VARS_MISSING` (400),
@@ -355,6 +379,42 @@ New error codes: `CONTEXT_TOO_LARGE` (a job error, no HTTP status),
 (415), `PDF_NO_TEXT` (reserved, not built). Duplicate names and count limits use
 the existing `CONFLICT` (409). `POST /api/chat` rejects `check`, `template` and
 `split` with `BAD_REQUEST`.
+
+### 4.3b V7.8 OpenAI-compatible API (built)
+
+Opt-in: set `openai.enabled` (default `false`). When off, `/v1/*` returns
+`404 NOT_FOUND`. Works without `storage.data_dir`. Host and Origin checks apply
+as for `/api/*`. The `Authorization` header is accepted and ignored (clients may
+send a dummy key).
+
+| Method and path | Purpose |
+|---|---|
+| `GET /v1/models` | Lists installed model names, aliases, `pingpong-auto` and `pingpong-fast` |
+| `POST /v1/chat/completions` | Chat completion in OpenAI shape (JSON or SSE) |
+
+**Model names.** `pingpong-auto` is auto routing; `pingpong-fast` sets the fast
+flag. `<machine>/<model>` pins both when the prefix is a registered machine
+name. Any other value pins a model (aliases allowed). Ambiguous or missing models
+return errors in the OpenAI error shape.
+
+**Request fields used:** `model`, `messages` (string content or an array of
+`{"type":"text","text"}` parts joined with no separator), `stream` (default
+`false`), `temperature`, `top_p`, `max_tokens` (maps to `num_predict`), `stop`,
+`seed`. Ignored: `user`, `presence_penalty`, `frequency_penalty`. Rejected with
+`400 BAD_REQUEST`: `n` other than 1, `tools`, `functions`, `response_format`,
+`logprobs`, image parts, unknown roles.
+
+**Non-stream response:** standard `chat.completion` object with `usage` from
+Ollama stats and a `pingpong` object `{"machine","mode"}`.
+
+**Stream:** `Content-Type: text/event-stream`, `data: {...}\n\n` chunks with
+`delta.content`, a final chunk with `finish_reason`, then `data: [DONE]\n\n`.
+While waiting, `: ping\n\n` every `heartbeat_interval`. Thinking text is dropped.
+
+**Errors:** `{"error":{"message","type":"invalid_request_error|server_error","param":null,"code":"<router code>"}}` with the router's HTTP status.
+
+Connection-tied like `/api/chat`: disconnect cancels upstream, no saved record,
+no retry.
 
 ### 4.4 Stress test (test tooling)
 

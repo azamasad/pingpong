@@ -12,6 +12,7 @@ import (
 	"github.com/azamasad/pingpong/internal/clock"
 	"github.com/azamasad/pingpong/internal/config"
 	"github.com/azamasad/pingpong/internal/gate"
+	"github.com/azamasad/pingpong/internal/notify"
 	"github.com/azamasad/pingpong/internal/ollama"
 	"github.com/azamasad/pingpong/internal/registry"
 	"github.com/azamasad/pingpong/internal/route"
@@ -30,22 +31,31 @@ type Service struct {
 	gate  *gate.Gate
 	clk   clock.Clock
 
-	mu           sync.Mutex
-	cancels      map[string]context.CancelFunc
-	holdMu       sync.Mutex
-	holding      map[string]int
-	shuttingDown atomic.Bool
+	mu            sync.Mutex
+	cancels       map[string]context.CancelFunc
+	holdMu        sync.Mutex
+	holding       map[string]int
+	shuttingDown  atomic.Bool
+	scheduler     *Scheduler
+	notify        *notify.Client
+	batchNotifyMu sync.Mutex
+	batchNotified map[string]struct{}
 }
 
 func New(cfg *config.Config, st *store.Store, reg *registry.Registry, g *gate.Gate, clk clock.Clock) *Service {
 	if clk == nil {
 		clk = clock.Real{}
 	}
-	return &Service{
+	svc := &Service{
 		cfg: cfg, store: st, reg: reg, gate: g, clk: clk,
 		cancels: map[string]context.CancelFunc{}, holding: map[string]int{},
+		notify: notify.New(cfg.Notify), batchNotified: map[string]struct{}{},
 	}
+	svc.scheduler = NewScheduler(svc)
+	return svc
 }
+
+func (s *Service) Scheduler() *Scheduler { return s.scheduler }
 
 func (s *Service) Store() *store.Store { return s.store }
 
@@ -237,10 +247,7 @@ func (s *Service) execute(id string) {
 	}
 	cb, msgs, err := parseChatBody(j.RequestJSON)
 	if err != nil {
-		j.Status = store.StatusFailed
-		j.ErrorCode = "BAD_REQUEST"
-		j.UpdatedAt = s.clk.Now().UTC()
-		_ = s.store.UpdateJob(ctx, j)
+		s.failTerminal(ctx, j, "BAD_REQUEST", "bad request", s.clk.Now().UTC())
 		return
 	}
 	checkSpec, _ := parseCheck(j.RequestJSON)
@@ -249,10 +256,7 @@ func (s *Service) execute(id string) {
 	}
 	fast, model, machine, err := s.cfg.ApplyProfile(cb.Profile, cb.Fast, cb.Model, cb.Machine)
 	if err != nil {
-		j.Status = store.StatusFailed
-		j.ErrorCode = "BAD_REQUEST"
-		j.UpdatedAt = s.clk.Now().UTC()
-		_ = s.store.UpdateJob(ctx, j)
+		s.failTerminal(ctx, j, "BAD_REQUEST", "bad request", s.clk.Now().UTC())
 		return
 	}
 	cb.Fast, cb.Model, cb.Machine = fast, model, machine
@@ -265,10 +269,7 @@ func (s *Service) execute(id string) {
 		if retryableCode(res.Code) {
 			s.markRetry(j, res.Code, "routing failed", now)
 		} else {
-			j.Status = store.StatusFailed
-			j.ErrorCode = res.Code
-			j.UpdatedAt = now
-			_ = s.store.UpdateJob(ctx, j)
+			s.failTerminal(ctx, j, res.Code, "routing failed", now)
 		}
 		return
 	}
@@ -472,6 +473,7 @@ func (s *Service) afterJobDone(ctx context.Context, j *store.Job, stats map[stri
 	}
 	logJob(j, "done", "", stats)
 	s.onAnswerFinished(ctx, j, stats)
+	s.onBatchItemTerminal(ctx, j)
 }
 
 func connectErr(err error) bool {
@@ -491,14 +493,7 @@ func (s *Service) markRetry(j *store.Job, code, msg string, now time.Time) {
 		j.FirstFailureAt = &now
 	}
 	if j.FirstFailureAt != nil && now.Sub(*j.FirstFailureAt) > s.cfg.Retry.RetryWindow.Duration {
-		j.Status = store.StatusFailed
-		j.ErrorCode = code
-		j.ErrorMessage = msg
-		j.UpdatedAt = now
-		_ = s.store.UpdateJob(ctx, j)
-		s.clearCheckOnTerminal(ctx, j)
-		logJob(j, "failed", code, nil)
-		s.emit(ctx, j.ID, "error", map[string]any{"code": code, "message": msg, "retryable": false})
+		s.failTerminal(ctx, j, code, msg, now)
 		return
 	}
 	na := now
@@ -572,7 +567,24 @@ func (s *Service) Cancel(ctx context.Context, id string) error {
 		c.UpdatedAt = s.clk.Now().UTC()
 		_ = s.store.UpdateJob(ctx, c)
 	}
+	if j.BatchID != "" {
+		s.onBatchItemTerminal(ctx, j)
+	}
 	return nil
+}
+
+// failTerminal records a non-retryable failure and wakes batch, check and notify hooks.
+func (s *Service) failTerminal(ctx context.Context, j *store.Job, code, msg string, now time.Time) {
+	j.Status = store.StatusFailed
+	j.ErrorCode = code
+	j.ErrorMessage = msg
+	j.UpdatedAt = now
+	_ = s.store.UpdateJob(ctx, j)
+	s.clearCheckOnTerminal(ctx, j)
+	logJob(j, "failed", code, nil)
+	s.onBatchItemTerminal(ctx, j)
+	s.maybeNotifyJobFailed(j, code)
+	s.emit(ctx, j.ID, "error", map[string]any{"code": code, "message": msg, "retryable": false})
 }
 
 // finishStopped records a user cancel, or a planned restart, when the job context ends.
@@ -588,6 +600,7 @@ func (s *Service) finishStopped(j *store.Job) {
 	_ = s.store.UpdateJob(ctx, j)
 	s.clearCheckOnTerminal(ctx, j)
 	logJob(j, "cancelled", "", nil)
+	s.onBatchItemTerminal(ctx, j)
 	s.emit(ctx, j.ID, "status", map[string]any{"state": "cancelled"})
 }
 
@@ -603,7 +616,9 @@ func (s *Service) BeginShutdown() {
 
 func (s *Service) Start(ctx context.Context) {
 	go s.retentionLoop(ctx)
+	s.scheduler.Start(ctx)
 	s.recoverPendingChecks(ctx)
+	s.recoverPendingReduces(ctx)
 	jobs, _ := s.store.ActiveJobs(ctx)
 	for _, j := range jobs {
 		if j.Status == store.StatusRunning {
@@ -633,6 +648,8 @@ func (s *Service) retentionLoop(ctx context.Context) {
 		case <-t.C:
 			before := s.clk.Now().Add(-time.Duration(s.cfg.Storage.RetentionDays) * 24 * time.Hour)
 			_, _ = s.store.PurgeOlderThan(ctx, before)
+			_, _ = s.store.PurgeOldThreads(ctx, before)
+			_, _ = s.store.PurgeOldScheduleRuns(ctx, before)
 		}
 	}
 }
