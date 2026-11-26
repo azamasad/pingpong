@@ -40,6 +40,7 @@ type ThreadMessageReq struct {
 	Trim    string         `json:"trim"`
 	Options map[string]any `json:"options"`
 	Think   *bool          `json:"think"`
+	Check   *CheckSpec     `json:"check"`
 }
 
 func (s *Service) CreateThread(ctx context.Context, title, profile string, fast bool, model, machine string) (*store.Thread, error) {
@@ -103,12 +104,24 @@ func (s *Service) SubmitThreadMessage(ctx context.Context, threadID string, req 
 	} else if err := checkThreadLength(doneTurns, content, mc.NumCtx, th, nextTurn); err != nil {
 		return "", 0, 0, err
 	}
+	if err := validateCheck(req.Check); err != nil {
+		return "", 0, 0, err
+	}
+	if req.Check != nil {
+		res2 := s.resolveCheckStage2(*req.Check)
+		if !res2.OK && !retryableCode(res2.Code) {
+			return "", 0, 0, &RouteRejectedError{Code: res2.Code}
+		}
+	}
 	machine, model := pairForTurn(th, nextTurn)
 	msgs := buildThreadMessages(doneTurns, content)
 	body := map[string]any{
 		"messages": msgs,
 		"machine":  machine,
 		"model":    model,
+	}
+	if req.Check != nil {
+		body["check"] = req.Check
 	}
 	if req.Options != nil {
 		body["options"] = filterOptions(req.Options)
@@ -126,6 +139,10 @@ func (s *Service) SubmitThreadMessage(ctx context.Context, threadID string, req 
 		Lane:        store.LaneInteractive,
 		Machine:     machine, Model: model,
 		ThreadID: threadID, Turn: nextTurn,
+	}
+	if req.Check != nil {
+		j.Stage = store.StageAnswer
+		j.CheckPending = 1
 	}
 	mode := s.resolve(route.Request{Model: model, Machine: machine})
 	if mode.OK {

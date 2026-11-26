@@ -79,6 +79,12 @@ Hidden when jobs are off. **Batches** (V7.1, extended by V7.2): batch list, new 
 
 Built: Batches (V7.1+), Templates (V7.3), Threads (V7.5), Schedules (V7.7).
 
+## 3e. Chat continuity and hardware cards (V7.10, built)
+
+With saved jobs on, the Chat tab continues one thread. The Chat menu lists saved threads. **New** clears the screen, and the next message starts a thread using the profile, Fast, model and machine controls. Further messages stay in that thread, on the machine and model chosen at the start. **Trim oldest** applies to that one message when it would not fit. **Check with** still runs a review or revise step on the turn. **Batch lane** stays a one-shot saved job and is not added to the chat. Closing the page does not cancel the turn. The Threads tab still renames, pins and deletes.
+
+A fixed column on the right shows one small card per machine. It refreshes every 5 seconds from `GET /api/host`. Each card shows CPU, RAM, temperature (degrees when the OS exposes them, otherwise an Apple thermal level, otherwise a dash), download and upload since the previous sample, and the 1-minute load. A machine with no `stats_address` that is not this host shows "Not set up". The cards never show prompts or outputs.
+
 ## 3d. Former planned tabs (reference)
 
 | Tab | Version | Holds |

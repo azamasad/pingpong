@@ -20,6 +20,9 @@
     </nav>
     <p id="machines" class="machines">Loading machines…</p>
   </header>
+  <aside id="host-rail" aria-label="Machines">
+    <div id="host-cards"></div>
+  </aside>
   <main id="panel-chat">
     <div class="controls">
       <label>Profile <select id="profile"><option value="">—</option></select></label>
@@ -37,12 +40,20 @@
       <label id="check-machine-wrap" class="hidden">Reviewer machine <select id="check-machine"><option value="">Firmino (heavy)</option></select></label>
       <label id="check-model-wrap" class="hidden">Reviewer model <select id="check-model"><option value="">Default</option></select></label>
     </div>
+  <p id="chat-route-hint" class="hint hidden">Profile, Fast, model and machine apply when a new chat starts. An open chat stays on the machine it started on. Batch lane sends one saved job and does not add it to the chat.</p>
+  <div id="chat-threadbar" class="chat-threadbar hidden">
+    <label>Chat <select id="chat-thread"><option value="">New chat</option></select></label>
+    <button type="button" id="chat-new">New</button>
+    <span id="chat-thread-meta"></span>
+  </div>
+  <div id="chat-log" class="chat-log hidden"></div>
   <textarea id="prompt" rows="5" placeholder="Message…"></textarea>
   <div class="actions">
     <button id="send">Send</button>
     <button id="stop" disabled>Stop</button>
     <span id="state"></span>
     <span id="elapsed"></span>
+    <label id="chat-trim-wrap" class="hidden"><input type="checkbox" id="chat-trim"> Trim oldest if this message is too long</label>
   </div>
   <p id="provenance"></p>
   <div id="thinking" class="collapsed"></div>

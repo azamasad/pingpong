@@ -193,7 +193,7 @@ Details in [NETWORK-AND-SECURITY.md](NETWORK-AND-SECURITY.md).
 | Configuration | A config file on Mane (real values are not committed) |
 | Data (V2) | A data directory on Mane's disk |
 | Updates | Replace the program and restart. Active requests in V1 are lost on restart. In V2 waiting and retrying requests resume, and an interrupted attempt restarts from the beginning |
-| Workers | Ollama only, with firewall rules. Nothing of ours runs on Firmino |
+| Workers | Ollama, plus an optional `pingpong hoststats` process that reports hardware counters only (D-122). No web page on Firmino |
 
 ## 7. Logging
 

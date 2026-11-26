@@ -31,6 +31,8 @@ or on future machines with more memory.
 **P6. Workers are lean.**
 No web UI and no extra services on Firmino or any other worker beyond what is
 needed to serve models, and what keeps the machine healthy and reachable.
+`pingpong hoststats` is allowed (D-122). It only reports CPU, memory,
+temperature and network counters. It is not a router and has no page.
 
 **P7. Local traffic stays local.**
 Mane talks to workers over a private path: the home LAN, or Tailscale when the
@@ -38,7 +40,7 @@ machines sit on different subnets (D-072, owner-approved). Nothing between Mane
 and a worker goes via the public internet.
 
 **P8. Private by default.**
-Reachable only through Tailscale. Never exposed to the public internet. Outbound calls from Mane are limited to the workers' Ollama and, if the owner configures it, one notification webhook.
+Reachable only through Tailscale. Never exposed to the public internet. Outbound calls from Mane are limited to the workers' Ollama, each machine's optional hardware-stats URL, and, if the owner configures it, one notification webhook.
 
 **P9. Explicit beats clever.**
 Routing follows simple, documented rules driven by clear signals: flags,

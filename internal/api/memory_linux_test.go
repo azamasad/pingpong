@@ -3,6 +3,7 @@
 package api_test
 
 import (
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -18,17 +19,39 @@ import (
 	"github.com/azamasad/pingpong/internal/registry"
 )
 
-// stopBatchBeforeClose cancels a batch and waits so job goroutines drop the
-// database before the test server and its temp directory are removed.
+// stopBatchBeforeClose cancels a batch and waits until it is idle, so the
+// next test does not share the CPU with hundreds of leftover job goroutines.
 func stopBatchBeforeClose(ts *httptest.Server, batchID string) {
 	if batchID != "" && ts != nil {
 		c, err := http.NewRequest(http.MethodPost, ts.URL+"/api/batches/"+batchID+"/cancel", nil)
 		if err == nil {
 			c.Host = "localhost"
-			_, _ = http.DefaultClient.Do(c)
+			if resp, doErr := http.DefaultClient.Do(c); doErr == nil {
+				_, _ = io.Copy(io.Discard, resp.Body)
+				resp.Body.Close()
+			}
+		}
+		deadline := time.Now().Add(15 * time.Second)
+		for time.Now().Before(deadline) {
+			g, err := http.NewRequest(http.MethodGet, ts.URL+"/api/batches/"+batchID, nil)
+			if err != nil {
+				break
+			}
+			g.Host = "localhost"
+			gr, err := http.DefaultClient.Do(g)
+			if err != nil {
+				time.Sleep(30 * time.Millisecond)
+				continue
+			}
+			var view map[string]any
+			_ = decodeJSON(gr, &view)
+			if view["pending"] == float64(0) {
+				break
+			}
+			time.Sleep(30 * time.Millisecond)
 		}
 	}
-	time.Sleep(300 * time.Millisecond)
+	time.Sleep(100 * time.Millisecond)
 }
 
 func rssKB() (int, error) {

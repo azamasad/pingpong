@@ -222,6 +222,13 @@ doctor check. Listed in [V7-ALIASES.md](V7-ALIASES.md) section 8.
   anything else, so prompts and outputs cannot leak (`internal/logx`).
 - A finished job's `done` event carries speed `stats`.
 
+### 2.11 V7.10 chat continuity and hardware cards (built)
+
+- A thread message with `check.mode` `review` stores the check on that turn. A bad mode is `400` and stores nothing.
+- `GET /api/host` returns one sample per machine. A loopback Ollama address is read on this host. A remote machine with no `stats_address` is `not_configured`. A stats URL that redirects is not followed.
+- CPU and network rates appear on the second sample. Temperature is read from a known CPU sensor file when present.
+- `pingpong hoststats` refuses to listen on `0.0.0.0`.
+
 ### 2.10 Tests for V7.1 to V7.9
 
 Each version's full acceptance list is in

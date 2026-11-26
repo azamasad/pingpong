@@ -44,7 +44,7 @@ Ollama port. The page's tailnet-only exposure was checked by the owner (D-080).
 | Machine | Rule |
 |---|---|
 | Firmino | Ollama binds to Firmino's Tailscale address (`OLLAMA_HOST`), so it does not listen on the home LAN at all and is reachable only over the tailnet (D-072). It must not bind `0.0.0.0`. |
-| Firmino | **Recommended, not yet applied:** the Tailscale ACL allows port 11434 on Firmino from Mane only. Until then, any device on the tailnet can reach Firmino's Ollama port, because the default ACL allows everything. |
+| Firmino | **Recommended, not yet applied:** the Tailscale ACL allows ports 11434 and 8788 on Firmino from Mane only. Until then, any device on the tailnet can reach Firmino's Ollama port, because the default ACL allows everything. |
 | Firmino | `ufw` still guards the LAN side, but it cannot restrict tailnet traffic (below). |
 | Mane | The router listens on localhost only. Tailscale Serve publishes it to the tailnet, so the LAN cannot reach it directly. |
 | Mane | Mane's own Ollama is local only, used by the router. |
@@ -87,20 +87,21 @@ console only, never in this repository:
     {
       "action": "accept",
       "src":    ["mane"],
-      "dst":    ["firmino:11434"]
+      "dst":    ["firmino:11434", "firmino:8788"]
     }
   ],
   "tests": [
-    { "src": "<MANE_TAILSCALE_IP>", "accept": ["<FIRMINO_TAILSCALE_IP>:11434"] },
+    { "src": "<MANE_TAILSCALE_IP>", "accept": ["<FIRMINO_TAILSCALE_IP>:11434", "<FIRMINO_TAILSCALE_IP>:8788"] },
     { "src": "<AIR_TAILSCALE_IP>",
       "accept": ["<MANE_TAILSCALE_IP>:443", "<FIRMINO_TAILSCALE_IP>:22"],
-      "deny":   ["<FIRMINO_TAILSCALE_IP>:11434"] }
+      "deny":   ["<FIRMINO_TAILSCALE_IP>:11434", "<FIRMINO_TAILSCALE_IP>:8788"] }
   ]
 }
 ```
 
 What it says: every device of yours may open Mane's page (443) and SSH to Mane
-and Firmino (22). Only Mane may reach port 11434 on Firmino. Everything else on
+and Firmino (22). Only Mane may reach ports 11434 (Ollama) and 8788 (hardware
+counters, D-122) on Firmino. Everything else on
 the tailnet is denied. Keep your existing `ssh` block and any other blocks as
 they are, and change only `hosts`, `acls` and `tests`. Mane is also one of your
 devices, so it keeps the same access as the rest, plus the Ollama port. Replies
@@ -159,7 +160,7 @@ owned and how its key expires, so do it deliberately. Paste into Access controls
     {
       "action": "accept",
       "src": ["tag:router"],
-      "dst": ["tag:worker:11434"]
+      "dst": ["tag:worker:11434", "tag:worker:8788"]
     }
   ],
   "ssh": [
@@ -174,11 +175,11 @@ owned and how its key expires, so do it deliberately. Paste into Access controls
     {
       "src": "<YOUR_EMAIL>",
       "accept": ["tag:router:443", "tag:router:22", "tag:worker:22"],
-      "deny": ["tag:worker:11434"]
+      "deny": ["tag:worker:11434", "tag:worker:8788"]
     },
     {
       "src": "tag:router",
-      "accept": ["tag:worker:11434"]
+      "accept": ["tag:worker:11434", "tag:worker:8788"]
     }
   ]
 }
@@ -229,7 +230,7 @@ public repository.
 - The MacBook Air and Mane are on the same tailnet.
 - Use access rules (ACLs) so that: your devices can reach Mane's published router
   port (HTTPS 443) and nothing else on Mane; your devices can reach Firmino
-  on SSH (port 22) only; nobody reaches port 11434 on Firmino. The default ACL
+  on SSH (port 22) only; nobody reaches ports 11434 or 8788 on Firmino. The default ACL
   allows everything, so this needs editing.
 - Tailscale SSH is handled by Tailscale itself, not by `ufw` or `sshd`, so no
   firewall rule is needed for it.

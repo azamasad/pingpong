@@ -35,6 +35,7 @@ Related: [ARCHITECTURE.md](ARCHITECTURE.md), [ROUTING.md](ROUTING.md),
 |---|---|
 | `name` | Registry name, for example `mane`, `firmino`. Used in pins |
 | `address` | Base URL of that machine's Ollama. For Mane itself this is localhost. For other machines it is their private address: the LAN address on a shared subnet, or the Tailscale address (used for Firmino, D-072) |
+| `stats_address` | Optional. Where Mane reads that machine's hardware counters (`GET`, a small JSON body). Leave it empty on the machine that runs the router: those counters are read locally. Set it on any other machine, and run `pingpong hoststats` there. Same private path as `address` (D-122) |
 | `roles` | List of roles, for example `fast`, `heavy` |
 | `default_model` | Model used when none is pinned |
 | `max_concurrent` | Requests in flight at once on this machine. Default `1` |
