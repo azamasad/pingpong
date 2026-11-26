@@ -16,6 +16,7 @@ import (
 	"github.com/azamasad/pingpong/internal/apperrors"
 	"github.com/azamasad/pingpong/internal/config"
 	"github.com/azamasad/pingpong/internal/gate"
+	"github.com/azamasad/pingpong/internal/hoststats"
 	"github.com/azamasad/pingpong/internal/jobs"
 	"github.com/azamasad/pingpong/internal/registry"
 )
@@ -23,7 +24,7 @@ import (
 //go:embed web/*
 var webFS embed.FS
 
-const Version = "7.8.0"
+const Version = "7.10.0"
 
 type Server struct {
 	Cfg          *config.Config
@@ -36,12 +37,14 @@ type Server struct {
 	shutdown     context.CancelFunc
 	once         sync.Once
 	stress       stressRun
+	host         *hoststats.Sampler
 }
 
 func NewServer(cfg *config.Config, reg *registry.Registry, g *gate.Gate, jobSvc *jobs.Service) *Server {
 	s := &Server{
 		Cfg: cfg, Reg: reg, Gate: g, Jobs: jobSvc, Mux: http.NewServeMux(),
 		startedAt: time.Now(),
+		host:      hoststats.NewSampler(),
 	}
 	s.routes()
 	return s
@@ -62,6 +65,7 @@ func (s *Server) routes() {
 	s.Mux.HandleFunc("GET /api/profiles", s.handleProfiles)
 	s.Mux.HandleFunc("GET /api/aliases", s.handleAliases)
 	s.Mux.HandleFunc("GET /api/status", s.handleStatus)
+	s.Mux.HandleFunc("GET /api/host", s.handleHost)
 	s.Mux.HandleFunc("POST /api/chat", s.handleChat)
 	s.Mux.HandleFunc("POST /api/jobs", s.handleJobCreate)
 	s.Mux.HandleFunc("GET /api/jobs", s.handleJobList)

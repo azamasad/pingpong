@@ -28,6 +28,8 @@ func main() {
 			os.Exit(runDoctor(os.Args[2:]))
 		case "backup":
 			os.Exit(runBackup(os.Args[2:]))
+		case "hoststats":
+			os.Exit(runHostStats(os.Args[2:]))
 		}
 	}
 	configPath := flag.String("config", "", "path to YAML config (or set PINGPONG_CONFIG)")

@@ -166,6 +166,52 @@ func jsonString(s string) string {
 	return string(b)
 }
 
+func TestThreadMessageCheck(t *testing.T) {
+	done := []fakeollama.Step{{Content: "a"}, {Done: &fakeollama.DoneStats{EvalCount: 1}}}
+	mS, fS, mURL, fURL := fakeollama.Pair(t, []string{"llama3.1:8b"}, []string{"qwen2.5:14b"})
+	mS.ChatSteps = done
+	fS.ChatSteps = done
+	ts := newHarnessFromURLs(t, mURL, fURL)
+	defer ts.Close()
+
+	create, _ := http.NewRequest(http.MethodPost, ts.URL+"/api/threads", strings.NewReader(`{"machine":"firmino","model":"qwen2.5:14b"}`))
+	create.Host = "localhost"
+	create.Header.Set("Content-Type", "application/json")
+	res, _ := http.DefaultClient.Do(create)
+	var th map[string]any
+	_ = decodeJSON(res, &th)
+	tid := th["id"].(string)
+
+	bad, _ := http.NewRequest(http.MethodPost, ts.URL+"/api/threads/"+tid+"/messages", strings.NewReader(`{"content":"nope","check":{"mode":"guess"}}`))
+	bad.Host = "localhost"
+	bad.Header.Set("Content-Type", "application/json")
+	bres, _ := http.DefaultClient.Do(bad)
+	if bres.StatusCode != http.StatusBadRequest {
+		t.Fatalf("bad check %d", bres.StatusCode)
+	}
+
+	ok, _ := http.NewRequest(http.MethodPost, ts.URL+"/api/threads/"+tid+"/messages", strings.NewReader(
+		`{"content":"check me","check":{"mode":"review","machine":"mane","model":"llama3.1:8b"}}`))
+	ok.Host = "localhost"
+	ok.Header.Set("Content-Type", "application/json")
+	ores, _ := http.DefaultClient.Do(ok)
+	if ores.StatusCode != http.StatusAccepted {
+		t.Fatalf("check message %d", ores.StatusCode)
+	}
+	var msg map[string]any
+	_ = decodeJSON(ores, &msg)
+	jobID, _ := msg["job_id"].(string)
+	get, _ := http.NewRequest(http.MethodGet, ts.URL+"/api/jobs/"+jobID, nil)
+	get.Host = "localhost"
+	gres, _ := http.DefaultClient.Do(get)
+	var detail map[string]any
+	_ = decodeJSON(gres, &detail)
+	ch, _ := detail["check"].(map[string]any)
+	if ch["mode"] != "review" || ch["machine"] != "mane" {
+		t.Fatalf("check %+v", detail["check"])
+	}
+}
+
 func TestThreadDeleteAndPin(t *testing.T) {
 	done := []fakeollama.Step{{Content: "a"}, {Done: &fakeollama.DoneStats{EvalCount: 1}}}
 	mS, fS, mURL, fURL := fakeollama.Pair(t, []string{"llama3.1:8b"}, []string{"qwen2.5:14b"})

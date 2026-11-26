@@ -21,6 +21,9 @@ machines:
   - name: firmino
     # Use Firmino's Tailscale address if the machines are on different subnets.
     address: "http://FIRMINO_TAILSCALE_ADDRESS:11434"
+    # Optional. Hardware card for a machine that is not this host.
+    # Run `pingpong hoststats` on that machine, bound to its Tailscale address.
+    stats_address: "http://FIRMINO_TAILSCALE_ADDRESS:8788"
     roles: [heavy]
     default_model: "qwen3:30b-a3b-instruct-2507-q4_K_M"
     max_concurrent: 1
