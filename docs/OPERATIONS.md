@@ -182,6 +182,7 @@ launch agent). It never logs prompts or outputs (D-032). Events:
 | `job_done`, `job_retrying`, `job_failed`, `job_cancelled` | A saved job attempt ended | the same, plus `request_id`, `lane`, `error_code` (and from V7.1 `batch_id`, from V7.2 `stage`) |
 | `batch_submitted`, `export_done`, `schedule_run`, `check_created`, `check_failed`, `reduce_created` | V7.1 to V7.7 | `batch_id`, `items`, `source`, `schedule` (a name), `outcome`, `error_code`. Never content ([NEXT-FEATURES-BUILD-SPEC.md](NEXT-FEATURES-BUILD-SPEC.md) section 1.5) |
 | `notify_failed` | V7.9 outbound webhook error | `error_code` only (never the webhook URL) |
+| `host_sample` | The page asked for hardware numbers (about every 5 seconds while it is open) | `machine`, `cpu_percent`, `ram_percent`, `temp_c` or `thermal_level`, `load_1`, `net_rx_bps` (down), `net_tx_bps` (up). Time is the line's `time`. No prompts, outputs, or stats URL (D-125) |
 
 Useful questions to ask of it: which machine is slowest, how often jobs retry
 (and with which `error_code`), how long requests queue, and whether model
