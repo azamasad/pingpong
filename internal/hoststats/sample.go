@@ -23,15 +23,16 @@ type Sample struct {
 }
 
 type raw struct {
-	CPUTotal uint64
-	CPUIdle  uint64
-	RAMTotal uint64
-	RAMUsed  uint64
-	NetRx    uint64
-	NetTx    uint64
-	TempC    *float64
-	Thermal  *int
-	Load1    *float64
+	CPUTotal   uint64
+	CPUIdle    uint64
+	RAMTotal   uint64
+	RAMUsed    uint64
+	NetRx      uint64
+	NetTx      uint64
+	TempC      *float64
+	Thermal    *int
+	Load1      *float64
+	CPUPercent *float64 // set when the OS reports a percent instead of tick counters
 }
 
 // Sampler keeps the previous counters so a later reading can show rates.
@@ -93,6 +94,16 @@ func (s *Sampler) Sample() Sample {
 			out.NetRxBps = &rx
 			out.NetTxBps = &tx
 		}
+	}
+	if out.CPUPercent == nil && cur.CPUPercent != nil {
+		pct := *cur.CPUPercent
+		if pct < 0 {
+			pct = 0
+		}
+		if pct > 100 {
+			pct = 100
+		}
+		out.CPUPercent = &pct
 	}
 	s.prev = cur
 	s.prevAt = now
