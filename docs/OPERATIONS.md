@@ -194,20 +194,20 @@ loads (`load_ms`) are frequent, which means the keep-alive is too short. Use
 Goal: prove both machines run for an hour or more without failures, find speed
 drift (heat), and check the router's memory.
 
-**Before you start (once, on Mane).** The Stress tab, the speed log line and the
-bench scripts are in the new build. Update Mane, using your own paths:
+**Before you start (once, on Mane).** The Stress tab is on `main`. Update Mane:
 
 ```bash
-cd ~/pingpong        # your checkout
+cd ~/src/pingpong
 git fetch origin && git checkout main && git pull origin main
 make build-darwin-arm64
-cp bin/pingpong-darwin-arm64 /usr/local/bin/pingpong   # wherever your launch agent points
-launchctl kickstart -k gui/$(id -u)/com.pingpong.router
+sudo cp bin/pingpong-darwin-arm64 /usr/local/bin/pingpong
+launchctl kickstart -k "gui/$(id -u)/com.pingpong.router"
 ```
 
-(If the pull request is not merged yet, use `git checkout cursor/stress-run-aa2f`.)
-Then run `pingpong doctor --chat` and check the Status tab. Both machines must
-be ok before you begin. On Firmino, once: `sudo apt install lm-sensors`.
+Then run `pingpong doctor --chat --config ~/pingpong.local.yaml` and check the
+Status tab. The word `doctor` comes before `--config`. Both machines must be
+ok before you begin. On Firmino, once: `sudo apt install lm-sensors`. Firmino
+stays Ollama only for this soak. Hardware cards do not have to be up.
 
 **Steps**
 
@@ -231,7 +231,7 @@ be ok before you begin. On Firmino, once: `sudo apt install lm-sensors`.
 ```bash
 python3 deploy/bench/logsummary.py /tmp/pingpong.err --since T
 python3 deploy/bench/logsummary.py /tmp/pingpong.err --since T_LATE
-pingpong doctor --chat
+pingpong doctor --chat --config ~/pingpong.local.yaml
 ```
 
 **What to look for**
@@ -259,11 +259,11 @@ and only continue if the previous part passed. Note the time each part takes.
 
 **A. Firmino reboot**
 
-1. From Mane: `pingpong doctor --chat` (baseline, must pass).
+1. From Mane: `pingpong doctor --chat --config ~/pingpong.local.yaml` (baseline, must pass).
 2. On Firmino: `sudo reboot`. Wait 3 minutes.
 3. From Mane, without touching Firmino:
    - `curl -m 5 http://<FIRMINO_TAILSCALE_IP>:11434/api/tags` lists the models.
-   - `pingpong doctor --chat` passes.
+   - `pingpong doctor --chat --config ~/pingpong.local.yaml` passes.
 4. On Firmino: `systemctl status ollama` is active, and
    `systemctl show ollama -p Environment` still shows your settings (host,
    parallel, keep-alive, context, no-cloud).
@@ -282,7 +282,7 @@ and only continue if the previous part passed. Note the time each part takes.
    - `launchctl print gui/$(id -u)/com.pingpong.router | head -20` is running.
    - `curl -H 'Host: localhost' http://127.0.0.1:8787/api/health` says ok.
    - `tailscale serve status` shows the router, tailnet only, with no manual step.
-   - `pingpong doctor --chat` passes.
+   - `pingpong doctor --chat --config ~/pingpong.local.yaml` passes.
    - `pingpong batch get <id>` until `pending` is 0. Jobs must end `done`. One
      retry is fine. A job still `retrying` after 10 minutes is not.
 4. Open the page from the MacBook Air and send one request to each machine.
@@ -297,7 +297,7 @@ and only continue if the previous part passed. Note the time each part takes.
 **D. Firmino power cut** (optional)
 
 Unplug Firmino's charger for 30 seconds. It should keep running on battery, and
-`pingpong doctor --chat` should still pass. The battery covers short cuts only,
+`pingpong doctor --chat --config ~/pingpong.local.yaml` should still pass. The battery covers short cuts only,
 so do not test a full power loss.
 
 **What to look for:** every service back without a manual step, the Ollama
@@ -336,7 +336,7 @@ when a request names it (`refresh_on_model_miss`). To check:
 **4. Run on Mane** (not on Firmino). It takes about 20 to 30 minutes.
 
 ```bash
-cd ~/pingpong
+cd ~/src/pingpong
 PINGPONG_CONTESTANTS="mane:llama3.1:8b,firmino:qwen3:30b-a3b-instruct-2507-q4_K_M,firmino:gpt-oss:20b@1500" \
   python3 deploy/bench/quality.py
 ```
