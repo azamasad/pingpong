@@ -353,7 +353,7 @@ Response `Content-Type` is `text/csv; charset=utf-8` or `text/markdown; charset=
 | Method and path | Version | Purpose |
 |---|---|---|
 | `GET /api/status` | V6 | Machines, job counts by status and lane, oldest waiting job age, router memory and uptime, storage. Never contains prompts or outputs. See [V6-OPERABILITY.md](V6-OPERABILITY.md) |
-| `GET /api/host` | V7.10 | One hardware sample per configured machine: CPU percent, RAM, temperature in Celsius when the OS exposes it, Apple thermal level when degrees are not available, network bytes per second since the previous sample, and 1-minute load. A machine on this host is read here. A missing CPU tick counter does not drop the rest of that sample (D-124). Any other machine is read from its `stats_address`, or reported `not_configured`. Never contains prompts or outputs. See D-122 |
+| `GET /api/host` | V7.10 | One hardware sample per configured machine: CPU percent, RAM, temperature in Celsius when the OS exposes it, Apple thermal level when degrees are not available, network bytes per second since the previous sample, and 1-minute load. A machine on this host is read here. A missing CPU tick counter does not drop the rest of that sample (D-124). Any other machine is read from its `stats_address`, or reported `not_configured`. Each local or remote sample is also one `host_sample` log line (D-125). Never contains prompts or outputs. See D-122 |
 | `GET /api/aliases` | V7 | Configured aliases and where each model is installed. See [V7-ALIASES.md](V7-ALIASES.md) |
 
 Error code `ROUTER_RESTARTING` (503, retryable) is returned, and recorded on a

@@ -229,6 +229,7 @@ doctor check. Listed in [V7-ALIASES.md](V7-ALIASES.md) section 8.
 - CPU and network rates appear on the second sample when the OS provides tick counters. Temperature is read from a known CPU sensor file when present.
 - On Apple silicon, a missing `kern.cp_time` still returns RAM, network, load and thermal level, and CPU percent comes from the `top` summary (`TestAssembleDarwinWithoutCPUTicks`).
 - `pingpong hoststats` refuses to listen on `0.0.0.0`.
+- `GET /api/host` writes one `host_sample` line per local or remote machine. A machine that is not set up is omitted. A URL, prompt, or output in an error string is not logged (`TestLogReportsOneLinePerCollectedSample`).
 
 ### 2.10 Tests for V7.1 to V7.9
 

@@ -131,17 +131,49 @@ The page reads Mane's CPU, memory, temperature and network inside the router.
 Firmino's numbers come from a small extra process, `pingpong hoststats`. It
 serves counters only. It has no page.
 
-- [ ] Copy the same `pingpong` binary you installed on Mane to Firmino (the
-      Linux build).
-- [ ] Run it bound to Firmino's Tailscale address, not `0.0.0.0`:
-      `pingpong hoststats --listen <FIRMINO_TAILSCALE_IP>:8788`
-- [ ] Keep it running across reboots with a systemd unit whose
-      `ExecStart` is that command.
-- [ ] On Mane's config, set Firmino's `stats_address` to
-      `http://<FIRMINO_TAILSCALE_IP>:8788` and restart the router.
-- [ ] The Tailscale ACL must allow Mane to reach that port. The example in
-      [NETWORK-AND-SECURITY.md](NETWORK-AND-SECURITY.md) includes 8788 next to
-      11434. From the MacBook Air, port 8788 on Firmino must be refused.
+- [ ] On Mane, build the Linux binary and copy it to Firmino (placeholders only;
+      do not commit the real address):
+
+      ```bash
+      cd ~/src/pingpong
+      git fetch origin && git checkout main && git pull origin main
+      GOOS=linux GOARCH=amd64 go build -o bin/pingpong-linux-amd64 ./cmd/pingpong
+      ```
+
+      Copy `bin/pingpong-linux-amd64` to Firmino as `/usr/local/bin/pingpong`.
+- [ ] On Firmino, bind hoststats to Firmino's Tailscale address, not `0.0.0.0`:
+
+      ```bash
+      /usr/local/bin/pingpong hoststats --listen <FIRMINO_TAILSCALE_IP>:8788
+      ```
+
+      Keep it across reboots with a systemd unit whose `ExecStart` is that
+      command.
+- [ ] On Mane, install the router build, set Firmino's `stats_address`, and
+      restart. The address is only in `~/pingpong.local.yaml`, never in the repo.
+
+      ```bash
+      cd ~/src/pingpong
+      make build-darwin-arm64
+      sudo cp bin/pingpong-darwin-arm64 /usr/local/bin/pingpong
+      ```
+
+      Under the `firmino` machine:
+
+      ```yaml
+      stats_address: "http://<FIRMINO_TAILSCALE_IP>:8788"
+      ```
+
+      ```bash
+      launchctl kickstart -k "gui/$(id -u)/com.pingpong.router"
+      ```
+
+      Mane's own card needs no `stats_address`. The router reads it locally.
+- [ ] The Tailscale ACL must allow Mane to reach port 8788 beside 11434. The
+      example in [NETWORK-AND-SECURITY.md](NETWORK-AND-SECURITY.md) includes
+      both. From the MacBook Air, port 8788 on Firmino must be refused.
+- [ ] With the page open, the router log gains one `host_sample` line per
+      machine about every 5 seconds (Mane, and Firmino once the URL answers).
 
 ## 3. Mane (Mac mini)
 
