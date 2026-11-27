@@ -226,7 +226,8 @@ doctor check. Listed in [V7-ALIASES.md](V7-ALIASES.md) section 8.
 
 - A thread message with `check.mode` `review` stores the check on that turn. A bad mode is `400` and stores nothing.
 - `GET /api/host` returns one sample per machine. A loopback Ollama address is read on this host. A remote machine with no `stats_address` is `not_configured`. A stats URL that redirects is not followed.
-- CPU and network rates appear on the second sample. Temperature is read from a known CPU sensor file when present.
+- CPU and network rates appear on the second sample when the OS provides tick counters. Temperature is read from a known CPU sensor file when present.
+- On Apple silicon, a missing `kern.cp_time` still returns RAM, network, load and thermal level, and CPU percent comes from the `top` summary (`TestAssembleDarwinWithoutCPUTicks`).
 - `pingpong hoststats` refuses to listen on `0.0.0.0`.
 
 ### 2.10 Tests for V7.1 to V7.9

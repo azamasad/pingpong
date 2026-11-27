@@ -166,6 +166,91 @@ func ParseVMStat(text string, memTotal uint64) (uint64, bool) {
 	return used, true
 }
 
+// ParseTopCPU reads the "CPU usage" line from `top -l 1`. It sums every
+// percentage except idle. The rest of the text is ignored.
+func ParseTopCPU(text string) (float64, bool) {
+	for _, line := range strings.Split(text, "\n") {
+		line = strings.TrimSpace(line)
+		if !strings.HasPrefix(line, "CPU usage:") {
+			continue
+		}
+		var sum float64
+		var n int
+		rest := line
+		for {
+			i := strings.Index(rest, "%")
+			if i < 0 {
+				break
+			}
+			j := i - 1
+			for j >= 0 && (rest[j] == '.' || (rest[j] >= '0' && rest[j] <= '9')) {
+				j--
+			}
+			num := rest[j+1 : i]
+			word := strings.TrimSpace(rest[i+1:])
+			if k := strings.IndexAny(word, " ,"); k >= 0 {
+				word = word[:k]
+			}
+			v, err := strconv.ParseFloat(num, 64)
+			if err == nil && word != "" && word != "idle" {
+				sum += v
+				n++
+			}
+			rest = rest[i+1:]
+		}
+		if n == 0 {
+			return 0, false
+		}
+		if sum < 0 {
+			sum = 0
+		}
+		if sum > 100 {
+			sum = 100
+		}
+		return sum, true
+	}
+	return 0, false
+}
+
+// assembleDarwin builds one reading from command output. An empty string means
+// that command failed. A missing CPU tick counter must not drop RAM, network,
+// load or temperature.
+func assembleDarwin(cp, mem, vm, netstatText, load, thermal, top string) (raw, error) {
+	var r raw
+	got := false
+	if total, idle, err := ParseCPTime(cp); err == nil && total > 0 {
+		r.CPUTotal = total
+		r.CPUIdle = idle
+		got = true
+	} else if pct, ok := ParseTopCPU(top); ok {
+		r.CPUPercent = &pct
+		got = true
+	}
+	if n, err := strconv.ParseUint(strings.TrimSpace(mem), 10, 64); err == nil && n > 0 {
+		r.RAMTotal = n
+		if used, ok := ParseVMStat(vm, n); ok {
+			r.RAMUsed = used
+		}
+		got = true
+	}
+	if strings.TrimSpace(netstatText) != "" {
+		r.NetRx, r.NetTx = ParseNetstatIB(netstatText)
+		got = true
+	}
+	if n, ok := ParseLoadAvg(load); ok {
+		r.Load1 = &n
+		got = true
+	}
+	if n, err := strconv.Atoi(strings.TrimSpace(thermal)); err == nil {
+		r.Thermal = &n
+		got = true
+	}
+	if !got {
+		return raw{}, strconv.ErrSyntax
+	}
+	return r, nil
+}
+
 // ParseNetstatIB sums Ibytes and Obytes from `netstat -ibn` link rows, skipping loopback.
 // Counts are taken from the right so a missing address column does not shift them.
 func ParseNetstatIB(text string) (rx, tx uint64) {

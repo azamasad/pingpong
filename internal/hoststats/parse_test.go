@@ -109,6 +109,58 @@ func TestTempFromSysfs(t *testing.T) {
 	}
 }
 
+func TestAssembleDarwinWithoutCPUTicks(t *testing.T) {
+	vm := "Mach Virtual Memory Statistics: (page size of 16384 bytes)\nPages active: 100.\nPages wired down: 50.\nPages occupied by compressor: 50.\n"
+	net := "en0 1500 <Link#4> aa 10 0 5000 8 0 2000 0\n"
+	top := "Processes: 1\nCPU usage: 12.5% user, 7.5% sys, 80.0% idle\nPhysMem: 16G used\n"
+	r, err := assembleDarwin("", "17179869184", vm, net, "{ 1.50 1.20 1.10 }", "37", top)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if r.CPUTotal != 0 || r.CPUPercent == nil || math.Abs(*r.CPUPercent-20) > 0.01 {
+		t.Fatalf("cpu total %d pct %v", r.CPUTotal, r.CPUPercent)
+	}
+	if r.RAMTotal != 17179869184 || r.RAMUsed != 16384*200 {
+		t.Fatalf("ram total %d used %d", r.RAMTotal, r.RAMUsed)
+	}
+	if r.NetRx != 5000 || r.NetTx != 2000 {
+		t.Fatalf("net rx %d tx %d", r.NetRx, r.NetTx)
+	}
+	if r.Thermal == nil || *r.Thermal != 37 || r.Load1 == nil || *r.Load1 != 1.5 {
+		t.Fatalf("thermal %v load %v", r.Thermal, r.Load1)
+	}
+	s := &Sampler{now: func() time.Time { return time.Unix(10, 0) }, read: func() (raw, error) { return r, nil }}
+	sample := s.Sample()
+	if !sample.OK || sample.Error != "" {
+		t.Fatalf("expected a usable sample, got %+v", sample)
+	}
+	if sample.CPUPercent == nil || math.Abs(*sample.CPUPercent-20) > 0.01 {
+		t.Fatalf("cpu %+v", sample.CPUPercent)
+	}
+	if sample.RAMPercent == nil || sample.RAMUsedBytes == nil || sample.ThermalLevel == nil || *sample.ThermalLevel != 37 {
+		t.Fatalf("fields %+v", sample)
+	}
+	if sample.NetRxBps != nil {
+		t.Fatal("network rate needs a second sample")
+	}
+}
+
+func TestAssembleDarwinKeepsTickCounters(t *testing.T) {
+	r, err := assembleDarwin("100 0 50 800 50", "1000", "", "", "", "", "CPU usage: 99% user, 0% sys, 1% idle\n")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if r.CPUPercent != nil || r.CPUTotal != 1000 || r.CPUIdle != 800 {
+		t.Fatalf("%+v", r)
+	}
+}
+
+func TestAssembleDarwinAllEmpty(t *testing.T) {
+	if _, err := assembleDarwin("", "", "", "", "", "", ""); err == nil {
+		t.Fatal("expected an unreadable host")
+	}
+}
+
 func TestCheckListen(t *testing.T) {
 	if err := CheckListen("127.0.0.1:8788"); err != nil {
 		t.Fatal(err)
