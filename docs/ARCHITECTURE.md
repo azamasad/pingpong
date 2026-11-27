@@ -199,7 +199,10 @@ Details in [NETWORK-AND-SECURITY.md](NETWORK-AND-SECURITY.md).
 
 - Logs go to the service's log output, with rotation handled by the host.
   Besides errors, one metadata line is written per finished request or job
-  (speeds, outcome, never content), for tuning (D-076).
+  (speeds, outcome, never content), for tuning (D-076). Each hardware sample
+  the page already requests adds one `host_sample` line (machine, CPU, RAM,
+  temperature, load, down, up, time) so a job can be compared with the
+  machines later (D-125).
 - Log request metadata only, as one line per event with these fields and no
   others: time, level, event name, request ID (V2), mode, machine, model, state,
   duration, error code, and error message text from the router itself.
