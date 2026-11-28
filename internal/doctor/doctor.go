@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/azamasad/pingpong/internal/config"
+	"github.com/azamasad/pingpong/internal/hoststats"
 	"github.com/azamasad/pingpong/internal/notify"
 	"github.com/azamasad/pingpong/internal/ollama"
 	"github.com/azamasad/pingpong/internal/route"
@@ -157,11 +158,11 @@ func machineChecks(ctx context.Context, cfg *config.Config, m config.Machine) []
 	cli := ollama.NewClient(m.Address, cfg.Health.Timeout.Duration)
 	tags, err := cli.Tags(ctx)
 	if err != nil {
-		return []Check{{
+		return append([]Check{{
 			Name: prefix + ".reachable", Status: StatusFail,
 			Message: fmt.Sprintf("cannot reach %s: %v", m.Name, err),
 			Hint:    "check address, Ollama, and network",
-		}}
+		}}, statsAddressCheck(m)...)
 	}
 	names := modelNames(tags)
 	out := []Check{{
@@ -214,7 +215,23 @@ func machineChecks(ctx context.Context, cfg *config.Config, m config.Machine) []
 			Message: fmt.Sprintf("models not referenced in config: %s", strings.Join(unused, ", ")),
 		})
 	}
-	return out
+	return append(out, statsAddressCheck(m)...)
+}
+
+// statsAddressCheck warns when a machine that is not this host has no
+// stats URL. That is why its hardware card says "Not set up". A loopback
+// Ollama address is read in the router, so an empty stats URL is expected.
+// A warning does not change the exit code. The URL is not fetched.
+func statsAddressCheck(m config.Machine) []Check {
+	if strings.TrimSpace(m.StatsAddress) != "" || hoststats.LocalMachine(m.Address) {
+		return nil
+	}
+	return []Check{{
+		Name:    "machine." + m.Name + ".stats_address",
+		Status:  StatusWarn,
+		Message: `no stats_address, so the hardware card says "Not set up"`,
+		Hint:    "run pingpong hoststats on that machine, set stats_address, and restart the router (SETUP-GUIDE section 2.8)",
+	}}
 }
 
 func modelNames(tags []ollama.ModelTag) []string {

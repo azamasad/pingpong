@@ -25,6 +25,10 @@ Copy `bin/pingpong` and a local config to Mane. Load
 `deploy/com.pingpong.router.plist.example` into `~/Library/LaunchAgents/` with
 absolute paths. Publish with `tailscale serve --bg 8787` (see SETUP-GUIDE).
 
+On Firmino, `deploy/pingpong-hoststats.service.example` keeps hardware
+counters running after logout. Replace `FIRMINO_IP` first (SETUP-GUIDE
+section 2.8).
+
 Validate the plist:
 
 ```bash

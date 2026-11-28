@@ -71,6 +71,12 @@ Add `--chat` to send a tiny real request to each machine's default model. This
 is what proves the real Ollama stream works. **Its speed figure is a 2-token
 sample and is not a benchmark** (D-077). Use section 9 for speed.
 
+A machine that is not this host and has no `stats_address` is a warning: that
+is why its hardware card says "Not set up" (D-126). The warning does not fail
+`doctor`, and doctor does not call hoststats. Set the URL as in
+[SETUP-GUIDE.md](SETUP-GUIDE.md) section 2.8. Samples stay one `host_sample`
+log line each. There is no second store.
+
 The Status tab on the page (and `GET /api/status`) shows machines, job counts,
 router memory and uptime. It never shows prompts or outputs.
 
