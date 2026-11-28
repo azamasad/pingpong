@@ -1,0 +1,17 @@
+# Example only. Copy to /etc/systemd/system/pingpong-hoststats.service
+# on the worker (Firmino). Replace FIRMINO_IP with that machine's Tailscale
+# address before you enable it. Not 0.0.0.0.
+# A system unit keeps running after you log out.
+
+[Unit]
+Description=Pingpong hardware counters
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+ExecStart=/usr/local/bin/pingpong hoststats --listen FIRMINO_IP:8788
+Restart=on-failure
+RestartSec=2s
+
+[Install]
+WantedBy=multi-user.target

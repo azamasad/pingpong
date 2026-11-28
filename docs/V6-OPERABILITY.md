@@ -46,6 +46,7 @@ need the router to be running.
 | Machine | Ollama version is reported | info |
 | Machine | Default model is installed | fail if not (same rule as `MODEL_NOT_INSTALLED`) |
 | Machine | Models listed that no role or profile uses | info |
+| Machine | `stats_address` empty on a machine that is not this host | warn. The hardware card says "Not set up" for that reason (D-126). A loopback address is read locally and is not warned. A set URL is not probed. Warnings do not change the exit code |
 | Machine | With `--chat`: a tiny real chat completes (see below) | fail if the stream shape is wrong |
 
 ### The `--chat` check

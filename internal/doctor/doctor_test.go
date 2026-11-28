@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -137,6 +138,52 @@ func TestExitCodes(t *testing.T) {
 	}
 	if doctor.ExitCode([]doctor.Check{{Status: doctor.StatusFail}}, nil) != 1 {
 		t.Fatal("fail")
+	}
+}
+
+func TestRemoteMachineWithoutStatsAddressWarns(t *testing.T) {
+	fs := &fakeollama.Server{Models: []string{"m:8b"}}
+	ts := fakeollama.NewHTTPTestServer(fs)
+	defer ts.Close()
+	cfg := baseCfg(ts.URL, "mane")
+	cfg.Health.Timeout.Duration = 50 * time.Millisecond
+	cfg.Machines = append(cfg.Machines, config.Machine{
+		Name: "firmino", Address: "http://192.0.2.1:11434",
+		Roles: []string{"heavy"}, DefaultModel: "m:8b",
+		MaxConcurrent: 1, NumCtx: 8192,
+	})
+	out := doctor.Run(context.Background(), cfg, nil, doctor.Options{
+		DiskFree: func(string) (uint64, error) { return 10 << 30, nil },
+	})
+	if _, ok := find(out, "machine.mane.stats_address"); ok {
+		t.Fatal("this host is read locally and needs no stats_address")
+	}
+	c, ok := find(out, "machine.firmino.stats_address")
+	if !ok || c.Status != doctor.StatusWarn {
+		t.Fatalf("stats_address %+v", c)
+	}
+	if !strings.Contains(c.Message, "stats_address") || !strings.Contains(c.Message, "Not set up") {
+		t.Fatalf("message %q", c.Message)
+	}
+	if c.Hint == "" {
+		t.Fatal("expected a setup hint")
+	}
+
+	cfg.Machines[1].StatsAddress = "   "
+	blank := doctor.Run(context.Background(), cfg, nil, doctor.Options{
+		DiskFree: func(string) (uint64, error) { return 10 << 30, nil },
+	})
+	c, ok = find(blank, "machine.firmino.stats_address")
+	if !ok || c.Status != doctor.StatusWarn {
+		t.Fatalf("blank stats_address %+v", c)
+	}
+
+	cfg.Machines[1].StatsAddress = "http://192.0.2.1:8788"
+	set := doctor.Run(context.Background(), cfg, nil, doctor.Options{
+		DiskFree: func(string) (uint64, error) { return 10 << 30, nil },
+	})
+	if _, ok := find(set, "machine.firmino.stats_address"); ok {
+		t.Fatal("a set stats_address is not a warning")
 	}
 }
 

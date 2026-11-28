@@ -196,6 +196,9 @@ timing, memory). That run is manual today. V6's `doctor` replaces most of it.
 - `internal/doctor`: unknown machine, unreachable machine, missing default
   model, storage warn when jobs off, writable `data_dir`, disk warn and fail
   thresholds, exit codes, and the `--chat` check (including its 2-token sample).
+  A remote machine with no `stats_address` warns that the hardware card says
+  "Not set up". A loopback machine, and a remote machine with `stats_address`
+  set, do not (`TestRemoteMachineWithoutStatsAddressWarns`).
 - `internal/ollama`: `Version` against a fake server.
 - Graceful shutdown: running jobs are stopped on purpose, marked retrying with
   `ROUTER_RESTARTING`, and counted toward the retry window.

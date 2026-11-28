@@ -129,10 +129,13 @@ port. `ufw` here protects the LAN side.
 
 The page reads Mane's CPU, memory, temperature and network inside the router.
 Firmino's numbers come from a small extra process, `pingpong hoststats`. It
-serves counters only. It has no page.
+serves counters only. It has no page. Until `stats_address` is set, Firmino's
+card says "Not set up", and `pingpong doctor` says that in a warning (D-126).
 
-- [ ] On Mane, build the Linux binary and copy it to Firmino (placeholders only;
-      do not commit the real address):
+Replace `FIRMINO_IP` below with Firmino's Tailscale address before you run
+the commands. Do not commit that address.
+
+- [ ] On Mane, build the Linux binary:
 
       ```bash
       cd ~/src/pingpong
@@ -140,15 +143,48 @@ serves counters only. It has no page.
       GOOS=linux GOARCH=amd64 go build -o bin/pingpong-linux-amd64 ./cmd/pingpong
       ```
 
-      Copy `bin/pingpong-linux-amd64` to Firmino as `/usr/local/bin/pingpong`.
-- [ ] On Firmino, bind hoststats to Firmino's Tailscale address, not `0.0.0.0`:
+- [ ] Copy it to Firmino and install it as `/usr/local/bin/pingpong`:
 
       ```bash
-      /usr/local/bin/pingpong hoststats --listen <FIRMINO_TAILSCALE_IP>:8788
+      scp bin/pingpong-linux-amd64 FIRMINO_IP:/tmp/pingpong-linux-amd64
+      ssh FIRMINO_IP 'sudo install -m 755 /tmp/pingpong-linux-amd64 /usr/local/bin/pingpong'
       ```
 
-      Keep it across reboots with a systemd unit whose `ExecStart` is that
-      command.
+- [ ] On Firmino, listen on that machine's Tailscale address, port 8788.
+      A command typed in the shell stops when you log out. Install the
+      systemd unit so hoststats keeps running after logout and after a reboot.
+      Copy `deploy/pingpong-hoststats.service.example` from Mane, replace
+      `FIRMINO_IP`, then enable it. The address is a placeholder. Not `0.0.0.0`.
+
+      ```ini
+      [Unit]
+      Description=Pingpong hardware counters
+      After=network-online.target
+      Wants=network-online.target
+
+      [Service]
+      ExecStart=/usr/local/bin/pingpong hoststats --listen FIRMINO_IP:8788
+      Restart=on-failure
+      RestartSec=2s
+
+      [Install]
+      WantedBy=multi-user.target
+      ```
+
+      Replace `FIRMINO_IP` in your copy of the unit first, then install it.
+      A system unit is not tied to your login.
+
+      ```bash
+      scp deploy/pingpong-hoststats.service.example FIRMINO_IP:/tmp/pingpong-hoststats.service
+      ssh FIRMINO_IP 'sudo cp /tmp/pingpong-hoststats.service /etc/systemd/system/pingpong-hoststats.service && sudo systemctl daemon-reload && sudo systemctl enable --now pingpong-hoststats && systemctl status pingpong-hoststats'
+      ```
+
+      To try it once by hand:
+
+      ```bash
+      /usr/local/bin/pingpong hoststats --listen FIRMINO_IP:8788
+      ```
+
 - [ ] On Mane, install the router build, set Firmino's `stats_address`, and
       restart. The address is only in `~/pingpong.local.yaml`, never in the repo.
 
@@ -161,7 +197,7 @@ serves counters only. It has no page.
       Under the `firmino` machine:
 
       ```yaml
-      stats_address: "http://<FIRMINO_TAILSCALE_IP>:8788"
+      stats_address: "http://FIRMINO_IP:8788"
       ```
 
       ```bash
@@ -169,11 +205,13 @@ serves counters only. It has no page.
       ```
 
       Mane's own card needs no `stats_address`. The router reads it locally.
+- [ ] `pingpong doctor` no longer warns that Firmino's card says "Not set up".
 - [ ] The Tailscale ACL must allow Mane to reach port 8788 beside 11434. The
       example in [NETWORK-AND-SECURITY.md](NETWORK-AND-SECURITY.md) includes
       both. From the MacBook Air, port 8788 on Firmino must be refused.
 - [ ] With the page open, the router log gains one `host_sample` line per
       machine about every 5 seconds (Mane, and Firmino once the URL answers).
+      That line is the history. There is no second store.
 
 ## 3. Mane (Mac mini)
 
